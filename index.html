@@ -79,8 +79,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 
 /* EOD BADGE */
 .eod-badge{font-size:0.48rem;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,184,48,0.2);padding:1px 4px;border-radius:2px;margin-left:3px;vertical-align:middle;}
-</style>
 .eod-tbl thead th{position:sticky;top:0;z-index:2;background:var(--surface);color:var(--dim);font-size:0.57rem;text-transform:uppercase;letter-spacing:.06em;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap;}
+</style>
 <!-- END GLOBAL STYLES -->
 
 
@@ -467,6 +467,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 <!-- DASH BODY START -->
 <div class="dash-body">
 
+<!-- ============================================================
      SECTION 3: PNL · POSITIONS · TRADES
      Sheets: PositionLog, DailyTrades
      Fields: pnl, positions, trades, session stats
@@ -551,6 +552,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 3 -->
 
+<!-- ============================================================
      SECTION 2: DAY PROFILE INTELLIGENCE
      Sheets: DayProfile, NiftyCandles
      Fields: regime, breadth, median, nifty, gates, flags
@@ -651,6 +653,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 2 -->
 
+<!-- ============================================================
      SECTION 12: SESSION QUALITY SCORE
      Source: Computed from all sections
      ============================================================ -->
@@ -678,6 +681,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 12 -->
 
+<!-- ============================================================
      SECTION 5: ENTRY QUALITY + EXTRACTION EFFICIENCY
      Source: DailyTrades × LiveContext (max_run_from_open_pct)
      Live: dashes until EOD fields available
@@ -718,6 +722,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 5 -->
 
+<!-- ============================================================
      SECTION 13: SIMULATION SCENARIOS
      Source: LiveContext × TradeManagerLong (simulated in dashboard)
      ============================================================ -->
@@ -748,6 +753,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 13 -->
 
+<!-- ============================================================
      SECTION 6: HOLD TIME ANALYSIS
      Source: DailyTrades.avg_holding_min + pnl_inr
      ============================================================ -->
@@ -769,6 +775,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 6 -->
 
+<!-- ============================================================
      SECTION 7: SIGNAL & GATE ANALYSIS
      Source: TradeManagerLong.tm_reason aggregated
      ============================================================ -->
@@ -812,6 +819,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 7 -->
 
+<!-- ============================================================
      SECTION 8: BEST 15 / WORST 15 TRADES
      Source: DailyTrades enriched with LiveContext EOD fields
      ============================================================ -->
@@ -861,6 +869,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 8 -->
 
+<!-- ============================================================
      SECTION 9: UNIVERSE — TOP RUNNERS + r915 + INTERVAL RETURNS
      Source: LiveContext EOD fields + DayProfile intervals
      ============================================================ -->
@@ -905,6 +914,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 9 -->
 
+<!-- ============================================================
      SECTION 10: STARS NEVER SEEN + MISSED OPPORTUNITIES
      Source: LiveContext cross-ref TradeManagerLong
      ============================================================ -->
@@ -939,6 +949,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 10 -->
 
+<!-- ============================================================
      SECTION 11: TOMORROW'S WATCHLIST
      Source: LiveContext — close_position_pct + r_1400_1530 + max_run
      ============================================================ -->
@@ -962,6 +973,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 11 -->
 
+<!-- ============================================================
      SECTION 14: P&L AT SCALE
      Source: DailyTrades total × multipliers
      ============================================================ -->
@@ -978,6 +990,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 14 -->
 
+<!-- ============================================================
      SECTION 4: STOCK UNIVERSE
      Sheets: LiveContext, DayCandles, SymbolState
      Fields: eligibility, mi_score, sparklines, drill-down
