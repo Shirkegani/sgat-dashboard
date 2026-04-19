@@ -1647,7 +1647,7 @@ function s3DrawCurveFromState() {
 function s3RenderCurve(points, timestamps) {
   var svg = document.getElementById('s3-pnl-svg'); svg.innerHTML = '';
   if (!points || points.length < 2) {
-    svg.innerHTML = '<text x="300" y="55" fill="#3a5060" text-anchor="middle" font-size="11" font-family='JetBrains Mono'>No curve data yet</text>';
+    svg.innerHTML = '<text x="300" y="55" fill="#3a5060" text-anchor="middle" font-size="11" font-family="JetBrains Mono">No curve data yet</text>';
     return;
   }
   // Ensure tooltip div exists
