@@ -2529,12 +2529,12 @@ function s7Render(enriched, tmlong, context, eodAvail) {
   var eodTrades = enriched.filter(function(t){return t.r915 !== null;});
   var medR915 = eodTrades.length ? eodTrades.map(function(t){return t.r915;}).sort(function(a,b){return a-b;}) : [];
   var medR915val = medR915.length ? medR915[Math.floor(medR915.length/2)] : null;
-  var rvolArr = tmlong.filter(function(t){return t.last_action==='ENTER' && t.rvol;}).map(function(t){return parseFloat(t.rvol)||0;});
+  var rvolArr = tmlong.filter(function(t){return (t._has_enter===true||t.last_action==='ENTER') && (t._enter_rvol||t.rvol);}).map(function(t){return parseFloat(t._enter_rvol||t.rvol)||0;});
   var medRvol = rvolArr.length ? (rvolArr.sort(function(a,b){return a-b;})[Math.floor(rvolArr.length/2)]) : null;
   var rvolGt15 = rvolArr.length ? (rvolArr.filter(function(v){return v>=1.5;}).length/rvolArr.length*100).toFixed(0) : '—';
 
   cardsEl.innerHTML =
-    '<div class="eq-card"><div class="eq-lbl">Signals (ENTER)</div><div class="eq-val inf">' + tmlong.filter(function(t){return t.last_action==='ENTER';}).length + '</div><div class="eq-sub">unique ENTER signals</div></div>'
+    '<div class="eq-card"><div class="eq-lbl">Signals (ENTER)</div><div class="eq-val inf">' + tmlong.filter(function(t){return t._has_enter===true||t.last_action==='ENTER';}).length + '</div><div class="eq-sub">unique ENTER signals</div></div>'
     +'<div class="eq-card"><div class="eq-lbl">r915 median at entry</div><div class="eq-val '+(medR915val!==null?(medR915val>=0?'pos':'neg'):'dim')+'">'+(medR915val!==null?fPct(medR915val,2):'—')+'</div><div class="eq-sub">opening range at entry</div></div>'
     +'<div class="eq-card"><div class="eq-lbl">RVOL median at entry</div><div class="eq-val '+(medRvol!==null?(medRvol>=1?'pos':'neg'):'dim')+'">'+(medRvol!==null?medRvol.toFixed(2)+'×':'—')+'</div><div class="eq-sub">' + rvolGt15 + '% had RVOL > 1.5×</div></div>'
     +'<div class="eq-card"><div class="eq-lbl">Total blocked</div><div class="eq-val neg">' + totalBlocked.toLocaleString('en-IN') + '</div><div class="eq-sub">NONE decisions on watching</div></div>';
@@ -2569,7 +2569,7 @@ function s7Render(enriched, tmlong, context, eodAvail) {
   // Entry score quartile
   var withScore = enriched.filter(function(t){return t.max_run !== null;});
   if (withScore.length >= 8) {
-    var scored = tmlong.filter(function(t){return t.entry_score && t.last_action==='ENTER';})
+    var scored = tmlong.filter(function(t){return (t._has_enter===true||t.last_action==='ENTER') && (t._enter_entry_score||t.entry_score);})
       .sort(function(a,b){return (parseFloat(a.entry_score)||0)-(parseFloat(b.entry_score)||0);});
     var qSz = Math.floor(scored.length/4);
     var quartiles = [
@@ -2798,7 +2798,7 @@ function s10Render(context, tmlong, enriched, eodAvail) {
   var oppCost = 0;
   missed.forEach(function(m) {
     if (m.sim_inr > 0) oppCost += m.sim_inr;
-    var tmRow = tmlong.find(function(t){return t.tradingsymbol===m.sym && t.last_action==='ENTER';});
+    var tmRow = tmlong.find(function(t){return t.tradingsymbol===m.sym && (t._has_enter===true||t.last_action==='ENTER');});
     var sigTime = tmRow ? hhmm2str(tmRow.hhmm_checked) : '—';
     var tr = document.createElement('tr');
     tr.innerHTML = '<td>' + eodStockLink(m.sym) + '</td>'
@@ -2934,15 +2934,30 @@ function s13Render(enriched, context, tmlong, eodAvail) {
   }
 
   // Get first ENTER per stock from TML
+  // Use _has_enter + _enter_pct_from_open set by Apps Script readTMLongForDashboard
+  // These come from the FIRST ENTER row per stock — not the latest state row
+  // last_action on latest row is EXIT/TRAIL by EOD, so filtering by last_action=ENTER only gets ~13
   var firstEnters = {};
-  tmlong.filter(function(t){ return t.last_action === 'ENTER'; })
-    .sort(function(a,b){ return (parseFloat(a.hhmm_checked)||0) - (parseFloat(b.hhmm_checked)||0); })
-    .forEach(function(t){
-      if (!firstEnters[t.tradingsymbol]) {
-        firstEnters[t.tradingsymbol] = { sym: t.tradingsymbol, pct: parseFloat(t.pct_from_open)||null, score: parseFloat(t.entry_score)||0, hhmm: parseFloat(t.hhmm_checked)||0 };
+  tmlong.forEach(function(t){
+    if (!t.tradingsymbol) return;
+    var entryPct  = parseFloat(t._enter_pct_from_open);
+    var hasEnter  = t._has_enter === true;
+    // Fallback: if Apps Script didn't send _enter fields, try last_action directly
+    if (!hasEnter || !isFinite(entryPct)) {
+      if (t.last_action === 'ENTER') {
+        entryPct = parseFloat(t.pct_from_open);
+        hasEnter = true;
       }
-    });
-  var signals = Object.values(firstEnters).filter(function(e){ return e.pct !== null; });
+    }
+    if (!hasEnter || !isFinite(entryPct)) return;
+    firstEnters[t.tradingsymbol] = {
+      sym:   t.tradingsymbol,
+      pct:   entryPct,
+      score: parseFloat(t._enter_entry_score || t.entry_score) || 0,
+      hhmm:  parseFloat(t._enter_hhmm || t.hhmm_checked) || 0
+    };
+  });
+  var signals = Object.values(firstEnters).filter(function(e){ return e.pct !== null && isFinite(e.pct); });
   var sortedByScore = signals.slice().sort(function(a,b){ return b.score - a.score; });
   var n = sortedByScore.length;
 
