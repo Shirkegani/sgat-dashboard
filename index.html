@@ -75,7 +75,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* MAIN WRAPPER */
 #dashboard{display:none;flex-direction:column;}
 #dashboard.show{display:flex;}
-.dash-body{padding:14px 16px;max-width:1440px;margin:0 auto;width:100%;padding:0 12px;}
+.dash-body{padding:8px 12px;max-width:1440px;margin:0 auto;width:100%;}
 
 /* EOD BADGE */
 .eod-badge{font-size:0.48rem;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,184,48,0.2);padding:1px 4px;border-radius:2px;margin-left:3px;vertical-align:middle;}
@@ -190,7 +190,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      Fields: regime, breadth, median, nifty, gates, flags
      ============================================================ -->
 <style>
-.s2-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;}
+.s2-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
 .s2-hdr{background:var(--surface);padding:7px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .s2-title{font-size:0.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;}
 .s2-cycle{font-size:0.62rem;color:var(--blue);}
@@ -213,7 +213,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 
 /* STATS BAR */
 .s2-stats{display:flex;border-bottom:1px solid var(--border);}
-.s2-sc{flex:1;padding:7px 10px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px;}
+.s2-sc{flex:1;padding:5px 8px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px;}
 .s2-sc:last-child{border-right:none;}
 .s2-sc-lbl{font-size:0.57rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
 .s2-sc-val{font-size:0.82rem;font-weight:500;}
@@ -366,7 +366,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      Fields: pnl, positions, trades, session stats
      ============================================================ -->
 <style>
-.s3-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;}
+.s3-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
 .s3-hdr{background:var(--surface);padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .s3-title{font-size:0.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;}
 /* Filters */
@@ -380,10 +380,10 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s3-f-exited{background:rgba(56,182,255,0.12)!important;color:var(--blue)!important;}
 /* 2x2 Cards */
 .s3-cards{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border);}
-.s3-card{background:var(--card);padding:14px 16px;}
+.s3-card{background:var(--card);padding:10px 12px;}
 .s3-card-hdr{font-size:0.57rem;color:var(--blue);text-transform:uppercase;letter-spacing:.1em;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:10px;}
 .s3-card-big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
-.s3-card-main{font-family:var(--font-disp);font-size:1.6rem;font-weight:800;line-height:1;}
+.s3-card-main{font-family:var(--font-disp);font-size:1.4rem;font-weight:800;line-height:1;}
 .s3-card-sub{font-size:0.65rem;color:var(--dim);}
 .s3-rows{display:flex;flex-direction:column;gap:2px;}
 .s3-row{display:flex;justify-content:space-between;font-size:0.62rem;padding:2px 0;border-bottom:1px solid rgba(30,42,53,0.4);}
@@ -486,17 +486,15 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   <div class="s3-tables">
     <div class="s3-tbl">
       <div class="s3-tbl-title">Open Positions <span id="s3-open-cnt">0</span></div>
-      <div class="s3-tbl-scroll"><table class="s3-table"><thead><tr><th>Symbol</th><th>Side</th><th>P&amp;L %</th><th>P&amp;L ₹</th><th>Hold</th></tr></thead>
-        <tbody id="s3-open-tbody"></tbody>
-        <tfoot><tr class="s3-total-row"><td colspan="2">Total</td><td id="s3-open-total-pct">—</td><td id="s3-open-total-inr">—</td><td></td></tr></tfoot>
-        </table></div>
+      <div class="s3-tbl-scroll"><table class="s3-table"><thead><tr><th onclick="s3SortTable('open','sym')">Symbol</th><th>Side</th><th onclick="s3SortTable('open','pct')">P&amp;L %</th><th onclick="s3SortTable('open','inr')">P&amp;L ₹</th><th onclick="s3SortTable('open','hold')">Hold</th></tr></thead>
+        <tbody id="s3-open-tbody"></tbody></table></div>
+      <table class="s3-table"><tfoot><tr class="s3-total-row"><td colspan="2" style="padding:5px 6px">Total open</td><td id="s3-open-total-pct">—</td><td id="s3-open-total-inr">—</td><td></td></tr></tfoot></table>
     </div>
     <div class="s3-tbl">
       <div class="s3-tbl-title">Closed Trades <span id="s3-closed-cnt">0</span></div>
-      <div class="s3-tbl-scroll"><table class="s3-table"><thead><tr><th>Symbol</th><th>Side</th><th>P&amp;L %</th><th>P&amp;L ₹</th><th>Hold</th></tr></thead>
-        <tbody id="s3-closed-tbody"></tbody>
-        <tfoot><tr class="s3-total-row"><td colspan="2">Total</td><td id="s3-closed-total-pct">—</td><td id="s3-closed-total-inr">—</td><td></td></tr></tfoot>
-        </table></div>
+      <div class="s3-tbl-scroll"><table class="s3-table"><thead><tr><th onclick="s3SortTable('closed','sym')">Symbol</th><th>Side</th><th onclick="s3SortTable('closed','pct')">P&amp;L %</th><th onclick="s3SortTable('closed','inr')">P&amp;L ₹</th><th onclick="s3SortTable('closed','hold')">Hold</th></tr></thead>
+        <tbody id="s3-closed-tbody"></tbody></table></div>
+      <table class="s3-table"><tfoot><tr class="s3-total-row"><td colspan="2" style="padding:5px 6px">Total closed</td><td id="s3-closed-total-pct">—</td><td id="s3-closed-total-inr">—</td><td></td></tr></tfoot></table>
     </div>
   </div>
 </div>
@@ -508,7 +506,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      Fields: eligibility, mi_score, sparklines, drill-down
      ============================================================ -->
 <style>
-.s4-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;}
+.s4-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
 .s4-hdr{background:var(--surface);padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .s4-title{font-size:0.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;}
 .s4-side-tabs{display:flex;gap:0;border:1px solid var(--border);border-radius:4px;overflow:hidden;}
@@ -552,7 +550,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* Overlay + Drill */
 .s4-overlay{display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.35);}
 .s4-overlay.show{display:block;}
-.s4-drill{position:fixed;top:0;right:-440px;width:420px;height:100vh;background:#0a1018;border-left:1px solid var(--border);overflow-y:auto;transition:right 0.28s cubic-bezier(0.4,0,0.2,1);z-index:1000;}
+.s4-drill{position:fixed;top:0;right:-52%;width:50%;min-width:480px;height:100vh;background:#0a1018;border-left:1px solid var(--border);overflow-y:auto;transition:right 0.28s cubic-bezier(0.4,0,0.2,1);z-index:1000;}
 .s4-drill.open{right:0;}
 .s4-drill-hdr{background:var(--surface);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;z-index:2;}
 .s4-drill-sym{font-family:var(--font-disp);font-size:1.3rem;font-weight:800;color:var(--text);}
@@ -572,6 +570,15 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s4-rank-area svg{width:100%;height:100%;}
 .s4-drill-row{display:flex;justify-content:space-between;font-size:0.63rem;padding:3px 0;border-bottom:1px solid rgba(30,42,53,0.4);}
 .s4-drill-row:last-child{border-bottom:none;}
+.s4-tm-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.s4-tm-card{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 9px;}
+.s4-tm-lbl{font-size:0.52rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;}
+.s4-tm-val{font-size:0.82rem;font-weight:500;}
+.s4-tm-rows{display:flex;flex-direction:column;gap:2px;}
+.s4-tm-row{display:flex;justify-content:space-between;font-size:0.62rem;padding:3px 0;border-bottom:1px solid rgba(30,42,53,0.35);}
+.s4-tm-row:last-child{border-bottom:none;}
+.s4-tm-rl{color:var(--dim);}.s4-tm-rv{font-weight:500;}
+
 .s4-dr-lbl{color:var(--dim);}.s4-dr-val{font-weight:500;}
 </style>
 
@@ -654,9 +661,26 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     </div>
   </div>
   <div class="s4-drill-sec">
-    <div class="s4-drill-sec-title">MI rank history</div>
-    <div class="s4-rank-area"><svg id="s4-d-rank" viewBox="0 0 380 60" preserveAspectRatio="none"></svg></div>
-    <div style="font-size:0.53rem;color:var(--dim);margin-top:3px;">Lower = better · Blue line</div>
+    <div class="s4-drill-sec-title">Trade Manager</div>
+    <div class="s4-tm-grid">
+      <div class="s4-tm-card"><div class="s4-tm-lbl">TM Action</div><div class="s4-tm-val" id="s4-tm-action">—</div></div>
+      <div class="s4-tm-card"><div class="s4-tm-lbl">Quality Tier</div><div class="s4-tm-val" id="s4-tm-qtier">—</div></div>
+      <div class="s4-tm-card"><div class="s4-tm-lbl">Quality Score</div><div class="s4-tm-val" id="s4-tm-qscore">—</div></div>
+      <div class="s4-tm-card"><div class="s4-tm-lbl">Entry Score</div><div class="s4-tm-val" id="s4-tm-escore">—</div></div>
+      <div class="s4-tm-card"><div class="s4-tm-lbl">Entry Rank</div><div class="s4-tm-val" id="s4-tm-erank">—</div></div>
+      <div class="s4-tm-card"><div class="s4-tm-lbl">RVOL</div><div class="s4-tm-val" id="s4-tm-rvol">—</div></div>
+    </div>
+    <div class="s4-tm-rows">
+      <div class="s4-tm-row"><span class="s4-tm-rl">Structure 5m</span><span class="s4-tm-rv" id="s4-tm-struct">—</span></div>
+      <div class="s4-tm-row"><span class="s4-tm-rl">Momentum</span><span class="s4-tm-rv" id="s4-tm-mom">—</span></div>
+      <div class="s4-tm-row"><span class="s4-tm-rl">Velocity now / prev</span><span class="s4-tm-rv" id="s4-tm-vel">—</span></div>
+      <div class="s4-tm-row"><span class="s4-tm-rl">Trail distance</span><span class="s4-tm-rv" id="s4-tm-trail">—</span></div>
+      <div class="s4-tm-row"><span class="s4-tm-rl">Giveback from peak</span><span class="s4-tm-rv" id="s4-tm-giveback">—</span></div>
+      <div class="s4-tm-row"><span class="s4-tm-rl">r915 live</span><span class="s4-tm-rv" id="s4-tm-r915">—</span></div>
+      <div class="s4-tm-row"><span class="s4-tm-rl">Above VWAP</span><span class="s4-tm-rv" id="s4-tm-vwap">—</span></div>
+      <div class="s4-tm-row"><span class="s4-tm-rl">EMA bull 5m</span><span class="s4-tm-rv" id="s4-tm-ema">—</span></div>
+      <div class="s4-tm-row"><span class="s4-tm-rl">TM Reason</span><span class="s4-tm-rv" id="s4-tm-reason" style="font-size:0.58rem;max-width:200px;text-align:right;">—</span></div>
+    </div>
   </div>
   <div class="s4-drill-sec">
     <div class="s4-drill-sec-title">Position details</div>
@@ -689,7 +713,11 @@ var STATE = {
   selectedDate: 'today',
   countdownSec: 90,
   countdownTimer: null,
-  curveData: []
+  curveData: [],
+  s3OpenSort: {col:'inr',dir:-1},
+  s3ClosedSort: {col:'inr',dir:-1},
+  s3OpenData: [],
+  s3ClosedData: []
 };
 
 // ============================================================
@@ -766,11 +794,22 @@ async function fetchAll() {
     STATE.data = json.data;
     renderAll();
     showToast('✓ Refreshed · ' + (json.date || ''));
-    // Fetch PnL curve data in background — lightweight separate call
+    // Background fetches — do not block main render
     fetchPnlCurve(date);
+    fetchTMLog(date);
   } catch(e) {
     showToast('⚠ ' + e.message, true);
   }
+}
+
+async function fetchTMLog(dateParam) {
+  try {
+    var res = await fetch(CFG.scriptUrl + '?token=' + encodeURIComponent(CFG.token) + '&tab=tmlong' + (dateParam||''));
+    var json = await res.json();
+    if (json.error || !json.data) return;
+    STATE.data.tmlong = json.data;
+    // No re-render needed — TM data only used when drill-down opens
+  } catch(e) {}
 }
 
 async function fetchPnlCurve(dateParam) {
@@ -840,7 +879,7 @@ function s1UpdateClock() {
   document.getElementById('s1-time').textContent = pad(ist.getHours())+':'+pad(ist.getMinutes())+':'+pad(ist.getSeconds());
   document.getElementById('s1-date').textContent = pad(ist.getDate())+' '+mo[ist.getMonth()]+' '+ist.getFullYear();
   var m = ist.getHours()*60 + ist.getMinutes();
-  var open = m >= 555 && m <= 930;
+  var day = ist.getDay(); var open = m >= 555 && m <= 930 && day >= 1 && day <= 5;
   var badge = document.getElementById('s1-market-badge');
   var dot = document.getElementById('s1-dot');
   var txt = document.getElementById('s1-market-text');
@@ -1106,10 +1145,23 @@ function s3RenderCards(positions, trades) {
     return f==='all'||(f==='long'&&dir!=='short')||(f==='short'&&dir==='short')||f==='exited';
   });
 
-  // P&L
-  var openPnl = positions.reduce(function(s,p){return s+(parseFloat(p.pnl)||parseFloat(p.unrealised)||0);},0);
-  var realPnl = trades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
-  var totalPnl = openPnl + realPnl;
+  // P&L — live uses PositionLog for open, past dates use DailyTrades only
+  var ist_now = new Date(new Date().getTime()+(new Date().getTimezoneOffset()+330)*60000);
+  var isPastDate = STATE.selectedDate !== 'today';
+  var isAfterClose = ist_now.getHours()*60+ist_now.getMinutes() > 930;
+
+  var openPnl, realPnl, totalPnl;
+  if (isPastDate || isAfterClose) {
+    // Day is over — all P&L is realised, no open positions
+    openPnl = 0;
+    realPnl = trades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
+    totalPnl = realPnl;
+  } else {
+    // Live: open P&L from PositionLog, realised from DailyTrades
+    openPnl = positions.reduce(function(s,p){return s+(parseFloat(p.unrealised)||parseFloat(p.pnl)||0);},0);
+    realPnl = trades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
+    totalPnl = openPnl + realPnl;
+  }
   var tgtPct = CFG.capital ? (totalPnl/(CFG.capital*0.01)*100).toFixed(1) : (totalPnl/1000*100).toFixed(1);
 
   var te = document.getElementById('s3-total');
@@ -1117,7 +1169,9 @@ function s3RenderCards(positions, trades) {
   te.className = 's3-card-main ' + (totalPnl>=0?'pos':'neg');
   document.getElementById('s3-real').textContent = (realPnl>=0?'+':'')+'₹'+Math.round(realPnl).toLocaleString('en-IN');
   document.getElementById('s3-real').className = 's3-rv '+(realPnl>=0?'pos':'neg');
-  document.getElementById('s3-open-pnl').textContent = (openPnl>=0?'+':'')+'₹'+Math.round(openPnl).toLocaleString('en-IN');
+  var openEl=document.getElementById('s3-open-pnl');
+  if(isPastDate||isAfterClose){ openEl.textContent='₹0 (closed)'; openEl.className='s3-rv dim'; }
+  else { openEl.textContent=(openPnl>=0?'+':'')+'₹'+Math.round(openPnl).toLocaleString('en-IN'); openEl.className='s3-rv '+(openPnl>=0?'pos':'neg'); }
   document.getElementById('s3-open-pnl').className = 's3-rv '+(openPnl>=0?'pos':'neg');
   document.getElementById('s3-tgt').textContent = tgtPct+'% of 1% target';
 
@@ -1194,9 +1248,9 @@ function s3DrawCurve(positions, trades) {
   sorted.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); timestamps.push((t.last_exit_ts||'').slice(11,16)); });
   if (points.length < 2) { svg.innerHTML = '<text x="300" y="45" fill="#3a5060" text-anchor="middle" font-size="11" font-family=\'JetBrains Mono\'>No curve data yet</text>'; return; }
 
-  var W=600, H=90, n=points.length;
+  var W=600, H=110, n=points.length;
   var mn=Math.min.apply(null,points), mx=Math.max.apply(null,points);
-  var pad=Math.max(Math.abs(mx-mn)*0.12,15); mn-=pad; mx+=pad; var range=mx-mn||1;
+  var pad=Math.max(Math.abs(mx-mn)*0.15,20); mn-=pad; mx+=pad; var range=mx-mn||1;
   function py(v){return H-((v-mn)/range*H);}
   function px(i){return (i/(n-1))*W;}
   var zy=py(0);
@@ -1239,7 +1293,12 @@ function s3DrawCurve(positions, trades) {
 
 function s3RenderTables(positions, trades) {
   var f = STATE.filter;
-  var filtPos = f==='exited' ? [] : positions.filter(function(p){
+  var ist_now = new Date(new Date().getTime()+(new Date().getTimezoneOffset()+330)*60000);
+  var isPastDate = STATE.selectedDate !== 'today';
+  var isAfterClose = ist_now.getHours()*60+ist_now.getMinutes() > 930;
+  // Past dates or after close: no open positions
+  var showOpenPos = !isPastDate && !isAfterClose;
+  var filtPos = (!showOpenPos || f==='exited') ? [] : positions.filter(function(p){
     if(f==='all') return true;
     var dir=(p.trade_direction||'long').toLowerCase();
     return f==='long'?dir!=='short':f==='short'?dir==='short':true;
@@ -1271,15 +1330,23 @@ function s3RenderTables(positions, trades) {
 
   var ob=document.getElementById('s3-open-tbody'); ob.innerHTML='';
   var cb=document.getElementById('s3-closed-tbody'); cb.innerHTML='';
-  if(!filtPos.length) ob.innerHTML='<tr><td colspan="5" class="s3-norows">No open positions</td></tr>';
-  else filtPos.forEach(function(p){
-    ob.appendChild(makeRow(p.tradingsymbol||'—', (p.trade_direction||'long').toLowerCase(), p.pnl_pct||0, p.pnl||p.unrealised||0, '—', true));
-  });
+
+  // Store data for sort
+  STATE.s3OpenData = filtPos.map(function(p){return {sym:p.tradingsymbol||'—',side:(p.trade_direction||'long').toLowerCase(),pnlPct:parseFloat(p.pnl_pct||0),pnlInr:parseFloat(p.pnl||p.unrealised||0),hold:'—'};});
+  STATE.s3ClosedData = filtTrades.map(function(t){return {sym:t.tradingsymbol||'—',side:(t.trade_direction||'long').toLowerCase(),pnlPct:parseFloat(t.pnl_pct||0),pnlInr:parseFloat(t.pnl_inr||0),hold:parseFloat(t.avg_holding_min)?Math.round(t.avg_holding_min)+'m':'—'};});
+
+  if(!filtPos.length){
+    if(isPastDate||isAfterClose) ob.innerHTML='<tr><td colspan="5" class="s3-norows" style="color:#3a5060">Day complete — all positions closed</td></tr>';
+    else ob.innerHTML='<tr><td colspan="5" class="s3-norows">No open positions</td></tr>';
+  } else {
+    STATE.s3OpenData.sort(function(a,b){return b.pnlInr-a.pnlInr;});
+    STATE.s3OpenData.forEach(function(d){ob.appendChild(s3MakeRow(d));});
+  }
   if(!filtTrades.length) cb.innerHTML='<tr><td colspan="5" class="s3-norows">No trades</td></tr>';
-  else filtTrades.forEach(function(t){
-    var hold = parseFloat(t.avg_holding_min) ? Math.round(t.avg_holding_min)+'m' : '—';
-    cb.appendChild(makeRow(t.tradingsymbol||'—', (t.trade_direction||'long').toLowerCase(), t.pnl_pct||0, t.pnl_inr||0, hold, true));
-  });
+  else {
+    STATE.s3ClosedData.sort(function(a,b){return b.pnlInr-a.pnlInr;});
+    STATE.s3ClosedData.forEach(function(d){cb.appendChild(s3MakeRow(d));});
+  }
   document.getElementById('s3-open-cnt').textContent = filtPos.length;
   document.getElementById('s3-closed-cnt').textContent = filtTrades.length;
 
@@ -1295,6 +1362,43 @@ function s3RenderTables(positions, trades) {
   var ctp = document.getElementById('s3-closed-total-pct');
   var closedTotalPct = filtTrades.length ? (closedTotalInr/(filtTrades.length*2000)*100).toFixed(1)+'%' : '—';
   if(ctp){ ctp.textContent=closedTotalPct; }
+}
+
+
+function s3SortTable(tbl, col) {
+  var st = tbl==='open' ? STATE.s3OpenSort : STATE.s3ClosedSort;
+  if (st.col === col) st.dir *= -1; else { st.col=col; st.dir=-1; }
+  s3ReRenderTable(tbl);
+}
+
+function s3ReRenderTable(tbl) {
+  var data = tbl==='open' ? STATE.s3OpenData : STATE.s3ClosedData;
+  var st   = tbl==='open' ? STATE.s3OpenSort : STATE.s3ClosedSort;
+  var sorted = data.slice().sort(function(a,b){
+    var av = st.col==='sym'?a.sym:st.col==='pct'?a.pnlPct:st.col==='inr'?a.pnlInr:a.hold;
+    var bv = st.col==='sym'?b.sym:st.col==='pct'?b.pnlPct:st.col==='inr'?b.pnlInr:b.hold;
+    return (typeof av==='number'?av-bv:String(av).localeCompare(String(bv)))*st.dir;
+  });
+  var tbody = document.getElementById('s3-'+tbl+'-tbody');
+  tbody.innerHTML='';
+  sorted.forEach(function(d){ tbody.appendChild(s3MakeRow(d)); });
+}
+
+function s3MakeRow(d) {
+  var tr=document.createElement('tr');
+  var cls=d.pnlInr>=0?'pos':'neg', sign=d.pnlInr>=0?'+':'';
+  tr.innerHTML='<td><span class="s3-sym-link">'+d.sym+'</span></td>'
+    +'<td><span class="s3-tag-'+(d.side==='short'?'s':'l')+'">'+(d.side==='short'?'SHORT':'LONG')+'</span></td>'
+    +'<td class="'+cls+'">'+(d.pnlPct>=0?'+':'')+parseFloat(d.pnlPct||0).toFixed(2)+'%</td>'
+    +'<td class="'+cls+'">'+sign+'₹'+Math.abs(Math.round(d.pnlInr))+'</td>'
+    +'<td style="color:var(--dim)">'+d.hold+'</td>';
+  tr.querySelector('.s3-sym-link').addEventListener('click',function(e){
+    e.stopPropagation();
+    var ctx=STATE.data.context||[];
+    var found=ctx.find(function(r){return r.tradingsymbol===d.sym;});
+    if(found) s4OpenDrill(found);
+  });
+  return tr;
 }
 
 function s3SetFilter(f) {
@@ -1424,9 +1528,18 @@ async function s4OpenDrill(r) {
     vals = r.m5_closes_csv.split(',').map(Number).filter(function(v){return isFinite(v)&&v>0;});
   }
 
-  var entry = parseFloat(r.entry_price||null);
-  var trail = parseFloat(r.trail_level||null)||parseFloat(r.peak_price||null);
-  var peak = parseFloat(r.peak_price||null);
+  // Entry/trail/peak — read from LiveContext TM fields
+  var entry = parseFloat(r.entry_price || null);
+  // Try TM log data if available
+  var tmEntry = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
+  if (tmEntry) {
+    if (!isFinite(entry)) entry = parseFloat(tmEntry.entry_price||null);
+    var trail = parseFloat(tmEntry.trail_level||null);
+    var peak = parseFloat(tmEntry.peak_price||null);
+  } else {
+    var trail = parseFloat(r.trail_level||null);
+    var peak = parseFloat(r.peak_price||null);
+  }
 
   if (vals.length) {
     s4DrawChart(vals, entry, trail, peak);
@@ -1447,8 +1560,45 @@ async function s4OpenDrill(r) {
     velEl.className = 's4-ds-val '+(vel>=0?'pos':'neg');
   }
 
-  // MI rank history from MILog if available (placeholder)
-  s4DrawRank([]);
+  // Trade Manager fields from TM Log
+  var tm = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
+  if (tm) {
+    function tmSet(id, val, cls) {
+      var el=document.getElementById(id);
+      if(!el) return;
+      el.textContent = val||'—';
+      if(cls) el.className='s4-tm-val '+cls;
+    }
+    var tmActionCol = tm.tm_action==='ENTER'?'pos':tm.tm_action==='EXIT'||tm.tm_action==='SL'?'neg':'dim';
+    tmSet('s4-tm-action', tm.tm_action, tmActionCol);
+    var qtierCol = tm.quality_tier==='QUALITY_HIGH'?'pos':tm.quality_tier==='QUALITY_MEDIUM'?'neu':'neg';
+    tmSet('s4-tm-qtier', (tm.quality_tier||'').replace('QUALITY_',''), qtierCol);
+    tmSet('s4-tm-qscore', parseFloat(tm.quality_score||0).toFixed(0));
+    tmSet('s4-tm-escore', tm.entry_score ? parseFloat(tm.entry_score).toFixed(0) : '—');
+    tmSet('s4-tm-erank', tm.entry_rank||'—');
+    tmSet('s4-tm-rvol', tm.rvol ? parseFloat(tm.rvol).toFixed(2)+'×' : '—', parseFloat(tm.rvol)>=1.5?'pos':parseFloat(tm.rvol)>=0.8?'neu':'neg');
+    var strOk = tm.structure_ok_5m===true||tm.structure_ok_5m==='TRUE'||tm.structure_ok_5m===1;
+    document.getElementById('s4-tm-struct').textContent = (tm.structure_state_5m||'—') + (strOk?' ✓':' ✗');
+    document.getElementById('s4-tm-struct').className = 's4-tm-rv '+(strOk?'pos':'neg');
+    var momCol = tm.momentum_state==='SURGE'||tm.momentum_state==='TREND_UP'?'pos':tm.momentum_state==='DUMP'||tm.momentum_state==='FADE'?'neg':'neu';
+    document.getElementById('s4-tm-mom').textContent = tm.momentum_state||'—';
+    document.getElementById('s4-tm-mom').className = 's4-tm-rv '+momCol;
+    document.getElementById('s4-tm-vel').textContent = (parseFloat(tm.velocity_now||0).toFixed(3)) + ' / ' + (parseFloat(tm.velocity_prev||0).toFixed(3));
+    document.getElementById('s4-tm-trail').textContent = tm.trail_distance ? parseFloat(tm.trail_distance).toFixed(2)+'%' : '—';
+    document.getElementById('s4-tm-giveback').textContent = tm.giveback_from_peak ? parseFloat(tm.giveback_from_peak).toFixed(2)+'%' : '—';
+    document.getElementById('s4-tm-r915').textContent = tm.r_915_live ? (parseFloat(tm.r_915_live)>=0?'+':'')+parseFloat(tm.r_915_live).toFixed(2)+'%' : '—';
+    var vwapOk = tm.above_vwap_5m===true||tm.above_vwap_5m==='TRUE'||tm.above_vwap_5m===1;
+    document.getElementById('s4-tm-vwap').textContent = vwapOk?'YES':'NO';
+    document.getElementById('s4-tm-vwap').className = 's4-tm-rv '+(vwapOk?'pos':'neg');
+    var emaOk = tm.ema_bull_5m===true||tm.ema_bull_5m==='TRUE'||tm.ema_bull_5m===1;
+    document.getElementById('s4-tm-ema').textContent = emaOk?'YES':'NO';
+    document.getElementById('s4-tm-ema').className = 's4-tm-rv '+(emaOk?'pos':'neg');
+    document.getElementById('s4-tm-reason').textContent = tm.tm_reason||'—';
+  } else {
+    ['s4-tm-action','s4-tm-qtier','s4-tm-qscore','s4-tm-escore','s4-tm-erank','s4-tm-rvol'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.textContent='Loading...';
+    });
+  }
 
   // Position details
   var pr = document.getElementById('s4-d-pos');
