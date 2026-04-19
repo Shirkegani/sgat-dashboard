@@ -1204,37 +1204,20 @@ async function fetchAll() {
     var json = await res.json();
     if (json.error) throw new Error(json.error);
     STATE.data = json.data;
+    // Curve and tmlong now arrive in the same response
+    if (json.data.curve && json.data.curve.length) {
+      STATE.curveData = json.data.curve;
+    }
     renderAll();
     showToast('✓ Refreshed · ' + (json.date || ''));
-    // Background fetches — do not block main render
-    fetchPnlCurve(date);
-    fetchTMLog(date);
   } catch(e) {
     showToast('⚠ ' + e.message, true);
   }
 }
 
-async function fetchTMLog(dateParam) {
-  try {
-    var res = await fetch(CFG.scriptUrl + '?token=' + encodeURIComponent(CFG.token) + '&tab=tmlong' + (dateParam||''));
-    var json = await res.json();
-    if (json.error || !json.data) return;
-    STATE.data.tmlong = json.data;
-    // No re-render needed — TM data only used when drill-down opens
-  } catch(e) {}
-}
+// fetchTMLog removed — tmlong now included in dashboard response
 
-async function fetchPnlCurve(dateParam) {
-  try {
-    var res = await fetch(CFG.scriptUrl + '?token=' + encodeURIComponent(CFG.token) + '&tab=positions_curve' + (dateParam||''));
-    var json = await res.json();
-    if (json.error || !json.data) return;
-    STATE.curveData = json.data; // array of {ts, pnl, count}
-    s3DrawCurveFromState();
-  } catch(e) {
-    // curve fetch failed silently — no disruption to main dashboard
-  }
-}
+// fetchPnlCurve removed — curve now included in dashboard response
 
 async function fetchDates() {
   try {
@@ -1264,7 +1247,8 @@ async function fetchCandlesForDrill(symbol) {
 
 function onDateChange() {
   STATE.selectedDate = document.getElementById('s1-date-select').value;
-  STATE.curveData = []; // clear old curve so it redraws fresh
+  STATE.curveData = [];
+  STATE.data.tmlong = [];
   fetchAll();
 }
 
@@ -1277,6 +1261,10 @@ function renderAll() {
   s3Render();
   s4RenderTable();
   renderEOD();
+  // Curve is now in STATE.curveData from dashboard response — draw it
+  if (STATE.curveData && STATE.curveData.length >= 2) {
+    s3DrawCurveFromState();
+  }
 }
 
 // ============================================================
