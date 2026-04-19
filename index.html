@@ -2316,9 +2316,19 @@ function renderEOD() {
     var dayRet   = parseFloat(lc.day_return_pct) || null;
 
     // Entry pct from TML first_enter if available
-    var tmEntry  = tmlong.find(function(m) { return m.tradingsymbol === t.tradingsymbol && m.last_action === 'ENTER'; });
-    var pctAtEntry = tmEntry ? parseFloat(tmEntry.pct_from_open) : null;
-    if (pctAtEntry === null) pctAtEntry = parseFloat(lc.r_915_930) || null; // rough fallback
+    var tmEntry  = tmlong.find(function(m) { return m.tradingsymbol === t.tradingsymbol && (m._has_enter === true || m.last_action === 'ENTER'); });
+    // Prefer _enter_pct_from_open (entry-cycle snapshot from Apps Script v3)
+    // Fall back to pct_from_open only if _enter_* is missing (legacy data)
+    var pctAtEntry = null;
+    if (tmEntry) {
+      var v = parseFloat(tmEntry._enter_pct_from_open);
+      if (isFinite(v)) pctAtEntry = v;
+      else {
+        v = parseFloat(tmEntry.pct_from_open);
+        if (isFinite(v)) pctAtEntry = v;
+      }
+    }
+    if (pctAtEntry === null) pctAtEntry = parseFloat(lc.r_915_930) || null; // last-resort fallback
 
     var actualPnlPct = parseFloat(t.pnl_pct) || 0;
     var pctConsumed  = (maxRun && maxRun > 0 && pctAtEntry !== null) ? (pctAtEntry / maxRun * 100) : null;
