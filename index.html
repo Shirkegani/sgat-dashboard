@@ -25,7 +25,7 @@
   --font-serif:'Crimson Pro',Georgia,serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html{font-size:13px;}
+html{font-size:15px;}
 body{background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh;overflow-x:hidden;}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:9999;}
 .pos{color:var(--green);}.neg{color:var(--red);}.neu{color:var(--amber);}.inf{color:var(--blue);}.dim{color:var(--muted);}
@@ -75,7 +75,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* MAIN WRAPPER */
 #dashboard{display:none;flex-direction:column;}
 #dashboard.show{display:flex;}
-.dash-body{padding:14px 16px;max-width:1800px;margin:0 auto;width:100%;}
+.dash-body{padding:14px 16px;max-width:1440px;margin:0 auto;width:100%;padding:0 12px;}
 
 /* EOD BADGE */
 .eod-badge{font-size:0.48rem;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,184,48,0.2);padding:1px 4px;border-radius:2px;margin-left:3px;vertical-align:middle;}
@@ -106,6 +106,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     <div class="setup-field"><label>Apps Script Web App URL</label><input id="cfg-script-url" type="text" placeholder="https://script.google.com/macros/s/AKfy.../exec"></div>
     <div class="setup-field"><label>Secret Token</label><input id="cfg-token" type="text" placeholder="your-secret-token"></div>
     <div class="setup-field"><label>Dashboard Password</label><input id="cfg-password" type="text" placeholder="e.g. sgat2026trade"></div>
+    <div class="setup-field"><label>Capital Base (₹)</label><input id="cfg-capital" type="number" value="100000" min="10000"></div>
     <div class="setup-field"><label>Auto-refresh interval (seconds)</label><input id="cfg-interval" type="number" value="90" min="30" max="600"></div>
     <button class="btn-primary" onclick="saveConfig()">Save & Launch →</button>
   </div>
@@ -244,11 +245,12 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s2-cp{padding:11px 13px;border-right:1px solid var(--border);}
 .s2-cp:last-child{border-right:none;}
 .s2-cp-title{font-size:0.59rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
-.s2-chart{width:100%;height:100px;position:relative;}
+.s2-chart{width:100%;height:130px;position:relative;}
 .s2-chart svg{width:100%;height:100%;}
 .s2-xaxis{display:flex;justify-content:space-between;margin-top:3px;}
 .s2-xaxis span{font-size:0.5rem;color:#3a5060;}
 .s2-note{font-size:0.57rem;color:var(--dim);margin-top:5px;font-style:italic;line-height:1.5;}
+.chart-tooltip{position:absolute;background:#0d1318;border:1px solid var(--border2);border-radius:4px;padding:4px 8px;font-size:0.6rem;color:var(--text);pointer-events:none;white-space:nowrap;z-index:100;display:none;font-family:var(--font-mono);}
 .s2-br-cards{display:flex;gap:6px;margin-top:8px;}
 .s2-br-card{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;}
 .s2-br-lbl{font-size:0.52rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;}
@@ -313,7 +315,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     <!-- Breadth -->
     <div class="s2-cp">
       <div class="s2-cp-title">Breadth — % stocks above open</div>
-      <div class="s2-chart"><svg id="s2-br-svg" viewBox="0 0 260 100" preserveAspectRatio="none"></svg></div>
+      <div class="s2-chart"><svg id="s2-br-svg" viewBox="0 0 260 130" preserveAspectRatio="none"></svg>
+      <div class="chart-tooltip" id="s2-br-tip"></div></div>
       <div class="s2-xaxis"><span>09:19</span><span>10:30</span><span>12:00</span><span>14:00</span><span>15:30</span></div>
       <div class="s2-note" id="s2-br-note">—</div>
       <div class="s2-br-cards">
@@ -327,7 +330,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-cp-title">Median % from open</div>
       <div class="s2-chart" style="position:relative;">
         <div class="s2-ylbl-wrap"><span class="s2-ylbl">+2</span><span class="s2-ylbl">+1</span><span class="s2-ylbl"> 0</span><span class="s2-ylbl">-1</span><span class="s2-ylbl">-2</span></div>
-        <svg id="s2-med-svg" viewBox="0 0 260 100" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <svg id="s2-med-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+      <div class="chart-tooltip" id="s2-med-tip"></div>
       </div>
       <div class="s2-xaxis" style="padding-left:14px;"><span>09:19</span><span>10:30</span><span>12:00</span><span>14:00</span><span>15:30</span></div>
       <div class="s2-note">0 line centre · Green above · Red below</div>
@@ -340,7 +344,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     <!-- NIFTY -->
     <div class="s2-cp">
       <div class="s2-cp-title">NIFTY context</div>
-      <div class="s2-chart"><svg id="s2-nf-svg" viewBox="0 0 260 100" preserveAspectRatio="none"></svg></div>
+      <div class="s2-chart"><svg id="s2-nf-svg" viewBox="0 0 260 130" preserveAspectRatio="none"></svg>
+      <div class="chart-tooltip" id="s2-nf-tip"></div></div>
       <div class="s2-xaxis"><span>09:15</span><span>10:30</span><span>12:00</span><span>14:00</span><span>15:30</span></div>
       <div class="s2-nifty-rows" id="s2-nifty-rows">
         <div class="s2-nr"><span class="s2-nr-lbl">% from open</span><span class="s2-nr-val" id="s2-nf-pfo">—</span></div>
@@ -389,7 +394,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s3-curve-wrap{padding:10px 14px 8px;border-bottom:1px solid var(--border);}
 .s3-curve-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .s3-curve-lbl{font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;}
-.s3-chart{width:100%;height:90px;}
+.s3-chart{width:100%;height:110px;position:relative;}
 .s3-chart svg{width:100%;height:100%;}
 .s3-xaxis{display:flex;justify-content:space-between;margin-top:3px;}
 .s3-xaxis span{font-size:0.5rem;color:#3a5060;}
@@ -409,6 +414,12 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s3-tag-l{background:rgba(0,229,160,0.1);color:var(--green);border:1px solid rgba(0,229,160,0.2);padding:1px 5px;border-radius:2px;font-size:0.55rem;}
 .s3-tag-s{background:rgba(255,77,106,0.1);color:var(--red);border:1px solid rgba(255,77,106,0.2);padding:1px 5px;border-radius:2px;font-size:0.55rem;}
 .s3-norows{text-align:center;color:#3a5060;padding:14px;font-size:0.65rem;}
+.s3-tbl-scroll{max-height:280px;overflow-y:auto;}
+.s3-tbl-scroll::-webkit-scrollbar{width:4px;}
+.s3-tbl-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.s3-total-row td{font-weight:600;border-top:1px solid var(--border);padding-top:6px;color:var(--text);}
+.s3-sym-link{cursor:pointer;text-decoration:none;color:var(--text);}
+.s3-sym-link:hover{color:var(--blue);}
 </style>
 
 <div class="s3-wrap">
@@ -467,7 +478,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s3-curve-lbl">Live P&amp;L curve</div>
       <div class="pos" id="s3-curve-val" style="font-size:0.8rem;font-weight:600;">—</div>
     </div>
-    <div class="s3-chart"><svg id="s3-pnl-svg" viewBox="0 0 600 90" preserveAspectRatio="none"></svg></div>
+    <div class="s3-chart"><svg id="s3-pnl-svg" viewBox="0 0 600 110" preserveAspectRatio="none" style="width:100%;height:110px;"></svg></div>
     <div class="s3-xaxis"><span>09:30</span><span>10:30</span><span>11:30</span><span>12:30</span><span>13:30</span><span>14:30</span><span>15:30</span></div>
   </div>
 
@@ -475,13 +486,17 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   <div class="s3-tables">
     <div class="s3-tbl">
       <div class="s3-tbl-title">Open Positions <span id="s3-open-cnt">0</span></div>
-      <table class="s3-table"><thead><tr><th>Symbol</th><th>Side</th><th>P&amp;L %</th><th>P&amp;L ₹</th><th>Hold</th></tr></thead>
-        <tbody id="s3-open-tbody"></tbody></table>
+      <div class="s3-tbl-scroll"><table class="s3-table"><thead><tr><th>Symbol</th><th>Side</th><th>P&amp;L %</th><th>P&amp;L ₹</th><th>Hold</th></tr></thead>
+        <tbody id="s3-open-tbody"></tbody>
+        <tfoot><tr class="s3-total-row"><td colspan="2">Total</td><td id="s3-open-total-pct">—</td><td id="s3-open-total-inr">—</td><td></td></tr></tfoot>
+        </table></div>
     </div>
     <div class="s3-tbl">
       <div class="s3-tbl-title">Closed Trades <span id="s3-closed-cnt">0</span></div>
-      <table class="s3-table"><thead><tr><th>Symbol</th><th>Side</th><th>P&amp;L %</th><th>P&amp;L ₹</th><th>Hold</th></tr></thead>
-        <tbody id="s3-closed-tbody"></tbody></table>
+      <div class="s3-tbl-scroll"><table class="s3-table"><thead><tr><th>Symbol</th><th>Side</th><th>P&amp;L %</th><th>P&amp;L ₹</th><th>Hold</th></tr></thead>
+        <tbody id="s3-closed-tbody"></tbody>
+        <tfoot><tr class="s3-total-row"><td colspan="2">Total</td><td id="s3-closed-total-pct">—</td><td id="s3-closed-total-inr">—</td><td></td></tr></tfoot>
+        </table></div>
     </div>
   </div>
 </div>
@@ -673,7 +688,8 @@ var STATE = {
   s4ActiveRow: null,
   selectedDate: 'today',
   countdownSec: 90,
-  countdownTimer: null
+  countdownTimer: null,
+  curveData: []
 };
 
 // ============================================================
@@ -722,6 +738,7 @@ function showSetup() {
     document.getElementById('cfg-token').value = cfg.token || '';
     document.getElementById('cfg-password').value = cfg.password || '';
     document.getElementById('cfg-interval').value = cfg.interval || 90;
+    document.getElementById('cfg-capital').value = cfg.capital || 100000;
   }
   document.getElementById('setup-overlay').classList.add('show');
 }
@@ -730,7 +747,7 @@ function saveConfig() {
   var token = document.getElementById('cfg-token').value.trim();
   var pw = document.getElementById('cfg-password').value.trim();
   if (!url || !token || !pw) { alert('Please fill in all fields'); return; }
-  var cfg = { scriptUrl:url, token:token, password:pw, interval:parseInt(document.getElementById('cfg-interval').value)||90 };
+  var cfg = { scriptUrl:url, token:token, password:pw, interval:parseInt(document.getElementById('cfg-interval').value)||90, capital:parseInt(document.getElementById('cfg-capital').value)||100000 };
   localStorage.setItem('sgat_cfg_v4', JSON.stringify(cfg));
   CFG = cfg;
   document.getElementById('setup-overlay').classList.remove('show');
@@ -749,8 +766,22 @@ async function fetchAll() {
     STATE.data = json.data;
     renderAll();
     showToast('✓ Refreshed · ' + (json.date || ''));
+    // Fetch PnL curve data in background — lightweight separate call
+    fetchPnlCurve(date);
   } catch(e) {
     showToast('⚠ ' + e.message, true);
+  }
+}
+
+async function fetchPnlCurve(dateParam) {
+  try {
+    var res = await fetch(CFG.scriptUrl + '?token=' + encodeURIComponent(CFG.token) + '&tab=positions_curve' + (dateParam||''));
+    var json = await res.json();
+    if (json.error || !json.data) return;
+    STATE.curveData = json.data; // array of {ts, pnl, count}
+    s3DrawCurveFromState();
+  } catch(e) {
+    // curve fetch failed silently — no disruption to main dashboard
   }
 }
 
@@ -782,6 +813,7 @@ async function fetchCandlesForDrill(symbol) {
 
 function onDateChange() {
   STATE.selectedDate = document.getElementById('s1-date-select').value;
+  STATE.curveData = []; // clear old curve so it redraws fresh
   fetchAll();
 }
 
@@ -907,6 +939,8 @@ function s2Render() {
   document.getElementById('s2-med-now').textContent = (medArr[medArr.length-1]>=0?'+':'')+medArr[medArr.length-1].toFixed(2)+'%';
 
   // NIFTY
+  // Add hover tooltips after render
+  setTimeout(function(){ s2AddHovers(prof, nifty); }, 50);
   if (nifty.length) {
     var niftyVals = nifty.map(function(r){return parseFloat(r.c)||parseFloat(r.close)||0;});
     s2DrawNiftyLine(niftyVals);
@@ -981,9 +1015,9 @@ function s2SetFlag(id, label, val, type) {
 
 function s2DrawBreadthBars(data) {
   var svg = document.getElementById('s2-br-svg'); svg.innerHTML = '';
-  var W=260, H=100, n=data.length, bw=Math.max(1,(W/n)-0.8);
+  var W=260, H=130, n=data.length, bw=Math.max(1,(W/n)-0.8);
   data.forEach(function(v,i) {
-    var bh = Math.max(2,((v-40)/60)*(H-4));
+    var bh = Math.max(2,(v/100)*(H-4));  // fixed 0-100 scale
     var rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
     rect.setAttribute('x',i*(W/n)); rect.setAttribute('width',Math.max(1,bw));
     rect.setAttribute('y',H-bh); rect.setAttribute('height',bh);
@@ -995,10 +1029,10 @@ function s2DrawBreadthBars(data) {
 function s2DrawMedianLine(data) {
   var svg = document.getElementById('s2-med-svg'); svg.innerHTML = '';
   var W=260, H=100, n=data.length;
-  var fMin=-2, fMax=2, range=4;
+  var fMin=-2, fMax=4, range=6;  // fixed scale: -2% to +4%
   function py(v){return H-((v-fMin)/range*H);}
   function px(i){return (i/(n-1))*W;}
-  [-2,-1,0,1,2].forEach(function(v) {
+  [-2,-1,0,1,2,3,4].forEach(function(v) {
     var l = document.createElementNS('http://www.w3.org/2000/svg','line');
     l.setAttribute('x1',0); l.setAttribute('x2',W); l.setAttribute('y1',py(v)); l.setAttribute('y2',py(v));
     l.setAttribute('stroke',v===0?'rgba(90,112,128,0.55)':'rgba(40,65,80,0.7)');
@@ -1032,7 +1066,7 @@ function s2DrawMedianLine(data) {
 
 function s2DrawNiftyLine(data) {
   var svg = document.getElementById('s2-nf-svg'); svg.innerHTML = '';
-  var W=260, H=100, n=data.length;
+  var W=260, H=130, n=data.length;
   if (!n) return;
   var mn=Math.min.apply(null,data)-0.05, mx=Math.max.apply(null,data)+0.05, range=mx-mn||1;
   function py(v){return H-((v-mn)/range*H);}
@@ -1076,7 +1110,7 @@ function s3RenderCards(positions, trades) {
   var openPnl = positions.reduce(function(s,p){return s+(parseFloat(p.pnl)||parseFloat(p.unrealised)||0);},0);
   var realPnl = trades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
   var totalPnl = openPnl + realPnl;
-  var tgtPct = (totalPnl/1000*100).toFixed(1);
+  var tgtPct = CFG.capital ? (totalPnl/(CFG.capital*0.01)*100).toFixed(1) : (totalPnl/1000*100).toFixed(1);
 
   var te = document.getElementById('s3-total');
   te.textContent = (totalPnl>=0?'+':'')+'₹'+Math.round(totalPnl).toLocaleString('en-IN');
@@ -1103,7 +1137,9 @@ function s3RenderCards(positions, trades) {
 
   // Capital
   var deployed = positions.reduce(function(s,p){return s+(parseFloat(p.value)||parseFloat(p.buy_value)||0);},0);
-  var util = deployed > 0 ? (deployed/100000*100).toFixed(1) : '0';
+  var cap = CFG.capital || 100000;
+  var util = deployed > 0 ? (deployed/cap*100).toFixed(1) : '0';
+  var tgtBase = cap * 0.01;
   document.getElementById('s3-util').textContent = util+'%';
   document.getElementById('s3-dep').textContent = '₹'+Math.round(deployed).toLocaleString('en-IN');
 
@@ -1118,22 +1154,44 @@ function s3RenderCards(positions, trades) {
   }
 }
 
-function s3DrawCurve(positions, trades) {
-  var svg = document.getElementById('s3-pnl-svg'); svg.innerHTML = '';
-  // Build curve from position log timestamps
-  var points = [];
-  positions.sort(function(a,b){return new Date(a.timestamp||0)-new Date(b.timestamp||0);});
-  positions.forEach(function(p) {
-    var ts = p.timestamp||p.last_updated||'';
-    var pnl = parseFloat(p._summary_total_pnl) || parseFloat(p.pnl) || 0;
-    if(ts && pnl !== undefined) points.push(pnl);
-  });
-  if (!points.length) {
-    // fallback: cumulative from trades
+function s3DrawCurveFromState() {
+  var trades = STATE.data.trades || [];
+  var curveRaw = STATE.curveData || [];
+  var points = [], timestamps = [];
+
+  if (curveRaw.length >= 2) {
+    // Use dedicated curve data — one point per minute, from positions_curve endpoint
+    curveRaw.forEach(function(item) {
+      points.push(parseFloat(item.pnl)||0);
+      // Format timestamp to HH:MM for display
+      var ts = String(item.ts||'').slice(11,16);
+      timestamps.push(ts);
+    });
+  } else {
+    // Fallback: cumulative closed trades (used when curve data not yet loaded)
     var cum = 0;
-    trades.sort(function(a,b){return new Date(a.last_exit_ts||0)-new Date(b.last_exit_ts||0);});
-    trades.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); });
+    var sorted = trades.slice().sort(function(a,b){return new Date(a.last_exit_ts||0)-new Date(b.last_exit_ts||0);});
+    sorted.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); timestamps.push((t.last_exit_ts||'').slice(11,16)); });
   }
+
+  s3RenderCurve(points, timestamps);
+}
+
+function s3DrawCurve(positions, trades) {
+  // Called on initial render — use trades as placeholder until curve data arrives
+  var svg = document.getElementById('s3-pnl-svg'); svg.innerHTML = '';
+  var points = [], timestamps = [];
+
+  // If we already have curve data from a previous fetch, use it
+  if (STATE.curveData && STATE.curveData.length >= 2) {
+    s3DrawCurveFromState();
+    return;
+  }
+
+  // Placeholder: cumulative from closed trades
+  var cum = 0;
+  var sorted = (trades||[]).slice().sort(function(a,b){return new Date(a.last_exit_ts||0)-new Date(b.last_exit_ts||0);});
+  sorted.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); timestamps.push((t.last_exit_ts||'').slice(11,16)); });
   if (points.length < 2) { svg.innerHTML = '<text x="300" y="45" fill="#3a5060" text-anchor="middle" font-size="11" font-family=\'JetBrains Mono\'>No curve data yet</text>'; return; }
 
   var W=600, H=90, n=points.length;
@@ -1171,6 +1229,12 @@ function s3DrawCurve(positions, trades) {
   var cv=document.getElementById('s3-curve-val');
   cv.textContent=(lv>=0?'+':'')+'₹'+Math.round(lv).toLocaleString('en-IN');
   cv.className=lv>=0?'pos':'neg';
+
+  // Add hover tooltip
+  addChartHover('s3-pnl-svg','s3-pnl-tip', points, timestamps, function(v,ts){
+    var col = v>=0?'#00e5a0':'#ff4d6a';
+    return '<b style="color:#38b6ff">'+ts+'</b> &nbsp; P&L: <b style="color:'+col+'">'+(v>=0?'+':'')+'₹'+Math.round(v).toLocaleString('en-IN')+'</b>';
+  });
 }
 
 function s3RenderTables(positions, trades) {
@@ -1185,14 +1249,23 @@ function s3RenderTables(positions, trades) {
     return f==='all'||(f==='long'&&dir!=='short')||(f==='short'&&dir==='short')||f==='exited';
   }).sort(function(a,b){return (parseFloat(b.pnl_inr)||0)-(parseFloat(a.pnl_inr)||0);});
 
-  function makeRow(sym, side, pnlPct, pnlInr, hold) {
+  function makeRow(sym, side, pnlPct, pnlInr, hold, stockObj) {
     var tr=document.createElement('tr');
     var cls=pnlInr>=0?'pos':'neg', sign=pnlInr>=0?'+':'';
-    tr.innerHTML='<td class="s3-sym">'+sym+'</td>'
+    tr.innerHTML='<td><span class="s3-sym-link">'+sym+'</span></td>'
       +'<td><span class="s3-tag-'+(side==='short'?'s':'l')+'">'+(side==='short'?'SHORT':'LONG')+'</span></td>'
       +'<td class="'+cls+'">'+(pnlPct>=0?'+':'')+parseFloat(pnlPct||0).toFixed(2)+'%</td>'
       +'<td class="'+cls+'">'+sign+'₹'+Math.abs(Math.round(pnlInr))+'</td>'
       +'<td style="color:var(--dim)">'+hold+'</td>';
+    if (stockObj) {
+      tr.querySelector('.s3-sym-link').addEventListener('click', function(e){
+        e.stopPropagation();
+        // Find stock in context and open drill
+        var ctx = STATE.data.context || [];
+        var found = ctx.find(function(r){return r.tradingsymbol===sym;});
+        if (found) s4OpenDrill(found);
+      });
+    }
     return tr;
   }
 
@@ -1200,15 +1273,28 @@ function s3RenderTables(positions, trades) {
   var cb=document.getElementById('s3-closed-tbody'); cb.innerHTML='';
   if(!filtPos.length) ob.innerHTML='<tr><td colspan="5" class="s3-norows">No open positions</td></tr>';
   else filtPos.forEach(function(p){
-    ob.appendChild(makeRow(p.tradingsymbol||'—', (p.trade_direction||'long').toLowerCase(), p.pnl_pct||0, p.pnl||p.unrealised||0, '—'));
+    ob.appendChild(makeRow(p.tradingsymbol||'—', (p.trade_direction||'long').toLowerCase(), p.pnl_pct||0, p.pnl||p.unrealised||0, '—', true));
   });
   if(!filtTrades.length) cb.innerHTML='<tr><td colspan="5" class="s3-norows">No trades</td></tr>';
   else filtTrades.forEach(function(t){
     var hold = parseFloat(t.avg_holding_min) ? Math.round(t.avg_holding_min)+'m' : '—';
-    cb.appendChild(makeRow(t.tradingsymbol||'—', (t.trade_direction||'long').toLowerCase(), t.pnl_pct||0, t.pnl_inr||0, hold));
+    cb.appendChild(makeRow(t.tradingsymbol||'—', (t.trade_direction||'long').toLowerCase(), t.pnl_pct||0, t.pnl_inr||0, hold, true));
   });
   document.getElementById('s3-open-cnt').textContent = filtPos.length;
   document.getElementById('s3-closed-cnt').textContent = filtTrades.length;
+
+  // Totals rows
+  var openTotalInr = filtPos.reduce(function(s,p){return s+(parseFloat(p.pnl)||parseFloat(p.unrealised)||0);},0);
+  var openTotalPct = filtPos.length && filtPos[0] ? (openTotalInr / (filtPos.length * (CFG.capital||100000) / (filtPos.length||1)) * 100).toFixed(2) : '—';
+  var ote = document.getElementById('s3-open-total-inr');
+  if(ote){ ote.textContent=(openTotalInr>=0?'+':'')+'₹'+Math.round(openTotalInr).toLocaleString('en-IN'); ote.className='s3-total-row '+(openTotalInr>=0?'pos':'neg'); }
+
+  var closedTotalInr = filtTrades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
+  var cte = document.getElementById('s3-closed-total-inr');
+  if(cte){ cte.textContent=(closedTotalInr>=0?'+':'')+'₹'+Math.round(closedTotalInr).toLocaleString('en-IN'); cte.className=closedTotalInr>=0?'pos':'neg'; }
+  var ctp = document.getElementById('s3-closed-total-pct');
+  var closedTotalPct = filtTrades.length ? (closedTotalInr/(filtTrades.length*2000)*100).toFixed(1)+'%' : '—';
+  if(ctp){ ctp.textContent=closedTotalPct; }
 }
 
 function s3SetFilter(f) {
@@ -1332,15 +1418,9 @@ async function s4OpenDrill(r) {
     (parseFloat(r.pct_from_open)>=0?'+':'')+parseFloat(r.pct_from_open||0).toFixed(2)+'%</span>'
     +(r.position_status==='OPEN'?' · <span style="color:var(--blue)">OPEN</span>':'');
 
-  // Try to fetch candles from script
-  var candleData = null;
-  if (CFG.scriptUrl) candleData = await fetchCandlesForDrill(r.tradingsymbol);
-
-  // Fallback: use m5_closes_csv
+  // Open instantly with m5_closes_csv (already in memory)
   var vals = [];
-  if (candleData && candleData.length) {
-    vals = candleData.map(function(c){return parseFloat(c.c)||parseFloat(c.close)||0;}).filter(function(v){return v>0;});
-  } else if (r.m5_closes_csv) {
+  if (r.m5_closes_csv) {
     vals = r.m5_closes_csv.split(',').map(Number).filter(function(v){return isFinite(v)&&v>0;});
   }
 
@@ -1386,6 +1466,18 @@ async function s4OpenDrill(r) {
 
   document.getElementById('s4-overlay').classList.add('show');
   document.getElementById('s4-drill').classList.add('open');
+
+  // Background: fetch full candles and upgrade chart silently
+  if (CFG.scriptUrl) {
+    fetchCandlesForDrill(r.tradingsymbol).then(function(candleData){
+      if (candleData && candleData.length) {
+        var fullVals = candleData.map(function(c){return parseFloat(c.c)||parseFloat(c.close)||0;}).filter(function(v){return v>0;});
+        if (fullVals.length > vals.length) {
+          s4DrawChart(fullVals, entry, trail, peak);
+        }
+      }
+    }).catch(function(){});
+  }
 }
 
 function s4CloseDrill() {
@@ -1464,6 +1556,67 @@ function showToast(msg, err) {
   var t=document.getElementById('toast');
   t.textContent=msg; t.style.color=err?'var(--red)':'var(--green)';
   t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2500);
+}
+
+
+// ============================================================
+// GRAPH HOVER TOOLTIPS
+// ============================================================
+function addChartHover(svgId, tipId, dataArr, timeArr, labelFn) {
+  var svg = document.getElementById(svgId);
+  var tip = document.getElementById(tipId);
+  if (!svg || !tip || !dataArr.length) return;
+  var W = parseFloat(svg.getAttribute('viewBox').split(' ')[2]) || 260;
+  svg.addEventListener('mousemove', function(e) {
+    var rect = svg.getBoundingClientRect();
+    var xPct = (e.clientX - rect.left) / rect.width;
+    var idx = Math.round(xPct * (dataArr.length-1));
+    idx = Math.max(0, Math.min(dataArr.length-1, idx));
+    var val = dataArr[idx];
+    var ts = timeArr && timeArr[idx] ? String(timeArr[idx]).slice(11,16) : '';
+    tip.style.display = 'block';
+    tip.style.left = Math.min(e.clientX - rect.left, rect.width - 140) + 'px';
+    tip.style.top = '4px';
+    tip.innerHTML = labelFn(val, ts, idx);
+    // Draw crosshair
+    var existing = svg.querySelector('.hover-line');
+    if (existing) existing.remove();
+    var xSvg = xPct * W;
+    var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('class','hover-line');
+    line.setAttribute('x1',xSvg); line.setAttribute('x2',xSvg);
+    line.setAttribute('y1',0); line.setAttribute('y2','100%');
+    line.setAttribute('stroke','rgba(56,182,255,0.4)'); line.setAttribute('stroke-width','0.8');
+    svg.appendChild(line);
+  });
+  svg.addEventListener('mouseleave', function() {
+    tip.style.display = 'none';
+    var existing = svg.querySelector('.hover-line');
+    if (existing) existing.remove();
+  });
+}
+
+function s2AddHovers(prof, niftyData) {
+  var timeArr = prof.map(function(r){
+    var h=String(r.hhmm||'');
+    return h.length>=3?h.slice(0,-2).padStart(2,'0')+':'+h.slice(-2):h;
+  });
+  var breadthArr = prof.map(function(r){return parseFloat(r.pct_above_open)||0;});
+  var medArr = prof.map(function(r){return parseFloat(r.median_pct_from_open)||0;});
+  addChartHover('s2-br-svg','s2-br-tip', breadthArr, timeArr, function(v,ts){
+    return '<b style="color:#38b6ff">'+ts+'</b> &nbsp; Breadth: <b style="color:'+(v>=60?'#00e5a0':'#ff4d6a')+'">'+v.toFixed(1)+'%</b>';
+  });
+  addChartHover('s2-med-svg','s2-med-tip', medArr, timeArr, function(v,ts){
+    return '<b style="color:#38b6ff">'+ts+'</b> &nbsp; Median: <b style="color:'+(v>=0?'#00e5a0':'#ff4d6a')+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</b>';
+  });
+  if (niftyData && niftyData.length) {
+    var nVals = niftyData.map(function(r){return parseFloat(r.c)||0;});
+    var nOpen = nVals[0] || 1;
+    addChartHover('s2-nf-svg','s2-nf-tip', nVals, null, function(v,ts,idx){
+      var pfo=((v-nOpen)/nOpen*100).toFixed(2);
+      return 'NIFTY: <b style="color:#38b6ff">'+v.toFixed(2)+'</b> &nbsp; <b style="color:'+(parseFloat(pfo)>=0?'#00e5a0':'#ff4d6a')+'">'+(parseFloat(pfo)>=0?'+':'')+pfo+'%</b>';
+    });
+  }
 }
 
 function startCountdown() {
