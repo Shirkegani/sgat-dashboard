@@ -913,17 +913,18 @@ function s2Render() {
   s2BuildTimeline(prof);
 
   // Stats from latest cycle
-  var med = parseFloat(last.median_pct_from_open) || 0;
+  var med    = parseFloat(last.median_pct_from_open) || 0;
   var breadth = parseFloat(last.pct_above_open) || 0;
-  var peak = Math.max.apply(null, prof.map(function(r){return parseFloat(r.median_pct_from_open)||0;}));
-  var dd = med - peak;
+  // Use dedicated peak/drawdown fields from DayProfile (confirmed in data)
+  var peak   = parseFloat(last.median_peak_today) || Math.max.apply(null, prof.map(function(r){return parseFloat(r.median_pct_from_open)||0;}));
+  var dd     = parseFloat(last.median_drawdown_from_peak) || (med - peak);
 
   s2SetVal('s2-median', (med>=0?'+':'')+med.toFixed(2)+'%', med>=0?'pos':'neg');
   s2SetVal('s2-dir', last.breadth_direction||'—', last.breadth_direction==='RISING'?'pos':last.breadth_direction==='FALLING'?'neg':'neu');
-  s2SetVal('s2-dd', (dd>=0?'+':'')+dd.toFixed(2)+'%', dd>=0?'pos':'neg');
+  s2SetVal('s2-dd', (dd>=0?'+':'')+dd.toFixed(2)+'%', dd<=0?'neg':'pos');
   s2SetVal('s2-peak', (peak>=0?'+':'')+peak.toFixed(2)+'%', 'inf');
   s2SetVal('s2-breadth', breadth.toFixed(1)+'%', breadth>=60?'pos':breadth>=40?'neu':'neg');
-  s2SetVal('s2-pao', (parseFloat(last.pct_above_open)||0).toFixed(1)+'%', 'pos');
+  s2SetVal('s2-pao', (parseFloat(last.pct_above_open)||0).toFixed(1)+'%', breadth>=60?'pos':breadth>=40?'neu':'neg');
 
   // Entry gates
   var longOpen = last.entry_allowed_long === true || last.entry_allowed_long === 'TRUE' || last.entry_allowed_long === 1;
@@ -977,32 +978,32 @@ function s2Render() {
   document.getElementById('s2-med-peak').textContent = (medPeak>=0?'+':'')+medPeak.toFixed(2)+'%';
   document.getElementById('s2-med-now').textContent = (medArr[medArr.length-1]>=0?'+':'')+medArr[medArr.length-1].toFixed(2)+'%';
 
-  // NIFTY
-  // Add hover tooltips after render
-  setTimeout(function(){ s2AddHovers(prof, nifty); }, 50);
+  // NIFTY — always use DayProfile nifty fields (confirmed present in data)
+  // NiftyCandles used only for the chart line
+  var nPfo = parseFloat(last.nifty_pct_from_open)||0;
+  var nStr = last.nifty_structure||'—';
+  var emaOk  = last.nifty_ema9_above_ema21===true||last.nifty_ema9_above_ema21==='TRUE'||last.nifty_ema9_above_ema21===1;
+  var vwapOk = last.nifty_above_vwap===true||last.nifty_above_vwap==='TRUE'||last.nifty_above_vwap===1;
+
+  s2SetVal('s2-nf-pfo', (nPfo>=0?'+':'')+nPfo.toFixed(2)+'%', nPfo>=0?'pos':'neg');
+  document.getElementById('s2-nf-str').textContent  = nStr;
+  document.getElementById('s2-nf-str').className    = 's2-nr-val '+(nStr==='STRONG'?'pos':nStr==='WEAK'?'neg':'neu');
+  document.getElementById('s2-nf-ema').textContent  = emaOk?'YES':'NO';
+  document.getElementById('s2-nf-ema').className    = 's2-nr-val '+(emaOk?'pos':'neg');
+  document.getElementById('s2-nf-vwap').textContent = vwapOk?'YES':'NO';
+  document.getElementById('s2-nf-vwap').className   = 's2-nr-val '+(vwapOk?'pos':'neg');
+  document.getElementById('s2-nf-green').textContent = last.nifty_consecutive_green||0;
+  document.getElementById('s2-nf-dir').textContent  = last.market_direction_state||'—';
+  document.getElementById('s2-nf-dir').className    = 's2-nr-val neu';
+
+  // NIFTY chart — from NiftyCandles if available, else skip
   if (nifty.length) {
-    var niftyVals = nifty.map(function(r){return parseFloat(r.c)||parseFloat(r.close)||0;});
-    s2DrawNiftyLine(niftyVals);
-    var lastNifty = nifty[nifty.length-1];
-    var nOpen = parseFloat(nifty[0].o)||parseFloat(nifty[0].open)||0;
-    var nClose = parseFloat(lastNifty.c)||parseFloat(lastNifty.close)||0;
-    var nPfo = nOpen ? ((nClose-nOpen)/nOpen*100) : 0;
-    s2SetVal('s2-nf-pfo', (nPfo>=0?'+':'')+nPfo.toFixed(2)+'%', nPfo>=0?'pos':'neg');
-  } else {
-    // Use last profile row for nifty context if available
-    s2SetVal('s2-nf-pfo', (parseFloat(last.nifty_pct_from_open)||0).toFixed(2)+'%', 'inf');
-    document.getElementById('s2-nf-str').textContent = last.nifty_structure||'—';
-    document.getElementById('s2-nf-str').className = 's2-nr-val ' + (last.nifty_structure==='STRONG'?'pos':last.nifty_structure==='WEAK'?'neg':'neu');
-    var emaOk = last.nifty_ema9_above_ema21===true||last.nifty_ema9_above_ema21==='TRUE'||last.nifty_ema9_above_ema21===1;
-    var vwapOk = last.nifty_above_vwap===true||last.nifty_above_vwap==='TRUE'||last.nifty_above_vwap===1;
-    document.getElementById('s2-nf-ema').textContent = emaOk?'YES':'NO';
-    document.getElementById('s2-nf-ema').className = 's2-nr-val ' + (emaOk?'pos':'neg');
-    document.getElementById('s2-nf-vwap').textContent = vwapOk?'YES':'NO';
-    document.getElementById('s2-nf-vwap').className = 's2-nr-val ' + (vwapOk?'pos':'neg');
-    document.getElementById('s2-nf-green').textContent = last.nifty_consecutive_green||0;
-    document.getElementById('s2-nf-dir').textContent = last.market_direction_state||'—';
-    document.getElementById('s2-nf-dir').className = 's2-nr-val neu';
+    var niftyVals = nifty.map(function(r){return parseFloat(r.c)||0;}).filter(function(v){return v>0;});
+    if (niftyVals.length) s2DrawNiftyLine(niftyVals);
   }
+
+  // Hover tooltips
+  setTimeout(function(){ s2AddHovers(prof, nifty); }, 50);
 }
 
 function s2BuildTimeline(prof) {
@@ -1140,9 +1141,10 @@ function s3RenderCards(positions, trades) {
   var f = STATE.filter;
   var filtPos = positions.filter(function(p){ return f==='all'||f==='long'?p.product!=='SHORT':f==='short'?p.product==='SHORT':false; });
   if(f==='exited') filtPos=[];
+  // trade_direction is empty in current data — all trades are MIS (long)
+  // Filter: ALL/LONG/EXITED show all trades, SHORT shows none
   var filtTrades = trades.filter(function(t){
-    var dir = (t.trade_direction||'long').toLowerCase();
-    return f==='all'||(f==='long'&&dir!=='short')||(f==='short'&&dir==='short')||f==='exited';
+    return f==='all'||f==='long'||f==='exited';
   });
 
   // P&L — live uses PositionLog for open, past dates use DailyTrades only
@@ -1157,9 +1159,11 @@ function s3RenderCards(positions, trades) {
     realPnl = trades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
     totalPnl = realPnl;
   } else {
-    // Live: open P&L from PositionLog, realised from DailyTrades
-    openPnl = positions.reduce(function(s,p){return s+(parseFloat(p.unrealised)||parseFloat(p.pnl)||0);},0);
+    // Live: _summary_total_pnl is the running total (same on every row at a timestamp)
+    // This already includes both open unrealised AND any realised within the session
+    openPnl = positions.length ? (parseFloat(positions[0]._summary_total_pnl)||0) : 0;
     realPnl = trades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
+    // _summary_total_pnl = open unrealised only; add realised from DailyTrades
     totalPnl = openPnl + realPnl;
   }
   var tgtPct = CFG.capital ? (totalPnl/(CFG.capital*0.01)*100).toFixed(1) : (totalPnl/1000*100).toFixed(1);
@@ -1172,7 +1176,6 @@ function s3RenderCards(positions, trades) {
   var openEl=document.getElementById('s3-open-pnl');
   if(isPastDate||isAfterClose){ openEl.textContent='₹0 (closed)'; openEl.className='s3-rv dim'; }
   else { openEl.textContent=(openPnl>=0?'+':'')+'₹'+Math.round(openPnl).toLocaleString('en-IN'); openEl.className='s3-rv '+(openPnl>=0?'pos':'neg'); }
-  document.getElementById('s3-open-pnl').className = 's3-rv '+(openPnl>=0?'pos':'neg');
   document.getElementById('s3-tgt').textContent = tgtPct+'% of 1% target';
 
   // Trades
@@ -1189,11 +1192,19 @@ function s3RenderCards(positions, trades) {
   document.getElementById('s3-pf').textContent = pf;
   document.getElementById('s3-pf').className = 's3-rv '+(parseFloat(pf)>=1?'pos':'neg');
 
-  // Capital
-  var deployed = positions.reduce(function(s,p){return s+(parseFloat(p.value)||parseFloat(p.buy_value)||0);},0);
+  // Capital — _summary_open_deployed is the authoritative field (same value on every row)
   var cap = CFG.capital || 100000;
+  var deployed = 0;
+  if (isPastDate || isAfterClose) {
+    // EOD: use total buy_value from trades as proxy for peak deployed
+    deployed = trades.reduce(function(s,t){return s+(parseFloat(t.buy_value)||0);},0);
+    // Cap at capital to avoid absurd numbers (trades cycle in/out)
+    deployed = Math.min(deployed, cap);
+  } else {
+    // Live: use _summary_open_deployed from PositionLog (first row, reliable)
+    deployed = positions.length ? (parseFloat(positions[0]._summary_open_deployed)||0) : 0;
+  }
   var util = deployed > 0 ? (deployed/cap*100).toFixed(1) : '0';
-  var tgtBase = cap * 0.01;
   document.getElementById('s3-util').textContent = util+'%';
   document.getElementById('s3-dep').textContent = '₹'+Math.round(deployed).toLocaleString('en-IN');
 
@@ -1298,15 +1309,12 @@ function s3RenderTables(positions, trades) {
   var isAfterClose = ist_now.getHours()*60+ist_now.getMinutes() > 930;
   // Past dates or after close: no open positions
   var showOpenPos = !isPastDate && !isAfterClose;
-  var filtPos = (!showOpenPos || f==='exited') ? [] : positions.filter(function(p){
-    if(f==='all') return true;
-    var dir=(p.trade_direction||'long').toLowerCase();
-    return f==='long'?dir!=='short':f==='short'?dir==='short':true;
+  // position product is MIS (long) — SHORT filter shows none
+  var filtPos = (!showOpenPos || f==='exited' || f==='short') ? [] : positions;
+  // trade_direction is empty in data — all trades are MIS/long
+  var filtTrades = (f==='short') ? [] : trades.slice().sort(function(a,b){
+    return (parseFloat(b.pnl_inr)||0)-(parseFloat(a.pnl_inr)||0);
   });
-  var filtTrades = trades.filter(function(t){
-    var dir=(t.trade_direction||'long').toLowerCase();
-    return f==='all'||(f==='long'&&dir!=='short')||(f==='short'&&dir==='short')||f==='exited';
-  }).sort(function(a,b){return (parseFloat(b.pnl_inr)||0)-(parseFloat(a.pnl_inr)||0);});
 
   function makeRow(sym, side, pnlPct, pnlInr, hold, stockObj) {
     var tr=document.createElement('tr');
@@ -1332,8 +1340,8 @@ function s3RenderTables(positions, trades) {
   var cb=document.getElementById('s3-closed-tbody'); cb.innerHTML='';
 
   // Store data for sort
-  STATE.s3OpenData = filtPos.map(function(p){return {sym:p.tradingsymbol||'—',side:(p.trade_direction||'long').toLowerCase(),pnlPct:parseFloat(p.pnl_pct||0),pnlInr:parseFloat(p.pnl||p.unrealised||0),hold:'—'};});
-  STATE.s3ClosedData = filtTrades.map(function(t){return {sym:t.tradingsymbol||'—',side:(t.trade_direction||'long').toLowerCase(),pnlPct:parseFloat(t.pnl_pct||0),pnlInr:parseFloat(t.pnl_inr||0),hold:parseFloat(t.avg_holding_min)?Math.round(t.avg_holding_min)+'m':'—'};});
+  STATE.s3OpenData = filtPos.map(function(p){return {sym:p.tradingsymbol||'—',side:'long',pnlPct:parseFloat(p.pnl_pct||p.unrealised/(parseFloat(p.buy_value)||2000)*100||0),pnlInr:parseFloat(p.unrealised||p.pnl||0),hold:'—'};});
+  STATE.s3ClosedData = filtTrades.map(function(t){return {sym:t.tradingsymbol||'—',side:'long',pnlPct:parseFloat(t.pnl_pct||0),pnlInr:parseFloat(t.pnl_inr||0),hold:parseFloat(t.avg_holding_min)?Math.round(t.avg_holding_min)+'m':'—'};});
 
   if(!filtPos.length){
     if(isPastDate||isAfterClose) ob.innerHTML='<tr><td colspan="5" class="s3-norows" style="color:#3a5060">Day complete — all positions closed</td></tr>';
@@ -1528,17 +1536,27 @@ async function s4OpenDrill(r) {
     vals = r.m5_closes_csv.split(',').map(Number).filter(function(v){return isFinite(v)&&v>0;});
   }
 
-  // Entry/trail/peak — read from LiveContext TM fields
-  var entry = parseFloat(r.entry_price || null);
-  // Try TM log data if available
+  // Entry price: from TM log entry_price field (most reliable)
+  // Fallback: from DailyTrades buy_value/qty_closed for traded stocks
+  var entry = null, trail = null, peak = null;
   var tmEntry = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
   if (tmEntry) {
-    if (!isFinite(entry)) entry = parseFloat(tmEntry.entry_price||null);
-    var trail = parseFloat(tmEntry.trail_level||null);
-    var peak = parseFloat(tmEntry.peak_price||null);
-  } else {
-    var trail = parseFloat(r.trail_level||null);
-    var peak = parseFloat(r.peak_price||null);
+    entry = isFinite(parseFloat(tmEntry.entry_price)) ? parseFloat(tmEntry.entry_price) : null;
+    trail = parseFloat(tmEntry.trail_level)||null;
+    // trail=0 means no trail set — treat as null
+    if (trail === 0) trail = null;
+    peak  = parseFloat(tmEntry.peak_price)||null;
+  }
+  // Fallback to LiveContext fields (peak_price is reliable here)
+  if (!peak)  peak  = parseFloat(r.peak_price)||null;
+  if (!trail || trail===0) trail = parseFloat(r.trail_level)||null;
+  if (trail === 0) trail = null;
+  // Entry from DailyTrades if TM entry_price still null
+  if (!entry) {
+    var tradeMatch = (STATE.data.trades||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
+    if (tradeMatch && tradeMatch.buy_value && tradeMatch.qty_closed) {
+      entry = parseFloat(tradeMatch.buy_value) / parseFloat(tradeMatch.qty_closed);
+    }
   }
 
   if (vals.length) {
@@ -1549,14 +1567,27 @@ async function s4OpenDrill(r) {
     document.getElementById('s4-d-prox').textContent = ((vals[vals.length-1]-mn)/(mx-mn)*100).toFixed(0)+'%';
   }
 
-  // SymbolState data
+  // SymbolState data — confirmed field names from actual data
   var ss = (STATE.data.symbolstate||[]).find(function(s){return s.tradingsymbol===r.tradingsymbol;});
   if (ss) {
+    // Session high/low are absolute prices — show as % from open
+    var sOpen = vals.length ? vals[0] : 0;
+    var sHigh = parseFloat(ss.session_high||0);
+    var sLow  = parseFloat(ss.session_low||0);
+    if (sOpen && sHigh) {
+      document.getElementById('s4-d-sh').textContent = '+'+((sHigh/sOpen-1)*100).toFixed(2)+'%  (₹'+sHigh.toFixed(2)+')';
+    }
+    if (sOpen && sLow) {
+      document.getElementById('s4-d-sl').textContent = ((sLow/sOpen-1)*100).toFixed(2)+'%  (₹'+sLow.toFixed(2)+')';
+    }
+    // proximity_to_session_high_pct is a direct field (0-1 scale → multiply by 100)
+    var prox = parseFloat(ss.proximity_to_session_high_pct||0);
+    document.getElementById('s4-d-prox').textContent = (prox*100).toFixed(1)+'%';
     document.getElementById('s4-d-bsp').textContent = ss.bars_since_peak||'—';
-    document.getElementById('s4-d-stab').textContent = parseFloat(ss.pfo_stability_score||0).toFixed(2);
+    document.getElementById('s4-d-stab').textContent = parseFloat(ss.pfo_stability_score||0).toFixed(3);
     var vel = parseFloat(ss.pfo_velocity_5m||0);
     var velEl = document.getElementById('s4-d-vel');
-    velEl.textContent = (vel>=0?'+':'')+vel.toFixed(2)+'%';
+    velEl.textContent = (vel>=0?'+':'')+vel.toFixed(3)+'%';
     velEl.className = 's4-ds-val '+(vel>=0?'pos':'neg');
   }
 
@@ -1600,18 +1631,34 @@ async function s4OpenDrill(r) {
     });
   }
 
-  // Position details
+  // Position details — show for both OPEN and traded (has DailyTrades entry)
   var pr = document.getElementById('s4-d-pos');
-  if (r.position_status==='OPEN' && entry) {
+  var tradeMatch = (STATE.data.trades||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
+  if (r.position_status==='OPEN') {
+    var curPnlPct = parseFloat(r.current_pnl_pct||0);
+    var peakPnlPct = parseFloat(r.peak_pnl_pct||0);
     var lv = vals.length ? vals[vals.length-1] : 0;
-    var pnl = entry ? ((lv-entry)/entry*100).toFixed(2) : '—';
+    var pnlInr = entry ? ((lv-entry)/entry * 2000).toFixed(0) : (tmEntry ? parseFloat(tmEntry.pnl_inr||0).toFixed(0) : '—');
     pr.innerHTML =
-      '<div class="s4-drill-row"><span class="s4-dr-lbl">Entry price</span><span class="s4-dr-val inf">₹'+entry+'</span></div>'
-      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Current P&L</span><span class="s4-dr-val '+(parseFloat(pnl)>=0?'pos':'neg')+'">'+(parseFloat(pnl)>=0?'+':'')+pnl+'%</span></div>'
-      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Peak P&L</span><span class="s4-dr-val pos">+'+(parseFloat(r.peak_pnl_pct||0)).toFixed(2)+'%</span></div>'
-      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Trail level</span><span class="s4-dr-val neu">'+(trail||'—')+'</span></div>';
+      '<div class="s4-drill-row"><span class="s4-dr-lbl">Entry price</span><span class="s4-dr-val inf">'+(entry?'₹'+parseFloat(entry).toFixed(2):'—')+'</span></div>'
+      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Current P&L</span><span class="s4-dr-val '+(curPnlPct>=0?'pos':'neg')+'">'+(curPnlPct>=0?'+':'')+curPnlPct.toFixed(2)+'%</span></div>'
+      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Peak P&L</span><span class="s4-dr-val pos">+'+(peakPnlPct).toFixed(2)+'%</span></div>'
+      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Trail level</span><span class="s4-dr-val neu">'+(trail?'₹'+parseFloat(trail).toFixed(2):'—')+'</span></div>'
+      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Peak price</span><span class="s4-dr-val inf">'+(peak?'₹'+parseFloat(peak).toFixed(2):'—')+'</span></div>';
+  } else if (tradeMatch) {
+    var tPnl = parseFloat(tradeMatch.pnl_inr||0);
+    var tPct = parseFloat(tradeMatch.pnl_pct||0);
+    var tHold = parseFloat(tradeMatch.avg_holding_min||0);
+    var avgEntry = tradeMatch.buy_value&&tradeMatch.qty_closed ? (parseFloat(tradeMatch.buy_value)/parseFloat(tradeMatch.qty_closed)).toFixed(2) : '—';
+    var avgExit  = tradeMatch.sell_value&&tradeMatch.qty_closed ? (parseFloat(tradeMatch.sell_value)/parseFloat(tradeMatch.qty_closed)).toFixed(2) : '—';
+    pr.innerHTML =
+      '<div class="s4-drill-row"><span class="s4-dr-lbl">Avg entry</span><span class="s4-dr-val inf">'+(avgEntry!='—'?'₹'+avgEntry:'—')+'</span></div>'
+      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Avg exit</span><span class="s4-dr-val dim">'+(avgExit!='—'?'₹'+avgExit:'—')+'</span></div>'
+      +'<div class="s4-drill-row"><span class="s4-dr-lbl">P&L</span><span class="s4-dr-val '+(tPnl>=0?'pos':'neg')+'">'+(tPnl>=0?'+':'')+'₹'+Math.abs(tPnl).toFixed(0)+' ('+tPct.toFixed(2)+'%)</span></div>'
+      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Peak price</span><span class="s4-dr-val inf">'+(peak?'₹'+parseFloat(peak).toFixed(2):'—')+'</span></div>'
+      +'<div class="s4-drill-row"><span class="s4-dr-lbl">Hold time</span><span class="s4-dr-val dim">'+Math.round(tHold)+'m</span></div>';
   } else {
-    pr.innerHTML = '<div style="color:#3a5060;font-size:0.63rem;padding:6px 0">No open position</div>';
+    pr.innerHTML = '<div style="color:#3a5060;font-size:0.63rem;padding:6px 0">No position data</div>';
   }
 
   document.getElementById('s4-overlay').classList.add('show');
