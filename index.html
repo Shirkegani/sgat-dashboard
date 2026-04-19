@@ -570,6 +570,16 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s4-rank-area svg{width:100%;height:100%;}
 .s4-drill-row{display:flex;justify-content:space-between;font-size:0.63rem;padding:3px 0;border-bottom:1px solid rgba(30,42,53,0.4);}
 .s4-drill-row:last-child{border-bottom:none;}
+.s4-hist-tbl{width:100%;border-collapse:collapse;font-size:0.58rem;min-width:500px;}
+.s4-hist-tbl thead th{position:sticky;top:0;background:var(--surface);color:var(--dim);font-size:0.52rem;text-transform:uppercase;letter-spacing:.06em;padding:4px 6px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;font-weight:600;}
+.s4-hist-tbl tbody tr{border-bottom:1px solid rgba(30,42,53,0.3);}
+.s4-hist-tbl tbody tr:hover{background:rgba(56,182,255,0.04);}
+.s4-hist-tbl td{padding:3px 6px;white-space:nowrap;}
+.s4-hist-tbl tr.action-enter{background:rgba(0,229,160,0.05);}
+.s4-hist-tbl tr.action-exit{background:rgba(255,77,106,0.05);}
+.act-enter{color:var(--green);font-weight:600;}
+.act-exit{color:var(--red);font-weight:600;}
+.act-none{color:var(--dim);}
 .s4-tm-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
 .s4-tm-card{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 9px;}
 .s4-tm-lbl{font-size:0.52rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;}
@@ -2067,6 +2077,9 @@ async function s4OpenDrill(r) {
   document.getElementById('s4-overlay').classList.add('show');
   document.getElementById('s4-drill').classList.add('open');
 
+  // Fetch TM cycle history for this stock
+  fetchTMHistory(r.tradingsymbol);
+
   // Background: fetch full candles and upgrade chart silently
   if (CFG.scriptUrl) {
     fetchCandlesForDrill(r.tradingsymbol).then(function(candleData){
@@ -2954,6 +2967,99 @@ function s14Render(enriched) {
     var el = document.getElementById('s14-'+k);
     if (el) { el.textContent = fmt(total*mult); el.className = 'scale-val '+cls(total*mult); }
   });
+}
+
+
+// ============================================================
+// TM CYCLE HISTORY — Sidebar Table
+// ============================================================
+async function fetchTMHistory(symbol) {
+  var wrap = document.getElementById('s4-tm-hist-wrap');
+  var cnt  = document.getElementById('s4-tm-hist-count');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="color:var(--dim);font-size:0.62rem;padding:6px 0">Loading...</div>';
+
+  var date = STATE.selectedDate === 'today' ? '' : '&date=' + STATE.selectedDate;
+  try {
+    var res  = await fetch(CFG.scriptUrl + '?token=' + encodeURIComponent(CFG.token)
+                + '&tab=tmlog_stock&symbol=' + encodeURIComponent(symbol) + date);
+    var json = await res.json();
+    if (json.error || !json.data || !json.data.length) {
+      wrap.innerHTML = '<div style="color:#3a5060;font-size:0.62rem;padding:6px 0">No TM log data for this stock</div>';
+      return;
+    }
+    renderTMHistory(json.data, wrap, cnt);
+  } catch(e) {
+    wrap.innerHTML = '<div style="color:var(--red);font-size:0.62rem;padding:6px 0">Failed to load: ' + e.message + '</div>';
+  }
+}
+
+function renderTMHistory(rows, wrap, cnt) {
+  if (cnt) cnt.textContent = '(' + rows.length + ' cycles)';
+
+  function hh(v) {
+    if (!v) return '—';
+    var s = String(Math.round(v));
+    return s.slice(0,-2).padStart(2,'0') + ':' + s.slice(-2);
+  }
+  function fp(v, d) {
+    v = parseFloat(v);
+    if (!isFinite(v)) return '—';
+    d = d !== undefined ? d : 2;
+    return (v >= 0 ? '+' : '') + v.toFixed(d) + '%';
+  }
+  function fv(v, d) {
+    v = parseFloat(v);
+    return isFinite(v) ? v.toFixed(d !== undefined ? d : 2) : '—';
+  }
+  function yesno(v) {
+    if (v === true || v === 'TRUE' || v === 1) return '<span class="pos" style="font-size:0.55rem">✓</span>';
+    if (v === false || v === 'FALSE' || v === 0) return '<span class="neg" style="font-size:0.55rem">✗</span>';
+    return '<span style="color:var(--dim)">—</span>';
+  }
+  function actClass(a) {
+    return a === 'ENTER' ? 'act-enter' : (a === 'EXIT' || a === 'SL') ? 'act-exit' : 'act-none';
+  }
+  function trClass(a) {
+    return a === 'ENTER' ? 'action-enter' : (a === 'EXIT' || a === 'SL') ? 'action-exit' : '';
+  }
+
+  var tbl = '<table class="s4-hist-tbl"><thead><tr>'
+    + '<th>Time</th><th>Action</th><th>Status</th>'
+    + '<th>MI rank</th><th>Quality</th>'
+    + '<th>Momentum</th><th>Struct</th><th>VWAP</th><th>EMA</th>'
+    + '<th>Trail</th><th>P&L%</th>'
+    + '<th>E.Score</th><th>E.Rank</th><th>Reason (truncated)</th>'
+    + '</tr></thead><tbody>';
+
+  rows.forEach(function(r) {
+    var act = r.tm_action || r.last_action || '—';
+    var pos = r.position_status || '—';
+    var qual = (r.quality_tier || '').replace('QUALITY_','');
+    var momCol = r.momentum_state === 'TREND_UP' || r.momentum_state === 'SURGE' ? 'pos'
+               : r.momentum_state === 'DUMP' || r.momentum_state === 'FADE' ? 'neg' : 'dim';
+    var reason = (r.tm_reason || r.last_action_reason || '').substring(0, 30);
+
+    tbl += '<tr class="' + trClass(act) + '">'
+      + '<td class="inf">' + hh(r.hhmm_checked) + '</td>'
+      + '<td class="' + actClass(act) + '">' + act + '</td>'
+      + '<td style="color:var(--dim)">' + pos + '</td>'
+      + '<td class="dim">' + (r.mi_rank || '—') + '</td>'
+      + '<td class="' + (qual==='HIGH'?'pos':qual==='MEDIUM'?'neu':'neg') + '">' + (qual||'—') + '</td>'
+      + '<td class="' + momCol + '" style="font-size:0.57rem">' + (r.momentum_state||'—') + '</td>'
+      + '<td>' + yesno(r.structure_ok_5m) + '</td>'
+      + '<td>' + yesno(r.above_vwap_5m) + '</td>'
+      + '<td>' + yesno(r.ema_bull_5m) + '</td>'
+      + '<td class="dim">' + (parseFloat(r.trail_level)>0 ? fp(r.trail_level) : '—') + '</td>'
+      + '<td class="' + (parseFloat(r.current_pnl_pct)>=0?'pos':'neg') + '">' + fp(r.current_pnl_pct) + '</td>'
+      + '<td class="dim">' + fv(r.entry_score, 0) + '</td>'
+      + '<td class="dim">' + (r.entry_rank || '—') + '</td>'
+      + '<td style="color:var(--dim);font-size:0.55rem;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="' + (r.tm_reason||'') + '">' + reason + '</td>'
+      + '</tr>';
+  });
+
+  tbl += '</tbody></table>';
+  wrap.innerHTML = tbl;
 }
 
 function startCountdown() {
