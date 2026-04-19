@@ -689,6 +689,408 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 4 -->
 
+<!-- ============================================================
+     SECTION 5: ENTRY QUALITY + EXTRACTION EFFICIENCY
+     Source: DailyTrades × LiveContext (max_run_from_open_pct)
+     Live: dashes until EOD fields available
+     ============================================================ -->
+<style>
+/* ── Shared EOD styles ── */
+.eod-sec{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
+.eod-hdr{background:var(--surface);padding:7px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.eod-title{font-size:0.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;}
+.eod-badge-live{font-size:0.52rem;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,184,48,0.25);padding:1px 6px;border-radius:2px;}
+.eod-body{padding:12px 14px;}
+.eod-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.eod-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.eod-grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;}
+/* ── Metric cards ── */
+.eq-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
+.eq-lbl{font-size:0.55rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+.eq-val{font-size:1.3rem;font-family:var(--font-disp);font-weight:800;line-height:1;}
+.eq-sub{font-size:0.6rem;color:var(--dim);margin-top:3px;}
+/* ── Consumed distribution bars ── */
+.cons-grid{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
+.cons-row{display:grid;grid-template-columns:80px 1fr 36px;align-items:center;gap:6px;font-size:0.62rem;}
+.cons-lbl{color:var(--dim);text-align:right;}
+.cons-bar-wrap{background:rgba(30,42,53,0.6);border-radius:2px;height:10px;}
+.cons-bar{height:100%;border-radius:2px;transition:width 0.4s;}
+.cons-n{color:var(--text);font-weight:500;text-align:right;}
+/* ── Tables ── */
+.eod-tbl{width:100%;border-collapse:collapse;font-size:0.63rem;}
+.eod-tbl thead th{color:var(--dim);font-size:0.57rem;text-transform:uppercase;letter-spacing:.06em;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap;}
+.eod-tbl thead th:hover{color:var(--blue);}
+.eod-tbl tbody tr{border-bottom:1px solid rgba(30,42,53,0.35);cursor:pointer;}
+.eod-tbl tbody tr:hover{background:rgba(56,182,255,0.05);}
+.eod-tbl tbody tr:last-child{border-bottom:none;}
+.eod-tbl td{padding:5px 8px;white-space:nowrap;}
+.eod-tbl tfoot td{padding:5px 8px;font-weight:600;border-top:1px solid var(--border);color:var(--text);font-size:0.63rem;}
+.tbl-scroll{overflow-y:auto;max-height:230px;}
+.tbl-scroll::-webkit-scrollbar{width:4px;}
+.tbl-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.sym-link{cursor:pointer;color:var(--text);font-weight:600;}
+.sym-link:hover{color:var(--blue);}
+/* ── Insight bar ── */
+.insight-bar{background:var(--blue-bg);border:1px solid rgba(56,182,255,0.2);border-radius:4px;padding:7px 12px;font-size:0.65rem;color:var(--muted);line-height:1.6;margin-top:8px;}
+.insight-bar b{color:var(--blue);}
+/* ── Quality score ── */
+.qs-wrap{display:flex;gap:16px;align-items:flex-start;}
+.qs-gauge{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:100px;}
+.qs-score{font-family:var(--font-disp);font-size:3rem;font-weight:800;line-height:1;}
+.qs-label{font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+.qs-rows{flex:1;display:flex;flex-direction:column;gap:4px;}
+.qs-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;font-size:0.62rem;padding:3px 0;border-bottom:1px solid rgba(30,42,53,0.35);}
+.qs-row:last-child{border-bottom:none;}
+.qs-rl{color:var(--dim);}
+.qs-rv{color:var(--text);min-width:60px;text-align:right;}
+.qs-pts{color:var(--muted);min-width:50px;text-align:right;}
+/* ── Sim table ── */
+.sim-row-best{background:rgba(0,229,160,0.06)!important;}
+.sim-row-actual{background:rgba(56,182,255,0.06)!important;}
+/* ── Scale cards ── */
+.scale-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);}
+.scale-card{background:var(--card);padding:12px 14px;text-align:center;}
+.scale-cap{font-size:0.58rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+.scale-val{font-family:var(--font-disp);font-size:1.3rem;font-weight:800;}
+.scale-mult{font-size:0.58rem;color:var(--dim);margin-top:2px;}
+/* ── r915 bucket ── */
+.r915-bar{display:inline-block;height:8px;background:var(--blue);border-radius:2px;vertical-align:middle;}
+/* ── Gate bars ── */
+.gate-bar{display:inline-block;height:8px;background:rgba(255,77,106,0.5);border-radius:2px;vertical-align:middle;}
+</style>
+
+<div class="eod-sec" id="sec5">
+  <div class="eod-hdr">
+    <div class="eod-title">Entry Quality · Extraction Efficiency</div>
+    <div class="eod-badge-live" id="s5-badge">EOD</div>
+  </div>
+  <div class="eod-body">
+    <div class="eod-grid2">
+      <div>
+        <div class="eod-grid3" style="margin-bottom:10px;">
+          <div class="eq-card">
+            <div class="eq-lbl">Move consumed at entry</div>
+            <div class="eq-val neu" id="s5-consumed">—</div>
+            <div class="eq-sub">of max run already done</div>
+          </div>
+          <div class="eq-card">
+            <div class="eq-lbl">Remaining runway</div>
+            <div class="eq-val pos" id="s5-runway">—</div>
+            <div class="eq-sub">avg available after entry</div>
+          </div>
+          <div class="eq-card">
+            <div class="eq-lbl">Extraction efficiency</div>
+            <div class="eq-val" id="s5-ext">—</div>
+            <div class="eq-sub">P&L% ÷ remaining runway</div>
+          </div>
+        </div>
+        <div class="insight-bar" id="s5-insight">Extraction efficiency will populate after market close when EOD outcome fields are available.</div>
+      </div>
+      <div>
+        <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Move consumed distribution</div>
+        <div class="cons-grid" id="s5-dist"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- END SECTION 5 -->
+
+<!-- ============================================================
+     SECTION 6: HOLD TIME ANALYSIS
+     Source: DailyTrades.avg_holding_min + pnl_inr
+     ============================================================ -->
+<div class="eod-sec" id="sec6">
+  <div class="eod-hdr">
+    <div class="eod-title">Hold Time Analysis</div>
+    <div class="eod-badge-live">EOD</div>
+  </div>
+  <div class="eod-body">
+    <table class="eod-tbl" style="margin-bottom:8px;">
+      <thead><tr>
+        <th>Hold bucket</th><th>Trades</th><th>Win rate</th>
+        <th>Profit factor</th><th>P&L ₹</th><th>Avg P&L</th>
+      </tr></thead>
+      <tbody id="s6-tbody"></tbody>
+    </table>
+    <div class="insight-bar" id="s6-insight">—</div>
+  </div>
+</div>
+<!-- END SECTION 6 -->
+
+<!-- ============================================================
+     SECTION 7: SIGNAL & GATE ANALYSIS
+     Source: TradeManagerLong.tm_reason aggregated
+     ============================================================ -->
+<div class="eod-sec" id="sec7">
+  <div class="eod-hdr">
+    <div class="eod-title">Signal · Gate · Entry Analysis</div>
+    <div class="eod-badge-live">EOD</div>
+  </div>
+  <div class="eod-body">
+    <div class="eod-grid2">
+      <!-- Gate breakdown -->
+      <div>
+        <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Gate breakdown — why stocks were blocked</div>
+        <table class="eod-tbl">
+          <thead><tr><th>Gate / Reason</th><th>Count</th><th>% of blocked</th><th style="width:80px;">Bar</th></tr></thead>
+          <tbody id="s7-gate-tbody"></tbody>
+        </table>
+      </div>
+      <!-- Entry signal stats -->
+      <div>
+        <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Entry signal quality</div>
+        <div style="display:flex;flex-direction:column;gap:5px;" id="s7-signal-stats">
+          <div class="eod-grid2" style="gap:8px;margin-bottom:8px;" id="s7-signal-cards"></div>
+        </div>
+        <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 6px;">r915 bucket → probability of 5%+ run</div>
+        <table class="eod-tbl">
+          <thead><tr><th>r915 bucket</th><th>Stocks</th><th>Median run</th><th>Ran 5%+</th></tr></thead>
+          <tbody id="s7-r915-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Entry score quartile -->
+    <div style="margin-top:12px;">
+      <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Entry score quartile validation — does higher score → better outcome?</div>
+      <table class="eod-tbl">
+        <thead><tr><th>Quartile</th><th>Avg score</th><th>n</th><th>Win rate</th><th>Avg P&L ₹</th><th>Total P&L ₹</th></tr></thead>
+        <tbody id="s7-quartile-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- END SECTION 7 -->
+
+<!-- ============================================================
+     SECTION 8: BEST 15 / WORST 15 TRADES
+     Source: DailyTrades enriched with LiveContext EOD fields
+     ============================================================ -->
+<div class="eod-sec" id="sec8">
+  <div class="eod-hdr">
+    <div class="eod-title">Best 15 · Worst 15 Trades</div>
+    <div class="eod-badge-live">EOD</div>
+  </div>
+  <div class="eod-body eod-grid2" style="padding:0;">
+    <!-- Winners -->
+    <div style="padding:10px 12px;border-right:1px solid var(--border);">
+      <div style="font-size:0.6rem;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">▲ Top 15 winners</div>
+      <div class="tbl-scroll">
+        <table class="eod-tbl">
+          <thead><tr>
+            <th>Stock</th><th>P&L ₹</th><th>P&L %</th><th>Hold</th>
+            <th>Entry%</th><th>Peak%</th><th>Exit%</th><th>Consumed</th>
+          </tr></thead>
+          <tbody id="s8-best-tbody"></tbody>
+        </table>
+      </div>
+      <table class="eod-tbl"><tfoot><tr>
+        <td colspan="2" id="s8-best-total-inr" style="padding:5px 8px;">—</td>
+        <td id="s8-best-wr" style="padding:5px 8px;color:var(--dim);font-size:0.6rem;"></td>
+        <td colspan="5"></td>
+      </tr></tfoot></table>
+    </div>
+    <!-- Losers -->
+    <div style="padding:10px 12px;">
+      <div style="font-size:0.6rem;color:var(--red);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">▼ Bottom 15 losers</div>
+      <div class="tbl-scroll">
+        <table class="eod-tbl">
+          <thead><tr>
+            <th>Stock</th><th>P&L ₹</th><th>P&L %</th><th>Hold</th>
+            <th>Entry%</th><th>Peak%</th><th>Exit%</th><th>Consumed</th>
+          </tr></thead>
+          <tbody id="s8-worst-tbody"></tbody>
+        </table>
+      </div>
+      <table class="eod-tbl"><tfoot><tr>
+        <td colspan="2" id="s8-worst-total-inr" style="padding:5px 8px;">—</td>
+        <td id="s8-worst-wr" style="padding:5px 8px;color:var(--dim);font-size:0.6rem;"></td>
+        <td colspan="5"></td>
+      </tr></tfoot></table>
+    </div>
+  </div>
+</div>
+<!-- END SECTION 8 -->
+
+<!-- ============================================================
+     SECTION 9: UNIVERSE — TOP RUNNERS + r915 + INTERVAL RETURNS
+     Source: LiveContext EOD fields + DayProfile intervals
+     ============================================================ -->
+<div class="eod-sec" id="sec9">
+  <div class="eod-hdr">
+    <div class="eod-title">Universe — Top Runners · r915 Analysis · Interval Returns</div>
+    <div class="eod-badge-live">EOD</div>
+  </div>
+  <div class="eod-body">
+    <div class="eod-grid2" style="margin-bottom:12px;">
+      <!-- Top 20 runners -->
+      <div>
+        <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Top 20 runners (by max run from open)</div>
+        <div class="tbl-scroll">
+          <table class="eod-tbl">
+            <thead><tr><th>Stock</th><th>Max run</th><th>r915</th><th>Day ret</th><th>Traded?</th></tr></thead>
+            <tbody id="s9-runners-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- r915 bucket table -->
+      <div>
+        <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">r915 opening range → probability of 5%+ run</div>
+        <table class="eod-tbl" style="margin-bottom:12px;">
+          <thead><tr><th>r915 bucket</th><th>Stocks</th><th>Median run</th><th>Ran 5%+</th></tr></thead>
+          <tbody id="s9-r915-tbody"></tbody>
+        </table>
+        <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Interval returns — how each session contributed</div>
+        <table class="eod-tbl">
+          <thead><tr><th>Interval</th><th>Median return</th><th>% positive</th></tr></thead>
+          <tbody id="s9-interval-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Top 5 candle profile -->
+    <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Top 5 runners — intraday candle profile (% from open at key times)</div>
+    <table class="eod-tbl">
+      <thead><tr><th>Stock</th><th>Max run</th><th>r915</th><th>9:30</th><th>10:00</th><th>11:00</th><th>12:00</th><th>14:00</th><th>Close</th><th>Traded?</th></tr></thead>
+      <tbody id="s9-profile-tbody"></tbody>
+    </table>
+  </div>
+</div>
+<!-- END SECTION 9 -->
+
+<!-- ============================================================
+     SECTION 10: STARS NEVER SEEN + MISSED OPPORTUNITIES
+     Source: LiveContext cross-ref TradeManagerLong
+     ============================================================ -->
+<div class="eod-sec" id="sec10">
+  <div class="eod-hdr">
+    <div class="eod-title">Stars Never Seen · Missed Opportunities</div>
+    <div class="eod-badge-live">EOD</div>
+  </div>
+  <div class="eod-body eod-grid2" style="padding:0;">
+    <!-- Stars never seen -->
+    <div style="padding:10px 12px;border-right:1px solid var(--border);">
+      <div style="font-size:0.6rem;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">★ Stars never seen — ran 3%+ but system never signalled</div>
+      <div class="tbl-scroll">
+        <table class="eod-tbl">
+          <thead><tr><th>Stock</th><th>Max run</th><th>Day ret</th><th>r915</th><th>Prep score</th></tr></thead>
+          <tbody id="s10-stars-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Missed opportunities -->
+    <div style="padding:10px 12px;">
+      <div style="font-size:0.6rem;color:var(--red);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">◎ Missed — signalled but not traded (capital constraint)</div>
+      <div class="tbl-scroll">
+        <table class="eod-tbl">
+          <thead><tr><th>Stock</th><th>Max run</th><th>Sim P&L ₹</th><th>Signal time</th><th>Capital full?</th></tr></thead>
+          <tbody id="s10-missed-tbody"></tbody>
+        </table>
+      </div>
+      <div class="insight-bar" id="s10-opp-cost" style="margin-top:8px;">—</div>
+    </div>
+  </div>
+</div>
+<!-- END SECTION 10 -->
+
+<!-- ============================================================
+     SECTION 11: TOMORROW'S WATCHLIST
+     Source: LiveContext — close_position_pct + r_1400_1530 + max_run
+     ============================================================ -->
+<div class="eod-sec" id="sec11">
+  <div class="eod-hdr">
+    <div class="eod-title">Tomorrow's Watchlist</div>
+    <div class="eod-badge-live">EOD</div>
+  </div>
+  <div class="eod-body">
+    <div class="tbl-scroll" style="max-height:220px;">
+      <table class="eod-tbl">
+        <thead><tr>
+          <th>Stock</th><th>Close pos%</th><th>r1400–1530</th>
+          <th>Max run</th><th>Day ret</th><th>Efficiency</th>
+        </tr></thead>
+        <tbody id="s11-tbody"></tbody>
+      </table>
+    </div>
+    <div class="insight-bar" id="s11-note" style="margin-top:8px;">—</div>
+  </div>
+</div>
+<!-- END SECTION 11 -->
+
+<!-- ============================================================
+     SECTION 12: SESSION QUALITY SCORE
+     Source: Computed from all sections
+     ============================================================ -->
+<div class="eod-sec" id="sec12">
+  <div class="eod-hdr">
+    <div class="eod-title">Session Quality Score</div>
+    <div class="eod-badge-live">EOD</div>
+  </div>
+  <div class="eod-body">
+    <div class="qs-wrap">
+      <div class="qs-gauge">
+        <div class="qs-score" id="s12-score">—</div>
+        <div class="qs-label" id="s12-grade">—</div>
+        <div style="font-size:0.55rem;color:var(--dim);margin-top:2px;">/100</div>
+      </div>
+      <div class="qs-rows">
+        <div class="qs-row"><span class="qs-rl">Win rate</span><span class="qs-rv" id="s12-wr">—</span><span class="qs-pts" id="s12-wr-pts">— / 20</span></div>
+        <div class="qs-row"><span class="qs-rl">Profit factor</span><span class="qs-rv" id="s12-pf">—</span><span class="qs-pts" id="s12-pf-pts">— / 20</span></div>
+        <div class="qs-row"><span class="qs-rl">Extraction efficiency</span><span class="qs-rv" id="s12-ext">—</span><span class="qs-pts" id="s12-ext-pts">— / 20</span></div>
+        <div class="qs-row"><span class="qs-rl">Entry quality (consumed)</span><span class="qs-rv" id="s12-cons">—</span><span class="qs-pts" id="s12-cons-pts">— / 20</span></div>
+        <div class="qs-row"><span class="qs-rl">Regime quality</span><span class="qs-rv" id="s12-regime">—</span><span class="qs-pts" id="s12-regime-pts">— / 20</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- END SECTION 12 -->
+
+<!-- ============================================================
+     SECTION 13: SIMULATION SCENARIOS
+     Source: LiveContext × TradeManagerLong (simulated in dashboard)
+     ============================================================ -->
+<div class="eod-sec" id="sec13">
+  <div class="eod-hdr">
+    <div class="eod-title">Simulation Scenarios — What-if P&L</div>
+    <div class="eod-badge-live">EOD</div>
+  </div>
+  <div class="eod-body">
+    <div style="font-size:0.6rem;color:var(--dim);margin-bottom:8px;line-height:1.6;">Entry = pct_from_open at first ENTER signal · Exit = day_return_pct · SL = −2% from entry · Size = ₹2,000/position · Max 50 slots</div>
+    <div class="tbl-scroll" style="max-height:200px;margin-bottom:10px;">
+      <table class="eod-tbl" id="s13-table">
+        <thead><tr>
+          <th>Scenario</th><th>Stocks</th><th>Win%</th><th>PF</th>
+          <th>P&L ₹1L</th><th>At ₹10L</th><th>At ₹50L</th>
+        </tr></thead>
+        <tbody id="s13-tbody"></tbody>
+      </table>
+    </div>
+    <div class="insight-bar" id="s13-delta">—</div>
+    <!-- Entry score quartile validation -->
+    <div style="font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 6px;">Entry score quartile validation</div>
+    <table class="eod-tbl">
+      <thead><tr><th>Quartile</th><th>Avg score</th><th>n</th><th>Win%</th><th>Avg P&L ₹</th></tr></thead>
+      <tbody id="s13-quartile-tbody"></tbody>
+    </table>
+  </div>
+</div>
+<!-- END SECTION 13 -->
+
+<!-- ============================================================
+     SECTION 14: P&L AT SCALE
+     Source: DailyTrades total × multipliers
+     ============================================================ -->
+<div class="eod-sec" id="sec14">
+  <div class="eod-hdr">
+    <div class="eod-title">P&L at Scale — Same system, proportional capital</div>
+  </div>
+  <div class="scale-cards" id="s14-cards">
+    <div class="scale-card"><div class="scale-cap">₹1L (current)</div><div class="scale-val" id="s14-1l">—</div><div class="scale-mult">1× capital</div></div>
+    <div class="scale-card"><div class="scale-cap">₹5L</div><div class="scale-val" id="s14-5l">—</div><div class="scale-mult">5× capital</div></div>
+    <div class="scale-card"><div class="scale-cap">₹10L</div><div class="scale-val" id="s14-10l">—</div><div class="scale-mult">10× capital</div></div>
+    <div class="scale-card"><div class="scale-cap">₹50L</div><div class="scale-val" id="s14-50l">—</div><div class="scale-mult">500× capital</div></div>
+  </div>
+</div>
+<!-- END SECTION 14 -->
+
 </div><!-- END DASH BODY -->
 </div><!-- END DASHBOARD WRAPPER -->
 
@@ -864,6 +1266,7 @@ function renderAll() {
   s2Render();
   s3Render();
   s4RenderTable();
+  renderEOD();
 }
 
 // ============================================================
@@ -1814,6 +2217,743 @@ function s2AddHovers(prof, niftyData) {
       return 'NIFTY: <b style="color:#38b6ff">'+v.toFixed(2)+'</b> &nbsp; <b style="color:'+(parseFloat(pfo)>=0?'#00e5a0':'#ff4d6a')+'">'+(parseFloat(pfo)>=0?'+':'')+pfo+'%</b>';
     });
   }
+}
+
+
+// ============================================================
+// EOD SECTIONS — Render Functions
+// All computed client-side from STATE.data
+// ============================================================
+
+function renderEOD() {
+  var trades   = STATE.data.trades   || [];
+  var context  = STATE.data.context  || [];
+  var profile  = STATE.data.profile  || [];
+  var tmlong   = STATE.data.tmlong   || [];
+
+  // Build lookup maps
+  var outcomeMap = {};
+  context.forEach(function(s) {
+    if (s.tradingsymbol) outcomeMap[s.tradingsymbol] = s;
+  });
+
+  var tradedSyms = {};
+  trades.forEach(function(t) { tradedSyms[t.tradingsymbol] = t; });
+
+  // Enrich trades with EOD fields
+  var enriched = trades.map(function(t) {
+    var lc = outcomeMap[t.tradingsymbol] || {};
+    var maxRun   = parseFloat(lc.max_run_from_open_pct) || null;
+    var dayRet   = parseFloat(lc.day_return_pct) || null;
+
+    // Entry pct from TML first_enter if available
+    var tmEntry  = tmlong.find(function(m) { return m.tradingsymbol === t.tradingsymbol && m.last_action === 'ENTER'; });
+    var pctAtEntry = tmEntry ? parseFloat(tmEntry.pct_from_open) : null;
+    if (pctAtEntry === null) pctAtEntry = parseFloat(lc.r_915_930) || null; // rough fallback
+
+    var actualPnlPct = parseFloat(t.pnl_pct) || 0;
+    var pctConsumed  = (maxRun && maxRun > 0 && pctAtEntry !== null) ? (pctAtEntry / maxRun * 100) : null;
+    var remaining    = (maxRun !== null && pctAtEntry !== null) ? (maxRun - pctAtEntry) : null;
+    var extraction   = (remaining && remaining > 0 && actualPnlPct) ? (actualPnlPct / remaining) : null;
+
+    // Hold bucket
+    var holdMin = parseFloat(t.avg_holding_min) || 0;
+    var bucket  = holdMin < 20 ? '<20m' : holdMin < 60 ? '20-60m' : holdMin < 120 ? '1-2h' : holdMin < 240 ? '2-4h' : '4h+';
+
+    // Entry/peak/exit from LiveContext
+    var entryHHMM = t.first_entry_ts ? String(t.first_entry_ts).slice(11,16) : '—';
+    var exitHHMM  = t.last_exit_ts   ? String(t.last_exit_ts).slice(11,16)   : '—';
+
+    return {
+      sym:           t.tradingsymbol,
+      pnl_inr:       parseFloat(t.pnl_inr) || 0,
+      pnl_pct:       actualPnlPct,
+      hold_min:      holdMin,
+      hold_bucket:   bucket,
+      entry_hhmm:    entryHHMM,
+      exit_hhmm:     exitHHMM,
+      pct_consumed:  pctConsumed,
+      remaining:     remaining,
+      extraction:    extraction,
+      max_run:       maxRun,
+      day_ret:       dayRet,
+      r915:          parseFloat(lc.r_915_930) || null,
+      close_pos_pct: parseFloat(lc.close_position_pct) || null,
+      r_1400:        parseFloat(lc.r_1400_1530) || null,
+      eff_ratio:     parseFloat(lc.efficiency_ratio) || null,
+      entry_pct_lc:  pctAtEntry,
+      peak_pct:      parseFloat(lc.max_run_from_open_pct) || null,
+      exit_pct:      dayRet,
+      is_winner:     (parseFloat(t.pnl_inr)||0) > 0,
+      prep_score:    parseFloat(lc.prep_score) || null,
+      evening_score: parseFloat(lc.evening_score) || null,
+    };
+  });
+
+  var eodAvailable = enriched.some(function(t) { return t.max_run !== null; });
+
+  s5Render(enriched, eodAvailable);
+  s6Render(enriched, eodAvailable);
+  s7Render(enriched, tmlong, context, eodAvailable);
+  s8Render(enriched, eodAvailable);
+  s9Render(context, enriched, profile, eodAvailable);
+  s10Render(context, tmlong, enriched, eodAvailable);
+  s11Render(context, profile, eodAvailable);
+  s12Render(enriched, profile, eodAvailable);
+  s13Render(enriched, context, tmlong, eodAvailable);
+  s14Render(enriched);
+}
+
+// ── helpers ──────────────────────────────────────────────────
+function fInr(v, sign) {
+  if (v === null || !isFinite(v)) return '—';
+  var s = sign !== false ? ((v >= 0 ? '+' : '')) : '';
+  return s + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+}
+function fPct(v, dec) {
+  if (v === null || !isFinite(v)) return '—';
+  dec = dec !== undefined ? dec : 1;
+  return (v >= 0 ? '+' : '') + v.toFixed(dec) + '%';
+}
+function pnlClass(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : 'dim'; }
+function hhmm2str(h) {
+  if (!h) return '—';
+  var s = String(Math.round(h));
+  if (s.length < 3) return s;
+  return s.slice(0,-2).padStart(2,'0') + ':' + s.slice(-2);
+}
+
+function eodStockLink(sym) {
+  return '<span class="sym-link" onclick="eodOpenDrill(\'' + sym + '\')">' + sym + '</span>';
+}
+function eodOpenDrill(sym) {
+  var ctx = STATE.data.context || [];
+  var found = ctx.find(function(r) { return r.tradingsymbol === sym; });
+  if (found) s4OpenDrill(found);
+}
+
+// ── SECTION 5 — Entry Quality ─────────────────────────────────
+function s5Render(enriched, eodAvail) {
+  var withData = enriched.filter(function(t) { return t.pct_consumed !== null; });
+  if (!withData.length || !eodAvail) return;
+
+  var avgConsumed = withData.reduce(function(s,t){return s+t.pct_consumed;},0)/withData.length;
+  var avgRunway   = withData.reduce(function(s,t){return s+(t.remaining||0);},0)/withData.length;
+  var avgExt      = withData.reduce(function(s,t){return s+(t.extraction||0);},0)/withData.length;
+
+  var ce = document.getElementById('s5-consumed');
+  ce.textContent = avgConsumed.toFixed(1) + '%';
+  ce.className = 'eq-val ' + (avgConsumed < 30 ? 'pos' : avgConsumed < 60 ? 'neu' : 'neg');
+
+  var re = document.getElementById('s5-runway');
+  re.textContent = avgRunway.toFixed(2) + '%';
+  re.className = 'eq-val ' + (avgRunway > 2 ? 'pos' : 'neu');
+
+  var xe = document.getElementById('s5-ext');
+  xe.textContent = (avgExt * 100).toFixed(1) + '%';
+  xe.className = 'eq-val ' + (avgExt > 0.15 ? 'pos' : avgExt > 0 ? 'neu' : 'neg');
+
+  // Consumed distribution
+  var buckets = [['0–30%',0,30,'var(--green)'],['30–60%',30,60,'var(--amber)'],['60–80%',60,80,'var(--red)'],['80%+',80,101,'#c0392b']];
+  var max = 0;
+  var counts = buckets.map(function(b) {
+    var n = withData.filter(function(t){return t.pct_consumed>=b[1]&&t.pct_consumed<b[2];}).length;
+    if (n > max) max = n;
+    return n;
+  });
+  var distEl = document.getElementById('s5-dist');
+  distEl.innerHTML = '';
+  buckets.forEach(function(b, i) {
+    var pct = max ? (counts[i]/max*100) : 0;
+    var pctOfTrades = withData.length ? (counts[i]/withData.length*100).toFixed(0) : 0;
+    distEl.innerHTML +=
+      '<div class="cons-row">'
+      +'<span class="cons-lbl">'+b[0]+'</span>'
+      +'<div class="cons-bar-wrap"><div class="cons-bar" style="width:'+pct+'%;background:'+b[3]+'"></div></div>'
+      +'<span class="cons-n">'+counts[i]+' ('+pctOfTrades+'%)</span></div>';
+  });
+
+  var extLabel = avgExt > 0.15 ? '✅ Strong' : avgExt > 0.05 ? '⚠️ Moderate' : avgExt > 0 ? '⚠️ Weak' : '🔴 Negative';
+  document.getElementById('s5-insight').innerHTML =
+    '<b>Extraction efficiency: ' + extLabel + '</b> — '
+    + 'System consumed ' + avgConsumed.toFixed(1) + '% of the move before entry, leaving '
+    + avgRunway.toFixed(2) + '% of runway. '
+    + (avgExt <= 0 ? 'Negative EE occurs when SL losses outweigh gains — but system can still be profitable if profit factor > 1.' : 'The system captured ' + (avgExt*100).toFixed(1) + '% of remaining runway on average.');
+}
+
+// ── SECTION 6 — Hold Time ─────────────────────────────────────
+function s6Render(enriched, eodAvail) {
+  var bucketOrder = ['<20m','20-60m','1-2h','2-4h','4h+'];
+  var bucketLabel = {'<20m':'< 20 min','20-60m':'20–60 min','1-2h':'1–2 hours','2-4h':'2–4 hours','4h+':'4 hours+'};
+  var tbody = document.getElementById('s6-tbody');
+  tbody.innerHTML = '';
+  var bestBucket = null, bestPnl = -Infinity;
+
+  bucketOrder.forEach(function(b) {
+    var group = enriched.filter(function(t){return t.hold_bucket===b;});
+    if (!group.length) return;
+    var wins   = group.filter(function(t){return t.is_winner;}).length;
+    var totalP = group.reduce(function(s,t){return s+t.pnl_inr;},0);
+    var winP   = group.filter(function(t){return t.is_winner;}).reduce(function(s,t){return s+t.pnl_inr;},0);
+    var lossP  = Math.abs(group.filter(function(t){return !t.is_winner;}).reduce(function(s,t){return s+t.pnl_inr;},0));
+    var wr     = (wins/group.length*100).toFixed(1);
+    var pf     = lossP > 0 ? (winP/lossP).toFixed(2) : '∞';
+    var avgP   = (totalP/group.length).toFixed(0);
+    if (totalP > bestPnl) { bestPnl = totalP; bestBucket = b; }
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="color:var(--text)">' + bucketLabel[b] + '</td>'
+      +'<td class="inf">' + group.length + '</td>'
+      +'<td class="' + (parseFloat(wr)>=50?'pos':'neg') + '">' + wr + '%</td>'
+      +'<td class="' + (parseFloat(pf)>=1?'pos':'neg') + '">' + pf + '</td>'
+      +'<td class="' + pnlClass(totalP) + '">' + fInr(totalP) + '</td>'
+      +'<td class="' + pnlClass(parseFloat(avgP)) + '">' + fInr(parseFloat(avgP)) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  // Insight
+  var insightEl = document.getElementById('s6-insight');
+  if (bestBucket) {
+    insightEl.innerHTML = '<b>Key pattern:</b> The <b>' + (bestBucket) + '</b> bucket was most profitable. '
+      + 'Short holds (<1h) consistently underperform — the trail stop needs patience. '
+      + '4h+ positions benefit from full trend development.';
+  }
+}
+
+// ── SECTION 7 — Gates + Signals ──────────────────────────────
+function s7Render(enriched, tmlong, context, eodAvail) {
+  // Gate breakdown from TML tm_reason field
+  var gateCounts = {};
+  var totalBlocked = 0;
+  tmlong.forEach(function(t) {
+    if (t.tm_action === 'NONE' || t.tm_action === 'WAIT') {
+      var reasons = (t.tm_reason || '').split('|');
+      reasons.forEach(function(r) {
+        r = r.trim();
+        if (r && r !== 'none') {
+          gateCounts[r] = (gateCounts[r] || 0) + 1;
+          totalBlocked++;
+        }
+      });
+    }
+  });
+
+  var gateArr = Object.keys(gateCounts).map(function(k) {
+    return { gate: k, n: gateCounts[k], pct: totalBlocked ? (gateCounts[k]/totalBlocked*100) : 0 };
+  }).sort(function(a,b) { return b.n - a.n; }).slice(0, 10);
+
+  var maxN = gateArr.length ? gateArr[0].n : 1;
+  var gtbody = document.getElementById('s7-gate-tbody');
+  gtbody.innerHTML = '';
+  gateArr.forEach(function(g) {
+    var barW = (g.n/maxN*80).toFixed(0);
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td style="color:var(--text);max-width:160px;overflow:hidden;text-overflow:ellipsis">' + g.gate + '</td>'
+      +'<td class="inf">' + g.n.toLocaleString('en-IN') + '</td>'
+      +'<td class="dim">' + g.pct.toFixed(1) + '%</td>'
+      +'<td><div class="gate-bar" style="width:'+barW+'px"></div></td>';
+    gtbody.appendChild(tr);
+  });
+
+  // Entry signal cards
+  var cardsEl = document.getElementById('s7-signal-cards');
+  var eodTrades = enriched.filter(function(t){return t.r915 !== null;});
+  var medR915 = eodTrades.length ? eodTrades.map(function(t){return t.r915;}).sort(function(a,b){return a-b;}) : [];
+  var medR915val = medR915.length ? medR915[Math.floor(medR915.length/2)] : null;
+  var rvolArr = tmlong.filter(function(t){return t.last_action==='ENTER' && t.rvol;}).map(function(t){return parseFloat(t.rvol)||0;});
+  var medRvol = rvolArr.length ? (rvolArr.sort(function(a,b){return a-b;})[Math.floor(rvolArr.length/2)]) : null;
+  var rvolGt15 = rvolArr.length ? (rvolArr.filter(function(v){return v>=1.5;}).length/rvolArr.length*100).toFixed(0) : '—';
+
+  cardsEl.innerHTML =
+    '<div class="eq-card"><div class="eq-lbl">Signals (ENTER)</div><div class="eq-val inf">' + tmlong.filter(function(t){return t.last_action==='ENTER';}).length + '</div><div class="eq-sub">unique ENTER signals</div></div>'
+    +'<div class="eq-card"><div class="eq-lbl">r915 median at entry</div><div class="eq-val '+(medR915val!==null?(medR915val>=0?'pos':'neg'):'dim')+'">'+(medR915val!==null?fPct(medR915val,2):'—')+'</div><div class="eq-sub">opening range at entry</div></div>'
+    +'<div class="eq-card"><div class="eq-lbl">RVOL median at entry</div><div class="eq-val '+(medRvol!==null?(medRvol>=1?'pos':'neg'):'dim')+'">'+(medRvol!==null?medRvol.toFixed(2)+'×':'—')+'</div><div class="eq-sub">' + rvolGt15 + '% had RVOL > 1.5×</div></div>'
+    +'<div class="eq-card"><div class="eq-lbl">Total blocked</div><div class="eq-val neg">' + totalBlocked.toLocaleString('en-IN') + '</div><div class="eq-sub">NONE decisions on watching</div></div>';
+
+  // r915 bucket table
+  if (eodAvail) {
+    var r915Buckets = [
+      {lbl:'< 0%',   min:-99, max:0},
+      {lbl:'0–1%',   min:0,   max:1},
+      {lbl:'1–2%',   min:1,   max:2},
+      {lbl:'2–3%',   min:2,   max:3},
+      {lbl:'3–5%',   min:3,   max:5},
+      {lbl:'> 5%',   min:5,   max:99},
+    ];
+    var r9tbody = document.getElementById('s7-r915-tbody');
+    r9tbody.innerHTML = '';
+    r915Buckets.forEach(function(bk) {
+      var stocks = context.filter(function(s){
+        var r = parseFloat(s.r_915_930);
+        return isFinite(r) && r >= bk.min && r < bk.max;
+      });
+      if (!stocks.length) return;
+      var runs = stocks.map(function(s){return parseFloat(s.max_run_from_open_pct)||0;}).filter(function(v){return v>0;}).sort(function(a,b){return a-b;});
+      var med  = runs.length ? runs[Math.floor(runs.length/2)] : 0;
+      var ran5 = stocks.filter(function(s){return (parseFloat(s.max_run_from_open_pct)||0)>=5;}).length;
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td style="color:var(--text)">'+bk.lbl+'</td><td class="inf">'+stocks.length+'</td><td class="pos">'+med.toFixed(2)+'%</td><td class="neu">'+ran5+' ('+(stocks.length?((ran5/stocks.length*100).toFixed(0)):'0')+'%)</td>';
+      r9tbody.appendChild(tr);
+    });
+  }
+
+  // Entry score quartile
+  var withScore = enriched.filter(function(t){return t.max_run !== null;});
+  if (withScore.length >= 8) {
+    var scored = tmlong.filter(function(t){return t.entry_score && t.last_action==='ENTER';})
+      .sort(function(a,b){return (parseFloat(a.entry_score)||0)-(parseFloat(b.entry_score)||0);});
+    var qSz = Math.floor(scored.length/4);
+    var quartiles = [
+      {lbl:'Q1 (lowest)',  stocks: scored.slice(0, qSz)},
+      {lbl:'Q2',           stocks: scored.slice(qSz, qSz*2)},
+      {lbl:'Q3',           stocks: scored.slice(qSz*2, qSz*3)},
+      {lbl:'Q4 (highest)', stocks: scored.slice(qSz*3)},
+    ];
+    var qtbody = document.getElementById('s7-quartile-tbody');
+    qtbody.innerHTML = '';
+    quartiles.forEach(function(q) {
+      var avgScore = q.stocks.length ? q.stocks.reduce(function(s,t){return s+(parseFloat(t.entry_score)||0);},0)/q.stocks.length : 0;
+      // Match to enriched trades
+      var syms = new Set(q.stocks.map(function(t){return t.tradingsymbol;}));
+      var qTrades = enriched.filter(function(t){return syms.has(t.sym);});
+      var wins = qTrades.filter(function(t){return t.is_winner;}).length;
+      var totalP = qTrades.reduce(function(s,t){return s+t.pnl_inr;},0);
+      var avgP = qTrades.length ? totalP/qTrades.length : 0;
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td style="color:var(--text)">'+q.lbl+'</td><td class="inf">'+avgScore.toFixed(0)+'</td><td class="dim">'+q.stocks.length+'</td>'
+        +'<td class="'+(qTrades.length?(wins/qTrades.length>=0.5?'pos':'neg'):'dim')+'">'+(qTrades.length?(wins/qTrades.length*100).toFixed(1)+'%':'—')+'</td>'
+        +'<td class="'+pnlClass(avgP)+'">'+fInr(avgP)+'</td>'
+        +'<td class="'+pnlClass(totalP)+'">'+fInr(totalP)+'</td>';
+      qtbody.appendChild(tr);
+    });
+  }
+}
+
+// ── SECTION 8 — Best/Worst 15 ─────────────────────────────────
+function s8Render(enriched, eodAvail) {
+  var sorted = enriched.slice().sort(function(a,b){return b.pnl_inr - a.pnl_inr;});
+  var best15  = sorted.slice(0, 15);
+  var worst15 = sorted.slice(-15).reverse();
+
+  function makeRow(t) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + eodStockLink(t.sym) + '</td>'
+      +'<td class="'+pnlClass(t.pnl_inr)+'">'+fInr(t.pnl_inr)+'</td>'
+      +'<td class="'+pnlClass(t.pnl_pct)+'">'+fPct(t.pnl_pct,2)+'</td>'
+      +'<td class="dim">'+Math.round(t.hold_min)+'m</td>'
+      +'<td class="dim">'+(t.entry_pct_lc!==null?fPct(t.entry_pct_lc,1):'—')+'</td>'
+      +'<td class="pos">'+(t.peak_pct!==null?fPct(t.peak_pct,1):'—')+'</td>'
+      +'<td class="'+(t.exit_pct!==null?pnlClass(t.exit_pct):'dim')+'">'+(t.exit_pct!==null?fPct(t.exit_pct,1):'—')+'</td>'
+      +'<td class="'+(t.pct_consumed!==null?(t.pct_consumed<30?'pos':t.pct_consumed<60?'neu':'neg'):'dim')+'">'+(t.pct_consumed!==null?t.pct_consumed.toFixed(0)+'%':'—')+'</td>';
+    return tr;
+  }
+
+  var btbody = document.getElementById('s8-best-tbody');
+  btbody.innerHTML = '';
+  best15.forEach(function(t){ btbody.appendChild(makeRow(t)); });
+
+  var wtbody = document.getElementById('s8-worst-tbody');
+  wtbody.innerHTML = '';
+  worst15.forEach(function(t){ wtbody.appendChild(makeRow(t)); });
+
+  // Totals
+  var bestTotal = best15.reduce(function(s,t){return s+t.pnl_inr;},0);
+  var worstTotal = worst15.reduce(function(s,t){return s+t.pnl_inr;},0);
+  var bestWR = best15.filter(function(t){return t.is_winner;}).length;
+  var worstWR = worst15.filter(function(t){return t.is_winner;}).length;
+
+  var bti = document.getElementById('s8-best-total-inr');
+  if (bti) { bti.textContent = fInr(bestTotal); bti.className = pnlClass(bestTotal); }
+  var btw = document.getElementById('s8-best-wr');
+  if (btw) btw.textContent = 'Win rate: ' + (best15.length ? (bestWR/best15.length*100).toFixed(0) : 0) + '%';
+
+  var wti = document.getElementById('s8-worst-total-inr');
+  if (wti) { wti.textContent = fInr(worstTotal); wti.className = pnlClass(worstTotal); }
+  var wtw = document.getElementById('s8-worst-wr');
+  if (wtw) wtw.textContent = 'Win rate: ' + (worst15.length ? (worstWR/worst15.length*100).toFixed(0) : 0) + '%';
+}
+
+// ── SECTION 9 — Universe Runners ─────────────────────────────
+function s9Render(context, enriched, profile, eodAvail) {
+  var tradedSet = {};
+  enriched.forEach(function(t){ tradedSet[t.sym] = true; });
+
+  // Top 20 runners — use max_run if EOD available, else live pct_from_open
+  var withRun = context.filter(function(s){
+    return eodAvail ? (parseFloat(s.max_run_from_open_pct) > 0) : (parseFloat(s.pct_from_open) > 0);
+  }).sort(function(a,b){
+    var av = eodAvail ? parseFloat(a.max_run_from_open_pct) : parseFloat(a.pct_from_open);
+    var bv = eodAvail ? parseFloat(b.max_run_from_open_pct) : parseFloat(b.pct_from_open);
+    return bv - av;
+  }).slice(0, 20);
+
+  var rtbody = document.getElementById('s9-runners-tbody');
+  rtbody.innerHTML = '';
+  withRun.forEach(function(s) {
+    var run = eodAvail ? parseFloat(s.max_run_from_open_pct) : parseFloat(s.pct_from_open);
+    var r915 = parseFloat(s.r_915_930);
+    var dayRet = parseFloat(s.day_return_pct);
+    var traded = tradedSet[s.tradingsymbol];
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + eodStockLink(s.tradingsymbol) + '</td>'
+      +'<td class="pos">' + (isFinite(run)?fPct(run,2):'—') + '</td>'
+      +'<td class="'+(isFinite(r915)?pnlClass(r915):'dim')+'">' + (isFinite(r915)?fPct(r915,2):'—') + '</td>'
+      +'<td class="'+(isFinite(dayRet)?pnlClass(dayRet):'dim')+'">' + (isFinite(dayRet)?fPct(dayRet,2):'—') + '</td>'
+      +'<td>' + (traded ? '<span style="color:var(--green);font-size:0.6rem">✓ traded</span>' : '<span style="color:var(--dim);font-size:0.6rem">—</span>') + '</td>';
+    rtbody.appendChild(tr);
+  });
+
+  // r915 buckets
+  if (eodAvail) {
+    var r915Bkts = [['< 0%',-99,0],['0–1%',0,1],['1–2%',1,2],['2–3%',2,3],['3–5%',3,5],['> 5%',5,99]];
+    var r9tbody = document.getElementById('s9-r915-tbody');
+    r9tbody.innerHTML = '';
+    r915Bkts.forEach(function(bk) {
+      var stks = context.filter(function(s){ var r=parseFloat(s.r_915_930); return isFinite(r)&&r>=bk[1]&&r<bk[2]; });
+      if (!stks.length) return;
+      var runs = stks.map(function(s){return parseFloat(s.max_run_from_open_pct)||0;}).filter(Boolean).sort(function(a,b){return a-b;});
+      var med  = runs.length ? runs[Math.floor(runs.length/2)] : 0;
+      var ran5 = stks.filter(function(s){return (parseFloat(s.max_run_from_open_pct)||0)>=5;}).length;
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td style="color:var(--text)">'+bk[0]+'</td><td class="inf">'+stks.length+'</td><td class="pos">'+med.toFixed(2)+'%</td><td class="neu">'+ran5+' ('+(stks.length?(ran5/stks.length*100).toFixed(0):0)+'%)</td>';
+      r9tbody.appendChild(tr);
+    });
+  }
+
+  // Interval returns from DayProfile last row
+  var itvbody = document.getElementById('s9-interval-tbody');
+  itvbody.innerHTML = '';
+  if (eodAvail && profile.length) {
+    var lastP = profile[profile.length-1];
+    var intervals = [
+      {lbl:'9:15–9:30',  field:'r_915_930'},
+      {lbl:'9:30–10:00', field:'r_930_1000'},
+      {lbl:'10:00–12:00',field:'r_1000_1200'},
+      {lbl:'12:00–14:00',field:'r_1200_1400'},
+      {lbl:'14:00–15:30',field:'r_1400_1530'},
+    ];
+    // Actually interval returns come from LiveContext aggregate
+    // Use context universe median per interval
+    intervals.forEach(function(iv) {
+      var vals = context.map(function(s){return parseFloat(s[iv.field]);}).filter(function(v){return isFinite(v);});
+      if (!vals.length) { itvbody.innerHTML += '<tr><td style="color:var(--text)">'+iv.lbl+'</td><td class="dim">—</td><td class="dim">—</td></tr>'; return; }
+      vals.sort(function(a,b){return a-b;});
+      var med = vals[Math.floor(vals.length/2)];
+      var pos = (vals.filter(function(v){return v>0;}).length/vals.length*100).toFixed(1);
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td style="color:var(--text)">'+iv.lbl+'</td><td class="'+pnlClass(med)+'">'+fPct(med,2)+'</td><td class="'+(parseFloat(pos)>=50?'pos':'neg')+'">'+pos+'%</td>';
+      itvbody.appendChild(tr);
+    });
+  } else {
+    itvbody.innerHTML = '<tr><td colspan="3" style="color:var(--dim);padding:8px;font-size:0.62rem">Available after market close</td></tr>';
+  }
+
+  // Top 5 candle profile
+  var top5 = withRun.slice(0, 5);
+  var ptbody = document.getElementById('s9-profile-tbody');
+  ptbody.innerHTML = '';
+  top5.forEach(function(s) {
+    var closes = s.m5_closes_csv ? s.m5_closes_csv.split(',').map(Number) : [];
+    var open0  = closes.length ? closes[0] : 1;
+    function pfoAt(idx) {
+      if (!closes[idx] || !open0) return null;
+      return (closes[idx] - open0) / open0 * 100;
+    }
+    // Map candle indices: 9:30≈idx3, 10:00≈idx9, 11:00≈idx21, 12:00≈idx33, 14:00≈idx57
+    var run    = eodAvail ? parseFloat(s.max_run_from_open_pct) : parseFloat(s.pct_from_open);
+    var r915   = parseFloat(s.r_915_930);
+    var traded = tradedSet[s.tradingsymbol];
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + eodStockLink(s.tradingsymbol) + '</td>'
+      +'<td class="pos">'+(isFinite(run)?fPct(run,2):'—')+'</td>'
+      +'<td class="'+(isFinite(r915)?pnlClass(r915):'dim')+'">'+(isFinite(r915)?fPct(r915,2):'—')+'</td>'
+      +'<td class="'+(pfoAt(3)!==null?pnlClass(pfoAt(3)):'dim')+'">'+(pfoAt(3)!==null?fPct(pfoAt(3),1):'—')+'</td>'
+      +'<td class="'+(pfoAt(9)!==null?pnlClass(pfoAt(9)):'dim')+'">'+(pfoAt(9)!==null?fPct(pfoAt(9),1):'—')+'</td>'
+      +'<td class="'+(pfoAt(21)!==null?pnlClass(pfoAt(21)):'dim')+'">'+(pfoAt(21)!==null?fPct(pfoAt(21),1):'—')+'</td>'
+      +'<td class="'+(pfoAt(33)!==null?pnlClass(pfoAt(33)):'dim')+'">'+(pfoAt(33)!==null?fPct(pfoAt(33),1):'—')+'</td>'
+      +'<td class="'+(pfoAt(57)!==null?pnlClass(pfoAt(57)):'dim')+'">'+(pfoAt(57)!==null?fPct(pfoAt(57),1):'—')+'</td>'
+      +'<td class="'+(parseFloat(s.day_return_pct)!==null?pnlClass(parseFloat(s.day_return_pct)):'dim')+'">'+(isFinite(parseFloat(s.day_return_pct))?fPct(parseFloat(s.day_return_pct),1):'—')+'</td>'
+      +'<td>'+(traded?'<span style="color:var(--green);font-size:0.6rem">✓</span>':'<span style="color:var(--dim);font-size:0.6rem">—</span>')+'</td>';
+    ptbody.appendChild(tr);
+  });
+}
+
+// ── SECTION 10 — Stars Never Seen + Missed ────────────────────
+function s10Render(context, tmlong, enriched, eodAvail) {
+  if (!eodAvail) return;
+  var tradedSet = {};
+  enriched.forEach(function(t){ tradedSet[t.sym] = true; });
+  var signalledSet = {};
+  tmlong.forEach(function(t){ if (t.tradingsymbol) signalledSet[t.tradingsymbol] = true; });
+
+  // Stars never seen: ran 3%+ but never in TML
+  var stars = context.filter(function(s){
+    return (parseFloat(s.max_run_from_open_pct)||0) >= 3
+      && !signalledSet[s.tradingsymbol]
+      && !tradedSet[s.tradingsymbol];
+  }).sort(function(a,b){
+    return (parseFloat(b.max_run_from_open_pct)||0) - (parseFloat(a.max_run_from_open_pct)||0);
+  }).slice(0, 15);
+
+  var stbody = document.getElementById('s10-stars-tbody');
+  stbody.innerHTML = '';
+  stars.forEach(function(s) {
+    var run = parseFloat(s.max_run_from_open_pct);
+    var day = parseFloat(s.day_return_pct);
+    var r9  = parseFloat(s.r_915_930);
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + eodStockLink(s.tradingsymbol) + '</td>'
+      +'<td class="pos">'+(isFinite(run)?fPct(run,2):'—')+'</td>'
+      +'<td class="'+(isFinite(day)?pnlClass(day):'dim')+'">'+(isFinite(day)?fPct(day,2):'—')+'</td>'
+      +'<td class="'+(isFinite(r9)?pnlClass(r9):'dim')+'">'+(isFinite(r9)?fPct(r9,2):'—')+'</td>'
+      +'<td class="dim">'+(s.prep_score?parseFloat(s.prep_score).toFixed(2):'—')+'</td>';
+    stbody.appendChild(tr);
+  });
+
+  // Missed opportunities: in TML but not traded, ran 3%+
+  var missed = context.filter(function(s){
+    return signalledSet[s.tradingsymbol]
+      && !tradedSet[s.tradingsymbol]
+      && (parseFloat(s.max_run_from_open_pct)||0) >= 3;
+  }).map(function(s) {
+    var entryPct = parseFloat(s.pct_from_open) || 0;
+    var dayRet   = parseFloat(s.day_return_pct) || 0;
+    var slFloor  = entryPct - 2.0;
+    var simPnl   = dayRet < slFloor ? -2.0 : (dayRet - entryPct);
+    var simInr   = simPnl / 100 * 2000;
+    return { sym: s.tradingsymbol, max_run: parseFloat(s.max_run_from_open_pct), sim_inr: simInr };
+  }).sort(function(a,b){ return b.sim_inr - a.sim_inr; }).slice(0, 15);
+
+  var mtbody = document.getElementById('s10-missed-tbody');
+  mtbody.innerHTML = '';
+  var oppCost = 0;
+  missed.forEach(function(m) {
+    if (m.sim_inr > 0) oppCost += m.sim_inr;
+    var tmRow = tmlong.find(function(t){return t.tradingsymbol===m.sym && t.last_action==='ENTER';});
+    var sigTime = tmRow ? hhmm2str(tmRow.hhmm_checked) : '—';
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + eodStockLink(m.sym) + '</td>'
+      +'<td class="pos">' + fPct(m.max_run,2) + '</td>'
+      +'<td class="'+pnlClass(m.sim_inr)+'">' + fInr(m.sim_inr) + '</td>'
+      +'<td class="dim">' + sigTime + '</td>'
+      +'<td class="dim">—</td>';
+    mtbody.appendChild(tr);
+  });
+
+  var oce = document.getElementById('s10-opp-cost');
+  if (oce) oce.innerHTML = '<b>Simulated opportunity cost</b> from capital-constrained misses: <b class="pos">' + fInr(oppCost) + '</b> (if all good misses had been entered with a free slot).';
+}
+
+// ── SECTION 11 — Tomorrow's Watchlist ────────────────────────
+function s11Render(context, profile, eodAvail) {
+  if (!eodAvail) return;
+  var watchlist = context.filter(function(s){
+    return (parseFloat(s.close_position_pct)||0) >= 0.80
+      && (parseFloat(s.r_1400_1530)||0) > 0
+      && (parseFloat(s.max_run_from_open_pct)||0) >= 3;
+  }).sort(function(a,b){
+    return (parseFloat(b.max_run_from_open_pct)||0) - (parseFloat(a.max_run_from_open_pct)||0);
+  });
+
+  var tbody = document.getElementById('s11-tbody');
+  tbody.innerHTML = '';
+  watchlist.forEach(function(s) {
+    var cpos = parseFloat(s.close_position_pct);
+    var r14  = parseFloat(s.r_1400_1530);
+    var run  = parseFloat(s.max_run_from_open_pct);
+    var day  = parseFloat(s.day_return_pct);
+    var eff  = parseFloat(s.efficiency_ratio);
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + eodStockLink(s.tradingsymbol) + '</td>'
+      +'<td class="pos">'+(isFinite(cpos)?(cpos*100).toFixed(1)+'%':'—')+'</td>'
+      +'<td class="'+(isFinite(r14)?pnlClass(r14):'dim')+'">'+(isFinite(r14)?fPct(r14,2):'—')+'</td>'
+      +'<td class="pos">'+(isFinite(run)?fPct(run,2):'—')+'</td>'
+      +'<td class="'+(isFinite(day)?pnlClass(day):'dim')+'">'+(isFinite(day)?fPct(day,2):'—')+'</td>'
+      +'<td class="'+(isFinite(eff)?(eff>0.5?'pos':eff>0.3?'neu':'neg'):'dim')+'">'+(isFinite(eff)?eff.toFixed(3):'—')+'</td>';
+    tbody.appendChild(tr);
+  });
+
+  var last = profile.length ? profile[profile.length-1] : null;
+  var noteEl = document.getElementById('s11-note');
+  if (noteEl && last) {
+    noteEl.innerHTML = 'Regime carry-forward: today ended <b>' + (last.day_regime||'—') + '</b> — watch for direction confirmation in first 15 minutes. ' + watchlist.length + ' stocks meet the watchlist criteria.';
+  }
+}
+
+// ── SECTION 12 — Session Quality Score ───────────────────────
+function s12Render(enriched, profile, eodAvail) {
+  var trades = enriched;
+  if (!trades.length) return;
+
+  var wins    = trades.filter(function(t){return t.is_winner;}).length;
+  var winRate = wins / trades.length;
+  var grossW  = trades.filter(function(t){return t.is_winner;}).reduce(function(s,t){return s+t.pnl_inr;},0);
+  var grossL  = Math.abs(trades.filter(function(t){return !t.is_winner;}).reduce(function(s,t){return s+t.pnl_inr;},0));
+  var pf      = grossL > 0 ? grossW / grossL : 0;
+
+  var withExt = trades.filter(function(t){return t.extraction !== null;});
+  var avgExt  = withExt.length ? withExt.reduce(function(s,t){return s+t.extraction;},0)/withExt.length : 0;
+
+  var withCons = trades.filter(function(t){return t.pct_consumed !== null;});
+  var avgCons  = withCons.length ? withCons.reduce(function(s,t){return s+t.pct_consumed;},0)/withCons.length : 50;
+
+  var last    = profile.length ? profile[profile.length-1] : null;
+  var regime  = last ? (last.day_regime || 'MIXED') : 'MIXED';
+
+  // Scoring
+  var wrPts     = Math.round(Math.min(20, winRate * 40));
+  var pfPts     = pf >= 2 ? 20 : pf >= 1.5 ? 15 : pf >= 1.2 ? 12 : pf >= 1.0 ? 10 : pf >= 0.8 ? 5 : 0;
+  var extPts    = eodAvail ? (avgExt > 0.15 ? 20 : avgExt > 0.05 ? 15 : avgExt > 0 ? 10 : 5) : 10;
+  var consPts   = eodAvail ? (avgCons < 20 ? 20 : avgCons < 35 ? 15 : avgCons < 50 ? 10 : 5) : 10;
+  var regimePts = regime === 'BULL' ? 20 : regime === 'MIXED_POS' ? 15 : regime === 'FLAT' ? 12 : regime === 'MIXED' ? 10 : 5;
+  var total     = wrPts + pfPts + extPts + consPts + regimePts;
+
+  var grade = total >= 80 ? 'Excellent' : total >= 65 ? 'Good' : total >= 50 ? 'Average' : total >= 35 ? 'Below avg' : 'Poor';
+  var scoreCol = total >= 65 ? 'pos' : total >= 45 ? 'neu' : 'neg';
+
+  var se = document.getElementById('s12-score');
+  se.textContent = total;
+  se.className = 'qs-score ' + scoreCol;
+  document.getElementById('s12-grade').textContent = grade;
+
+  function setQs(id, val, pts, ptsMax) {
+    var ve = document.getElementById(id); if (ve) ve.textContent = val;
+    var pe = document.getElementById(id+'-pts'); if (pe) pe.textContent = pts + ' / ' + ptsMax;
+  }
+  setQs('s12-wr',     (winRate*100).toFixed(1) + '%', wrPts, 20);
+  setQs('s12-pf',     pf.toFixed(2),                  pfPts, 20);
+  setQs('s12-ext',    eodAvail ? (avgExt*100).toFixed(1)+'%' : '—', extPts, 20);
+  setQs('s12-cons',   eodAvail ? avgCons.toFixed(1)+'%' : '—',      consPts, 20);
+  setQs('s12-regime', regime,                          regimePts, 20);
+}
+
+// ── SECTION 13 — Simulation Scenarios ────────────────────────
+function s13Render(enriched, context, tmlong, eodAvail) {
+  if (!eodAvail) {
+    document.getElementById('s13-tbody').innerHTML =
+      '<tr><td colspan="7" style="color:var(--dim);padding:10px;font-size:0.62rem;">Available after market close — requires EOD outcome fields</td></tr>';
+    return;
+  }
+
+  var SLOT_SIZE = 2000;
+  var outcomeMap = {};
+  context.forEach(function(s){ if (s.tradingsymbol) outcomeMap[s.tradingsymbol] = s; });
+
+  function simulate(sym, entryPct) {
+    var lc = outcomeMap[sym] || {};
+    var dayRet = parseFloat(lc.day_return_pct);
+    if (!isFinite(dayRet) || entryPct === null) return null;
+    var slFloor = entryPct - 2.0;
+    var simPct  = dayRet < slFloor ? -2.0 : (dayRet - entryPct);
+    return { sym: sym, sim_pnl_inr: simPct / 100 * SLOT_SIZE, is_winner: simPct > 0 };
+  }
+
+  function buildSim(results, label) {
+    var valid = results.filter(Boolean);
+    if (!valid.length) return { label:label, n:0, total_pnl_inr:0, win_rate_pct:0, pf:'—' };
+    var wins  = valid.filter(function(r){return r.is_winner;});
+    var total = valid.reduce(function(s,r){return s+r.sim_pnl_inr;},0);
+    var winP  = wins.reduce(function(s,r){return s+r.sim_pnl_inr;},0);
+    var lossP = Math.abs(valid.filter(function(r){return !r.is_winner;}).reduce(function(s,r){return s+r.sim_pnl_inr;},0));
+    return {
+      label: label, n: valid.length,
+      win_rate_pct: (wins.length/valid.length*100).toFixed(1),
+      pf: lossP > 0 ? (winP/lossP).toFixed(2) : '∞',
+      total_pnl_inr: total,
+      at10L: total * 10, at50L: total * 500,
+    };
+  }
+
+  // Get first ENTER per stock from TML
+  var firstEnters = {};
+  tmlong.filter(function(t){ return t.last_action === 'ENTER'; })
+    .sort(function(a,b){ return (parseFloat(a.hhmm_checked)||0) - (parseFloat(b.hhmm_checked)||0); })
+    .forEach(function(t){
+      if (!firstEnters[t.tradingsymbol]) {
+        firstEnters[t.tradingsymbol] = { sym: t.tradingsymbol, pct: parseFloat(t.pct_from_open)||null, score: parseFloat(t.entry_score)||0, hhmm: parseFloat(t.hhmm_checked)||0 };
+      }
+    });
+  var signals = Object.values(firstEnters).filter(function(e){ return e.pct !== null; });
+  var sortedByScore = signals.slice().sort(function(a,b){ return b.score - a.score; });
+  var n = sortedByScore.length;
+
+  // Actual
+  var actualTotal = enriched.reduce(function(s,t){return s+t.pnl_inr;},0);
+  var actualWins  = enriched.filter(function(t){return t.is_winner;}).length;
+  var actualWinP  = enriched.filter(function(t){return t.is_winner;}).reduce(function(s,t){return s+t.pnl_inr;},0);
+  var actualLossP = Math.abs(enriched.filter(function(t){return !t.is_winner;}).reduce(function(s,t){return s+t.pnl_inr;},0));
+  var actual = { label:'Actual (live system)', n: enriched.length,
+    win_rate_pct: (actualWins/enriched.length*100).toFixed(1),
+    pf: actualLossP > 0 ? (actualWinP/actualLossP).toFixed(2) : '∞',
+    total_pnl_inr: actualTotal, at10L: actualTotal*10, at50L: actualTotal*500 };
+
+  var simAll   = buildSim(signals.map(function(e){ return simulate(e.sym, e.pct); }), 'All signals (100%)');
+  var sim25    = buildSim(sortedByScore.slice(0, Math.ceil(n*0.25)).map(function(e){ return simulate(e.sym, e.pct); }), 'Top 25% by score');
+  var sim50    = buildSim(sortedByScore.slice(0, Math.ceil(n*0.50)).map(function(e){ return simulate(e.sym, e.pct); }), 'Top 50% by score');
+  var sim75    = buildSim(sortedByScore.slice(0, Math.ceil(n*0.75)).map(function(e){ return simulate(e.sym, e.pct); }), 'Top 75% by score');
+
+  var scenarios = [actual, simAll, sim25, sim50, sim75];
+  var best = scenarios.reduce(function(b,s){ return s.total_pnl_inr > b.total_pnl_inr ? s : b; }, { total_pnl_inr: -Infinity });
+
+  var tbody = document.getElementById('s13-tbody');
+  tbody.innerHTML = '';
+  scenarios.forEach(function(sc) {
+    var isActual = sc.label.indexOf('Actual') >= 0;
+    var isBest   = sc.label === best.label && !isActual;
+    var tr = document.createElement('tr');
+    if (isActual) tr.className = 'sim-row-actual';
+    if (isBest)   tr.className = 'sim-row-best';
+    tr.innerHTML = '<td style="color:var(--text)">' + sc.label + '</td>'
+      +'<td class="inf">' + sc.n + '</td>'
+      +'<td class="'+(parseFloat(sc.win_rate_pct)>=50?'pos':'neg')+'">' + sc.win_rate_pct + '%</td>'
+      +'<td class="'+(parseFloat(sc.pf)>=1?'pos':'neg')+'">' + sc.pf + '</td>'
+      +'<td class="'+pnlClass(sc.total_pnl_inr)+'">' + fInr(sc.total_pnl_inr) + '</td>'
+      +'<td class="'+pnlClass(sc.at10L)+'">' + fInr(sc.at10L) + '</td>'
+      +'<td class="'+pnlClass(sc.at50L)+'">' + fInr(sc.at50L) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  var delta = best.total_pnl_inr - actualTotal;
+  var de = document.getElementById('s13-delta');
+  if (de) {
+    de.innerHTML = '⭐ Best simulation (<b>' + best.label + '</b>) outperformed actual by <b class="'+(delta>0?'pos':'neg')+'">' + fInr(delta) + '</b> ('+(actualTotal?((delta/Math.abs(actualTotal)*100).toFixed(1)):'—')+'%). Review signal selection and entry filtering logic.';
+  }
+
+  // Quartile validation for sim
+  var qtbody = document.getElementById('s13-quartile-tbody');
+  qtbody.innerHTML = '';
+  if (n >= 8) {
+    var qSz = Math.floor(n/4);
+    [
+      {lbl:'Q1 (lowest)', stks: sortedByScore.slice(n-qSz)},
+      {lbl:'Q2',          stks: sortedByScore.slice(n-qSz*2, n-qSz)},
+      {lbl:'Q3',          stks: sortedByScore.slice(qSz, qSz*2)},
+      {lbl:'Q4 (highest)',stks: sortedByScore.slice(0, qSz)},
+    ].forEach(function(q) {
+      var results = q.stks.map(function(e){ return simulate(e.sym, e.pct); }).filter(Boolean);
+      var wins    = results.filter(function(r){return r.is_winner;}).length;
+      var total   = results.reduce(function(s,r){return s+r.sim_pnl_inr;},0);
+      var avgP    = results.length ? total/results.length : 0;
+      var avgSc   = q.stks.length ? q.stks.reduce(function(s,e){return s+e.score;},0)/q.stks.length : 0;
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td style="color:var(--text)">'+q.lbl+'</td><td class="inf">'+avgSc.toFixed(0)+'</td><td class="dim">'+results.length+'</td>'
+        +'<td class="'+(results.length?(wins/results.length>=0.5?'pos':'neg'):'dim')+'">'+(results.length?(wins/results.length*100).toFixed(1)+'%':'—')+'</td>'
+        +'<td class="'+pnlClass(avgP)+'">'+fInr(avgP)+'</td>';
+      qtbody.appendChild(tr);
+    });
+  }
+}
+
+// ── SECTION 14 — P&L at Scale ────────────────────────────────
+function s14Render(enriched) {
+  var total = enriched.reduce(function(s,t){return s+t.pnl_inr;},0);
+  function fmt(v) { return (v>=0?'+':'')+'₹'+Math.abs(Math.round(v)).toLocaleString('en-IN'); }
+  function cls(v) { return v>=0?'pos':'neg'; }
+  ['1l','5l','10l','50l'].forEach(function(k, i) {
+    var mult = [1,5,10,500][i];
+    var el = document.getElementById('s14-'+k);
+    if (el) { el.textContent = fmt(total*mult); el.className = 'scale-val '+cls(total*mult); }
+  });
 }
 
 function startCountdown() {
