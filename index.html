@@ -2433,7 +2433,9 @@ function s5Render(enriched, eodAvail) {
   xe.className = 'eq-val ' + (avgExt > 0.15 ? 'pos' : avgExt > 0 ? 'neu' : 'neg');
 
   // Consumed distribution
-  var buckets = [['0–30%',0,30,'var(--green)'],['30–60%',30,60,'var(--amber)'],['60–80%',60,80,'var(--red)'],['80%+',80,101,'#c0392b']];
+  // NOTE: first bucket's lower bound is -Infinity to include negative-consumed trades
+  // (stocks entered below open) — aligns with workflow's `t.pct_consumed < 30` check.
+  var buckets = [['0–30%',-Infinity,30,'var(--green)'],['30–60%',30,60,'var(--amber)'],['60–80%',60,80,'var(--red)'],['80%+',80,Infinity,'#c0392b']];
   var max = 0;
   var counts = buckets.map(function(b) {
     var n = withData.filter(function(t){return t.pct_consumed>=b[1]&&t.pct_consumed<b[2];}).length;
@@ -2500,21 +2502,51 @@ function s6Render(enriched, eodAvail) {
 }
 
 // ── SECTION 7 — Gates + Signals ──────────────────────────────
+// Port of workflow's parseGates() — uses fixed 14-gate taxonomy so we don't
+// emit parameter-value tokens like `fresh=false`, `peak=0.65`, `cons5=0/10` as
+// if they were gate names. Mirrors C_Ingest_TradeManagerLog.parseGates() in the
+// SGAT_Master_EOD_Analytics workflow.
+function parseGatesDash(tmReason) {
+  if (!tmReason) return [];
+  var r = String(tmReason).toLowerCase();
+  // enter_ok — no gates fired
+  if (r.indexOf('enter_ok') === 0) return [];
+  // Position management reasons — not entry evaluation
+  if (r.indexOf('pnl_') === 0 || r.indexOf('add_') === 0 ||
+      r.indexOf('structure_') === 0 || r.indexOf('none') === 0) return [];
+  var gates = [];
+  if (r.indexOf('pre_930') >= 0)                   gates.push('pre_930');
+  if (r.indexOf('not_watchlist') >= 0)             gates.push('not_watchlist');
+  if (r.indexOf('after_cutoff') >= 0)              gates.push('entry_cutoff');
+  if (r.indexOf('circuit_breaker') >= 0)           gates.push('circuit_breaker');
+  if (r.indexOf('spread_too_wide') >= 0)           gates.push('spread_too_wide');
+  if (r.indexOf('velocity_stalling') >= 0)         gates.push('velocity_stalling');
+  if (r.indexOf('noisy_candles_no_velocity') >= 0) gates.push('noisy_candles');
+  if (r.indexOf('quality_avoid') >= 0)             gates.push('quality_avoid');
+  if (r.indexOf('momentum_stall') >= 0)            gates.push('momentum_stall');
+  if (r.indexOf('structure_not_allowed') >= 0)     gates.push('structure_not_allowed');
+  if (r.indexOf('below_vwap') >= 0)                gates.push('below_vwap');
+  if (r.indexOf('ema_not_bull') >= 0)              gates.push('ema_not_bull');
+  if (r.indexOf('distribution_hint') >= 0)         gates.push('distribution_hint');
+  return gates;
+}
+
 function s7Render(enriched, tmlong, context, eodAvail) {
-  // Gate breakdown from TML tm_reason field
+  // Gate breakdown from TML tm_reason field, using fixed taxonomy (not raw split)
   var gateCounts = {};
   var totalBlocked = 0;
   tmlong.forEach(function(t) {
-    if (t.tm_action === 'NONE' || t.tm_action === 'WAIT') {
-      var reasons = (t.tm_reason || '').split('|');
-      reasons.forEach(function(r) {
-        r = r.trim();
-        if (r && r !== 'none') {
-          gateCounts[r] = (gateCounts[r] || 0) + 1;
-          totalBlocked++;
-        }
-      });
-    }
+    // After Apps Script v3, every merged row has last_action='ENTER' if it ever entered.
+    // Use _latest_last_action to detect cycles that ended in a NONE decision.
+    var actionNow = t._latest_last_action || t.last_action;
+    var isBlocked = (actionNow === 'NONE' || t.tm_action === 'NONE' || t.tm_action === 'WAIT')
+                    && t.position_status === 'WATCHING';
+    if (!isBlocked) return;
+    var gates = parseGatesDash(t.tm_reason);
+    gates.forEach(function(g) {
+      gateCounts[g] = (gateCounts[g] || 0) + 1;
+      totalBlocked++;
+    });
   });
 
   var gateArr = Object.keys(gateCounts).map(function(k) {
@@ -2536,9 +2568,16 @@ function s7Render(enriched, tmlong, context, eodAvail) {
 
   // Entry signal cards
   var cardsEl = document.getElementById('s7-signal-cards');
-  var eodTrades = enriched.filter(function(t){return t.r915 !== null;});
-  var medR915 = eodTrades.length ? eodTrades.map(function(t){return t.r915;}).sort(function(a,b){return a-b;}) : [];
-  var medR915val = medR915.length ? medR915[Math.floor(medR915.length/2)] : null;
+  // r915 median at entry — use entry-cycle snapshot from Apps Script v3.
+  // _enter_r915 is r_915_live captured at the first ENTER cycle, not the stock's
+  // 9:15-9:30 return. These are different metrics; the email reports the former.
+  var r915EntryArr = tmlong
+    .filter(function(t){return t._has_enter===true && t._enter_r915!==null && t._enter_r915!==undefined && t._enter_r915!=='';})
+    .map(function(t){var v=parseFloat(t._enter_r915); return isFinite(v)?v:null;})
+    .filter(function(v){return v!==null;});
+  var medR915val = r915EntryArr.length
+    ? r915EntryArr.sort(function(a,b){return a-b;})[Math.floor(r915EntryArr.length/2)]
+    : null;
   var rvolArr = tmlong.filter(function(t){return (t._has_enter===true||t.last_action==='ENTER') && (t._enter_rvol||t.rvol);}).map(function(t){return parseFloat(t._enter_rvol||t.rvol)||0;});
   var medRvol = rvolArr.length ? (rvolArr.sort(function(a,b){return a-b;})[Math.floor(rvolArr.length/2)]) : null;
   var rvolGt15 = rvolArr.length ? (rvolArr.filter(function(v){return v>=1.5;}).length/rvolArr.length*100).toFixed(0) : '—';
@@ -2762,8 +2801,18 @@ function s10Render(context, tmlong, enriched, eodAvail) {
   if (!eodAvail) return;
   var tradedSet = {};
   enriched.forEach(function(t){ tradedSet[t.sym] = true; });
+  // CRITICAL: signalledSet must be restricted to symbols that actually got an
+  // ENTER signal (_has_enter===true), NOT every symbol that ever appeared in
+  // tmlong. After Apps Script v3, tmlong contains ~1,300 merged rows (one per
+  // watched stock); without the _has_enter filter, genuine "stars never seen"
+  // like NAVA and AEGISLOG get classified as "signalled" and disappear from
+  // the list.
   var signalledSet = {};
-  tmlong.forEach(function(t){ if (t.tradingsymbol) signalledSet[t.tradingsymbol] = true; });
+  tmlong.forEach(function(t){
+    if (t.tradingsymbol && t._has_enter === true) {
+      signalledSet[t.tradingsymbol] = true;
+    }
+  });
 
   // Stars never seen: ran 3%+ but never in TML
   var stars = context.filter(function(s){
