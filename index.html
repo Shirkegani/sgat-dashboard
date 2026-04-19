@@ -80,60 +80,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* EOD BADGE */
 .eod-badge{font-size:0.48rem;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,184,48,0.2);padding:1px 4px;border-radius:2px;margin-left:3px;vertical-align:middle;}
 </style>
-
-/* ── EOD SECTION STYLES ────────────────────────────────────── */
-.eod-sec{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
-.eod-hdr{background:var(--surface);padding:7px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.eod-title{font-size:0.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;}
-.eod-badge-live{font-size:0.52rem;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,184,48,0.25);padding:1px 6px;border-radius:2px;}
-.eod-body{padding:12px 14px;}
-.eod-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.eod-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
-.eod-grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;}
-.eq-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
-.eq-lbl{font-size:0.55rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
-.eq-val{font-size:1.3rem;font-family:var(--font-disp);font-weight:800;line-height:1;}
-.eq-sub{font-size:0.6rem;color:var(--dim);margin-top:3px;}
-.cons-grid{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
-.cons-row{display:grid;grid-template-columns:80px 1fr 52px;align-items:center;gap:6px;font-size:0.62rem;}
-.cons-lbl{color:var(--dim);text-align:right;}
-.cons-bar-wrap{background:rgba(30,42,53,0.6);border-radius:2px;height:10px;}
-.cons-bar{height:100%;border-radius:2px;transition:width 0.4s;}
-.cons-n{color:var(--text);font-weight:500;text-align:right;}
-.eod-tbl{width:100%;border-collapse:collapse;font-size:0.63rem;}
 .eod-tbl thead th{position:sticky;top:0;z-index:2;background:var(--surface);color:var(--dim);font-size:0.57rem;text-transform:uppercase;letter-spacing:.06em;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap;}
-.eod-tbl thead th:hover{color:var(--blue);}
-.eod-tbl tbody tr{border-bottom:1px solid rgba(30,42,53,0.35);cursor:pointer;}
-.eod-tbl tbody tr:hover{background:rgba(56,182,255,0.05);}
-.eod-tbl tbody tr:last-child{border-bottom:none;}
-.eod-tbl td{padding:5px 8px;white-space:nowrap;}
-.eod-tbl tfoot td{padding:5px 8px;font-weight:600;border-top:1px solid var(--border);color:var(--text);font-size:0.63rem;}
-.tbl-scroll{overflow-y:auto;max-height:230px;}
-.tbl-scroll::-webkit-scrollbar{width:4px;}
-.tbl-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
-.sym-link{cursor:pointer;color:var(--text);font-weight:600;}
-.sym-link:hover{color:var(--blue);}
-.insight-bar{background:var(--blue-bg);border:1px solid rgba(56,182,255,0.2);border-radius:4px;padding:7px 12px;font-size:0.65rem;color:var(--muted);line-height:1.6;margin-top:8px;}
-.insight-bar b{color:var(--blue);}
-.qs-wrap{display:flex;gap:16px;align-items:flex-start;}
-.qs-gauge{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:100px;}
-.qs-score{font-family:var(--font-disp);font-size:3rem;font-weight:800;line-height:1;}
-.qs-label{font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
-.qs-rows{flex:1;display:flex;flex-direction:column;gap:4px;}
-.qs-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;font-size:0.62rem;padding:3px 0;border-bottom:1px solid rgba(30,42,53,0.35);}
-.qs-row:last-child{border-bottom:none;}
-.qs-rl{color:var(--dim);}
-.qs-rv{color:var(--text);min-width:60px;text-align:right;}
-.qs-pts{color:var(--muted);min-width:50px;text-align:right;}
-.sim-row-best{background:rgba(0,229,160,0.06)!important;}
-.sim-row-actual{background:rgba(56,182,255,0.06)!important;}
-.scale-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);}
-.scale-card{background:var(--card);padding:12px 14px;text-align:center;}
-.scale-cap{font-size:0.58rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
-.scale-val{font-family:var(--font-disp);font-size:1.3rem;font-weight:800;}
-.scale-mult{font-size:0.58rem;color:var(--dim);margin-top:2px;}
-.r915-bar{display:inline-block;height:8px;background:var(--blue);border-radius:2px;vertical-align:middle;}
-.gate-bar{display:inline-block;height:8px;background:rgba(255,77,106,0.5);border-radius:2px;vertical-align:middle;}
 <!-- END GLOBAL STYLES -->
 
 </head>
@@ -238,7 +185,6 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 <!-- DASH BODY START -->
 <div class="dash-body">
 
-<!-- ============================================================
      SECTION 3: PNL · POSITIONS · TRADES
      Sheets: PositionLog, DailyTrades
      Fields: pnl, positions, trades, session stats
@@ -258,9 +204,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s3-f-exited{background:rgba(56,182,255,0.12)!important;color:var(--blue)!important;}
 /* 2x2 Cards */
 .s3-cards{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border);}
-.s3-card{background:var(--card);padding:10px 11px;}
+.s3-card{background:var(--card);padding:10px 12px;}
 .s3-card-hdr{font-size:0.57rem;color:var(--blue);text-transform:uppercase;letter-spacing:.1em;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:10px;}
-.s3-card-big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;} .s3-card-main{margin-bottom:7px;}
+.s3-card-big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
 .s3-card-main{font-family:var(--font-disp);font-size:1.4rem;font-weight:800;line-height:1;}
 .s3-card-sub{font-size:0.65rem;color:var(--dim);}
 .s3-rows{display:flex;flex-direction:column;gap:2px;}
@@ -319,8 +265,10 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     </div>
     <div class="s3-chart"><svg id="s3-pnl-svg" viewBox="0 0 600 110" preserveAspectRatio="none" style="width:100%;height:110px;"></svg></div>
     <div class="s3-xaxis"><span>09:30</span><span>10:30</span><span>11:30</span><span>12:30</span><span>13:30</span><span>14:30</span><span>15:30</span></div>
+  </div>
 
-  <!-- 4 stat tabs in one row -->
+
+  <!-- 2x2 Cards -->
   <div class="s3-cards">
     <div class="s3-card">
       <div class="s3-card-hdr">P&amp;L</div>
@@ -360,7 +308,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     </div>
   </div>
 
-    <!-- Tables -->
+  <!-- Tables -->
   <div class="s3-tables">
     <div class="s3-tbl">
       <div class="s3-tbl-title">Open Positions <span id="s3-open-cnt">0</span></div>
@@ -378,7 +326,6 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 3 -->
 
-<!-- ============================================================
      SECTION 2: DAY PROFILE INTELLIGENCE
      Sheets: DayProfile, NiftyCandles
      Fields: regime, breadth, median, nifty, gates, flags
@@ -554,6 +501,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 2 -->
 
+     SECTION 12: SESSION QUALITY SCORE
+     Source: Computed from all sections
+     ============================================================ -->
 <div class="eod-sec" id="sec12">
   <div class="eod-hdr">
     <div class="eod-title">Session Quality Score</div>
@@ -577,6 +527,75 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   </div>
 </div>
 <!-- END SECTION 12 -->
+
+     SECTION 5: ENTRY QUALITY + EXTRACTION EFFICIENCY
+     Source: DailyTrades × LiveContext (max_run_from_open_pct)
+     Live: dashes until EOD fields available
+     ============================================================ -->
+<style>
+/* ── Shared EOD styles ── */
+.eod-sec{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
+.eod-hdr{background:var(--surface);padding:7px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.eod-title{font-size:0.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;}
+.eod-badge-live{font-size:0.52rem;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,184,48,0.25);padding:1px 6px;border-radius:2px;}
+.eod-body{padding:12px 14px;}
+.eod-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.eod-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.eod-grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;}
+/* ── Metric cards ── */
+.eq-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
+.eq-lbl{font-size:0.55rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+.eq-val{font-size:1.3rem;font-family:var(--font-disp);font-weight:800;line-height:1;}
+.eq-sub{font-size:0.6rem;color:var(--dim);margin-top:3px;}
+/* ── Consumed distribution bars ── */
+.cons-grid{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
+.cons-row{display:grid;grid-template-columns:80px 1fr 36px;align-items:center;gap:6px;font-size:0.62rem;}
+.cons-lbl{color:var(--dim);text-align:right;}
+.cons-bar-wrap{background:rgba(30,42,53,0.6);border-radius:2px;height:10px;}
+.cons-bar{height:100%;border-radius:2px;transition:width 0.4s;}
+.cons-n{color:var(--text);font-weight:500;text-align:right;}
+/* ── Tables ── */
+.eod-tbl{width:100%;border-collapse:collapse;font-size:0.63rem;}
+.eod-tbl thead th{color:var(--dim);font-size:0.57rem;text-transform:uppercase;letter-spacing:.06em;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap;}
+.eod-tbl thead th:hover{color:var(--blue);}
+.eod-tbl tbody tr{border-bottom:1px solid rgba(30,42,53,0.35);cursor:pointer;}
+.eod-tbl tbody tr:hover{background:rgba(56,182,255,0.05);}
+.eod-tbl tbody tr:last-child{border-bottom:none;}
+.eod-tbl td{padding:5px 8px;white-space:nowrap;}
+.eod-tbl tfoot td{padding:5px 8px;font-weight:600;border-top:1px solid var(--border);color:var(--text);font-size:0.63rem;}
+.tbl-scroll{overflow-y:auto;max-height:230px;}
+.tbl-scroll::-webkit-scrollbar{width:4px;}
+.tbl-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.sym-link{cursor:pointer;color:var(--text);font-weight:600;}
+.sym-link:hover{color:var(--blue);}
+/* ── Insight bar ── */
+.insight-bar{background:var(--blue-bg);border:1px solid rgba(56,182,255,0.2);border-radius:4px;padding:7px 12px;font-size:0.65rem;color:var(--muted);line-height:1.6;margin-top:8px;}
+.insight-bar b{color:var(--blue);}
+/* ── Quality score ── */
+.qs-wrap{display:flex;gap:16px;align-items:flex-start;}
+.qs-gauge{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:100px;}
+.qs-score{font-family:var(--font-disp);font-size:3rem;font-weight:800;line-height:1;}
+.qs-label{font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+.qs-rows{flex:1;display:flex;flex-direction:column;gap:4px;}
+.qs-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;font-size:0.62rem;padding:3px 0;border-bottom:1px solid rgba(30,42,53,0.35);}
+.qs-row:last-child{border-bottom:none;}
+.qs-rl{color:var(--dim);}
+.qs-rv{color:var(--text);min-width:60px;text-align:right;}
+.qs-pts{color:var(--muted);min-width:50px;text-align:right;}
+/* ── Sim table ── */
+.sim-row-best{background:rgba(0,229,160,0.06)!important;}
+.sim-row-actual{background:rgba(56,182,255,0.06)!important;}
+/* ── Scale cards ── */
+.scale-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);}
+.scale-card{background:var(--card);padding:12px 14px;text-align:center;}
+.scale-cap{font-size:0.58rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+.scale-val{font-family:var(--font-disp);font-size:1.3rem;font-weight:800;}
+.scale-mult{font-size:0.58rem;color:var(--dim);margin-top:2px;}
+/* ── r915 bucket ── */
+.r915-bar{display:inline-block;height:8px;background:var(--blue);border-radius:2px;vertical-align:middle;}
+/* ── Gate bars ── */
+.gate-bar{display:inline-block;height:8px;background:rgba(255,77,106,0.5);border-radius:2px;vertical-align:middle;}
+</style>
 
 <div class="eod-sec" id="sec5">
   <div class="eod-hdr">
@@ -614,6 +633,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 5 -->
 
+     SECTION 13: SIMULATION SCENARIOS
+     Source: LiveContext × TradeManagerLong (simulated in dashboard)
+     ============================================================ -->
 <div class="eod-sec" id="sec13">
   <div class="eod-hdr">
     <div class="eod-title">Simulation Scenarios — What-if P&L</div>
@@ -641,6 +663,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 13 -->
 
+     SECTION 6: HOLD TIME ANALYSIS
+     Source: DailyTrades.avg_holding_min + pnl_inr
+     ============================================================ -->
 <div class="eod-sec" id="sec6">
   <div class="eod-hdr">
     <div class="eod-title">Hold Time Analysis</div>
@@ -659,6 +684,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 6 -->
 
+     SECTION 7: SIGNAL & GATE ANALYSIS
+     Source: TradeManagerLong.tm_reason aggregated
+     ============================================================ -->
 <div class="eod-sec" id="sec7">
   <div class="eod-hdr">
     <div class="eod-title">Signal · Gate · Entry Analysis</div>
@@ -699,6 +727,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 7 -->
 
+     SECTION 8: BEST 15 / WORST 15 TRADES
+     Source: DailyTrades enriched with LiveContext EOD fields
+     ============================================================ -->
 <div class="eod-sec" id="sec8">
   <div class="eod-hdr">
     <div class="eod-title">Best 15 · Worst 15 Trades</div>
@@ -745,6 +776,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 8 -->
 
+     SECTION 9: UNIVERSE — TOP RUNNERS + r915 + INTERVAL RETURNS
+     Source: LiveContext EOD fields + DayProfile intervals
+     ============================================================ -->
 <div class="eod-sec" id="sec9">
   <div class="eod-hdr">
     <div class="eod-title">Universe — Top Runners · r915 Analysis · Interval Returns</div>
@@ -786,6 +820,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 9 -->
 
+     SECTION 10: STARS NEVER SEEN + MISSED OPPORTUNITIES
+     Source: LiveContext cross-ref TradeManagerLong
+     ============================================================ -->
 <div class="eod-sec" id="sec10">
   <div class="eod-hdr">
     <div class="eod-title">Stars Never Seen · Missed Opportunities</div>
@@ -817,6 +854,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 10 -->
 
+     SECTION 11: TOMORROW'S WATCHLIST
+     Source: LiveContext — close_position_pct + r_1400_1530 + max_run
+     ============================================================ -->
 <div class="eod-sec" id="sec11">
   <div class="eod-hdr">
     <div class="eod-title">Tomorrow's Watchlist</div>
@@ -837,6 +877,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 11 -->
 
+     SECTION 14: P&L AT SCALE
+     Source: DailyTrades total × multipliers
+     ============================================================ -->
 <div class="eod-sec" id="sec14">
   <div class="eod-hdr">
     <div class="eod-title">P&L at Scale — Same system, proportional capital</div>
@@ -850,7 +893,6 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 </div>
 <!-- END SECTION 14 -->
 
-<!-- ============================================================
      SECTION 4: STOCK UNIVERSE
      Sheets: LiveContext, DayCandles, SymbolState
      Fields: eligibility, mi_score, sparklines, drill-down
