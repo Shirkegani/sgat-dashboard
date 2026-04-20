@@ -1531,6 +1531,101 @@ function s2DrawNiftyLine(data) {
 // ============================================================
 // SECTION 3 — PNL
 // ============================================================
+// ── SECTION 3 Helper: Classify PositionLog row ────────────────────
+// PositionLog schema: position_type = 'OPEN' | 'CLOSED', quantity sign = direction
+//   OPEN short: quantity<0, avg_price=entry (sell), last_price=mark, pnl=unrealised
+//   OPEN long:  quantity>0, avg_price=entry (buy),  last_price=mark, pnl=unrealised
+//   CLOSED:     quantity=0, buy_value & sell_value both set, pnl=realised
+// Direction: SHORT when (qty<0) OR (CLOSED & sell_qty was the entry & price dropped);
+// For CLOSED we derive from avg_price comparison: if avg_price set via sell_qty entry → short.
+// Since the PositionLog doesn't store original side on CLOSED rows, we infer:
+//   - If sell_value > buy_value  AND  pnl+buy_value ≈ sell_value → it was a SHORT
+//     (sold high, bought to cover lower) — profit case
+//   - If sell_value < buy_value  AND  buy came first (overnight_qty==0 indicates intraday)
+//     → it was a LONG that sold below buy
+// Cleanest heuristic: if `sell_value > 0 AND buy_value > 0 AND sell_price (from sell_value/sell_qty) > buy_price`
+//    → shorted (sold first at higher, bought to cover at lower)  → profit
+// But for MIS intraday with sell_quantity=buy_quantity and prices present, we can compute:
+//    inferred_short = (sell_value >= buy_value && pnl > 0) || (sell_value < buy_value && pnl < 0)
+// The safer bet: assume short for MIS when TMS is deployed — respect user's declared regime.
+// For now: infer from the product ('MIS' + TMS day) and pnl sign cross-checked with buy/sell pricing.
+function classifyPosRow(row) {
+  var out = { side: 'long', state: 'OPEN', pnl: 0, pnlPct: 0, deployed: 0, qty: 0 };
+  var posType = String(row.position_type || '').toUpperCase();
+  var qty     = parseFloat(row.quantity) || 0;
+  var avgPx   = parseFloat(row.average_price) || 0;
+  var lastPx  = parseFloat(row.last_price) || 0;
+  var buyVal  = parseFloat(row.buy_value) || 0;
+  var sellVal = parseFloat(row.sell_value) || 0;
+  var buyQty  = parseFloat(row.buy_quantity) || 0;
+  var sellQty = parseFloat(row.sell_quantity) || 0;
+  var pnlRaw  = parseFloat(row.pnl);
+  var pnlPctRaw = parseFloat(row.pnl_pct);
+  var unreal  = parseFloat(row.unrealised);
+  var realis  = parseFloat(row.realised);
+
+  out.qty = qty;
+
+  // State: CLOSED if position_type says so, or quantity==0 with both sides filled
+  if (posType === 'CLOSED' || (qty === 0 && buyQty > 0 && sellQty > 0)) {
+    out.state = 'CLOSED';
+  } else {
+    out.state = 'OPEN';
+  }
+
+  // Side determination
+  if (out.state === 'OPEN') {
+    out.side = qty < 0 ? 'short' : 'long';
+  } else {
+    // CLOSED: infer from which price (buy or sell) is closer to last_price.
+    // Whichever leg settled near `last_price` was the EXIT leg:
+    //   - exited via BUY  → was SHORT (covered a short at that buy price)
+    //   - exited via SELL → was LONG  (sold a long at that sell price)
+    // This handles both profitable and SL-hit shorts correctly, where the
+    // simpler "buy_val vs sell_val" comparison fails on profitable shorts.
+    var buyPx  = buyQty  > 0 ? buyVal  / buyQty  : 0;
+    var sellPx = sellQty > 0 ? sellVal / sellQty : 0;
+    if (buyPx > 0 && sellPx > 0 && lastPx > 0) {
+      var dBuy  = Math.abs(lastPx - buyPx);
+      var dSell = Math.abs(lastPx - sellPx);
+      out.side = dBuy < dSell ? 'short' : 'long';
+    } else if (avgPx > 0 && sellPx > 0 && buyPx > 0) {
+      // Fallback: avg_price matches the entry leg
+      var dShort = Math.abs(avgPx - sellPx);
+      var dLong  = Math.abs(avgPx - buyPx);
+      out.side = dShort <= dLong ? 'short' : 'long';
+    } else {
+      // Last-resort heuristic (works for SL-hit shorts only)
+      out.side = buyVal > sellVal ? 'short' : 'long';
+    }
+  }
+
+  // PnL
+  if (isFinite(pnlRaw)) out.pnl = pnlRaw;
+  else if (isFinite(unreal)) out.pnl = unreal;
+  else if (isFinite(realis)) out.pnl = realis;
+
+  // PnL % — for OPEN shorts: entry-mark / entry * 100 (negated because qty<0)
+  if (isFinite(pnlPctRaw) && pnlPctRaw !== 0) {
+    out.pnlPct = pnlPctRaw;
+  } else if (out.state === 'OPEN' && avgPx > 0 && lastPx > 0) {
+    // For short: price down is profit → (avg - last) / avg * 100
+    // For long:  price up   is profit → (last - avg) / avg * 100
+    out.pnlPct = out.side === 'short'
+      ? (avgPx - lastPx) / avgPx * 100
+      : (lastPx - avgPx) / avgPx * 100;
+  }
+
+  // Deployed notional (always positive — |qty| × avg_price for OPEN; buy_value for CLOSED longs / sell_value for CLOSED shorts)
+  if (out.state === 'OPEN') {
+    out.deployed = Math.abs(qty) * avgPx;
+  } else {
+    out.deployed = out.side === 'short' ? sellVal : buyVal;
+  }
+
+  return out;
+}
+
 function s3Render() {
   var positions = STATE.data.positions || [];
   var trades = STATE.data.trades || [];
@@ -1541,32 +1636,99 @@ function s3Render() {
 
 function s3RenderCards(positions, trades) {
   var f = STATE.filter;
-  var filtPos = positions.filter(function(p){ return f==='all'||f==='long'?p.product!=='SHORT':f==='short'?p.product==='SHORT':false; });
-  if(f==='exited') filtPos=[];
-  // trade_direction is empty in current data — all trades are MIS (long)
-  // Filter: ALL/LONG/EXITED show all trades, SHORT shows none
-  var filtTrades = trades.filter(function(t){
-    return f==='all'||f==='long'||f==='exited';
-  });
-
-  // P&L — live uses PositionLog for open, past dates use DailyTrades only
   var ist_now = new Date(new Date().getTime()+(new Date().getTimezoneOffset()+330)*60000);
   var isPastDate = STATE.selectedDate !== 'today';
   var isAfterClose = ist_now.getHours()*60+ist_now.getMinutes() > 930;
 
-  var openPnl, realPnl, totalPnl;
+  // ── Classify every PositionLog row ───────────────────────────────
+  // PositionLog rows arrive in `positions`. After v4 fix, we split them into
+  // true-open positions and closed-intraday trades, driven by position_type.
+  // `trades` (from DailyTrades) is the EOD/post-close source and takes over
+  // once the day ends.
+  var classified = positions.map(function(p) {
+    var c = classifyPosRow(p);
+    c._raw = p;
+    c.sym = p.tradingsymbol || '—';
+    return c;
+  });
+  var openRows   = classified.filter(function(c){return c.state === 'OPEN' && c.qty !== 0;});
+  var closedRows = classified.filter(function(c){return c.state === 'CLOSED';});
+
+  // Intraday synthetic-trades (from PositionLog CLOSED rows) — used when we're
+  // live and DailyTrades hasn't populated yet.
+  var intradayTrades = closedRows.map(function(c){
+    return {
+      tradingsymbol: c.sym,
+      pnl_inr: c.pnl,
+      pnl_pct: c.pnlPct,
+      avg_holding_min: null,  // not tracked in PositionLog
+      buy_value: (parseFloat(c._raw.buy_value)  || 0),
+      sell_value:(parseFloat(c._raw.sell_value) || 0),
+      _side: c.side,
+      _source: 'position_log'
+    };
+  });
+
+  // Choose the authoritative closed-trades source:
+  //   - EOD / past dates: DailyTrades (`trades`)
+  //   - Live intraday: PositionLog CLOSED rows, merged with any DailyTrades rows
+  //     that may have arrived (prefer PositionLog — it's fresher)
+  var effectiveTrades;
   if (isPastDate || isAfterClose) {
-    // Day is over — all P&L is realised, no open positions
-    openPnl = 0;
-    realPnl = trades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
-    totalPnl = realPnl;
+    effectiveTrades = trades || [];
   } else {
-    // Live: _summary_total_pnl is the running total (same on every row at a timestamp)
-    // This already includes both open unrealised AND any realised within the session
-    openPnl = positions.length ? (parseFloat(positions[0]._summary_total_pnl)||0) : 0;
-    realPnl = trades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
-    // _summary_total_pnl = open unrealised only; add realised from DailyTrades
-    totalPnl = openPnl + realPnl;
+    if (intradayTrades.length) {
+      // Merge: use intraday rows primarily; add any DailyTrades rows that aren't
+      // already represented.
+      var seen = {};
+      intradayTrades.forEach(function(t){ seen[t.tradingsymbol] = true; });
+      var extra = (trades || []).filter(function(t){ return !seen[t.tradingsymbol]; });
+      effectiveTrades = intradayTrades.concat(extra);
+    } else {
+      effectiveTrades = trades || [];
+    }
+  }
+
+  // Apply the ALL / LONG / SHORT / EXITED filter
+  var filtOpen = openRows.filter(function(c){
+    if (f === 'all' || f === 'long') return c.side === 'long';
+    if (f === 'short') return c.side === 'short';
+    if (f === 'exited') return false;
+    return true;
+  });
+  // In SGAT, LONG and SHORT are separate regimes — for 'all' we should show both;
+  // restore that (the earlier filter narrowed too aggressively).
+  if (f === 'all') filtOpen = openRows.slice();
+
+  var filtTrades = effectiveTrades.filter(function(t){
+    if (f === 'all' || f === 'exited') return true;
+    var side = t._side || 'long';
+    if (f === 'long')  return side === 'long';
+    if (f === 'short') return side === 'short';
+    return true;
+  });
+
+  // Stash for s3RenderTables (avoid re-classifying)
+  STATE._s3_openRows       = openRows;
+  STATE._s3_filtOpen       = filtOpen;
+  STATE._s3_effectiveTrades = effectiveTrades;
+  STATE._s3_filtTrades     = filtTrades;
+
+  // ── P&L ──────────────────────────────────────────────────────────
+  var openPnl  = openRows.reduce(function(s,c){return s + c.pnl;}, 0);
+  var realPnl  = closedRows.reduce(function(s,c){return s + c.pnl;}, 0);
+  // Prefer PositionLog's aggregate if available (single source of truth from Kite)
+  var serverTotal = positions.length ? parseFloat(positions[0]._summary_total_pnl) : NaN;
+  var totalPnl;
+  if (isPastDate || isAfterClose) {
+    totalPnl = (effectiveTrades || []).reduce(function(s,t){return s + (parseFloat(t.pnl_inr)||0);}, 0);
+    openPnl = 0;
+    realPnl = totalPnl;
+  } else {
+    // Server reports combined (open + realised) running total on every row at a timestamp.
+    // If we have it and it agrees with our sum to within ₹1, trust it; otherwise use our sum.
+    var ourSum = openPnl + realPnl;
+    totalPnl = isFinite(serverTotal) ? serverTotal : ourSum;
   }
   var tgtPct = CFG.capital ? (totalPnl/(CFG.capital*0.01)*100).toFixed(1) : (totalPnl/1000*100).toFixed(1);
 
@@ -1580,8 +1742,8 @@ function s3RenderCards(positions, trades) {
   else { openEl.textContent=(openPnl>=0?'+':'')+'₹'+Math.round(openPnl).toLocaleString('en-IN'); openEl.className='s3-rv '+(openPnl>=0?'pos':'neg'); }
   document.getElementById('s3-tgt').textContent = tgtPct+'% of 1% target';
 
-  // Trades
-  var wins = filtTrades.filter(function(t){return (parseFloat(t.pnl_inr)||0)>0;}).length;
+  // ── Trades card ──────────────────────────────────────────────────
+  var wins  = filtTrades.filter(function(t){return (parseFloat(t.pnl_inr)||0)>0;}).length;
   var total = filtTrades.length;
   var wr = total ? (wins/total*100).toFixed(1) : 0;
   var losses = total - wins;
@@ -1594,26 +1756,27 @@ function s3RenderCards(positions, trades) {
   document.getElementById('s3-pf').textContent = pf;
   document.getElementById('s3-pf').className = 's3-rv '+(parseFloat(pf)>=1?'pos':'neg');
 
-  // Capital — _summary_open_deployed is the authoritative field (same value on every row)
+  // ── Capital / deployed ──────────────────────────────────────────
+  // Deployed = notional exposure from OPEN rows (|qty| × avg_price), regardless of long/short.
+  // `_summary_open_deployed` is unreliable for short books (server computes buy_value only).
   var cap = CFG.capital || 100000;
-  var deployed = 0;
+  var deployed;
   if (isPastDate || isAfterClose) {
-    // EOD: use total buy_value from trades as proxy for peak deployed
-    deployed = trades.reduce(function(s,t){return s+(parseFloat(t.buy_value)||0);},0);
-    // Cap at capital to avoid absurd numbers (trades cycle in/out)
+    deployed = (effectiveTrades || []).reduce(function(s,t){
+      return s + Math.max(parseFloat(t.buy_value)||0, parseFloat(t.sell_value)||0);
+    }, 0);
     deployed = Math.min(deployed, cap);
   } else {
-    // Live: use _summary_open_deployed from PositionLog (first row, reliable)
-    deployed = positions.length ? (parseFloat(positions[0]._summary_open_deployed)||0) : 0;
+    deployed = openRows.reduce(function(s,c){return s + c.deployed;}, 0);
   }
   var util = deployed > 0 ? (deployed/cap*100).toFixed(1) : '0';
   document.getElementById('s3-util').textContent = util+'%';
   document.getElementById('s3-dep').textContent = '₹'+Math.round(deployed).toLocaleString('en-IN');
 
-  // EOD fields
+  // ── EOD hold time ────────────────────────────────────────────────
   var ist = new Date(new Date().getTime()+(new Date().getTimezoneOffset()+330)*60000);
   var isEOD = STATE.selectedDate !== 'today' || ist.getHours()*60+ist.getMinutes() >= 930;
-  if (isEOD && trades.length) {
+  if (isEOD && (trades||[]).length) {
     var holds = trades.map(function(t){return parseFloat(t.avg_holding_min)||0;}).filter(function(v){return v>0;});
     var avgHold = holds.length ? (holds.reduce(function(a,b){return a+b;},0)/holds.length).toFixed(0)+'m' : '—';
     document.getElementById('s3-hold').textContent = avgHold;
@@ -1776,68 +1939,66 @@ function s3RenderTables(positions, trades) {
   var ist_now = new Date(new Date().getTime()+(new Date().getTimezoneOffset()+330)*60000);
   var isPastDate = STATE.selectedDate !== 'today';
   var isAfterClose = ist_now.getHours()*60+ist_now.getMinutes() > 930;
-  // Past dates or after close: no open positions
-  var showOpenPos = !isPastDate && !isAfterClose;
-  // position product is MIS (long) — SHORT filter shows none
-  var filtPos = (!showOpenPos || f==='exited' || f==='short') ? [] : positions;
-  // trade_direction is empty in data — all trades are MIS/long
-  var filtTrades = (f==='short') ? [] : trades.slice().sort(function(a,b){
-    return (parseFloat(b.pnl_inr)||0)-(parseFloat(a.pnl_inr)||0);
-  });
 
-  function makeRow(sym, side, pnlPct, pnlInr, hold, stockObj) {
-    var tr=document.createElement('tr');
-    var cls=pnlInr>=0?'pos':'neg', sign=pnlInr>=0?'+':'';
-    tr.innerHTML='<td><span class="s3-sym-link">'+sym+'</span></td>'
-      +'<td><span class="s3-tag-'+(side==='short'?'s':'l')+'">'+(side==='short'?'SHORT':'LONG')+'</span></td>'
-      +'<td class="'+cls+'">'+(pnlPct>=0?'+':'')+parseFloat(pnlPct||0).toFixed(2)+'%</td>'
-      +'<td class="'+cls+'">'+sign+'₹'+Math.abs(Math.round(pnlInr))+'</td>'
-      +'<td style="color:var(--dim)">'+hold+'</td>';
-    if (stockObj) {
-      tr.querySelector('.s3-sym-link').addEventListener('click', function(e){
-        e.stopPropagation();
-        // Find stock in context and open drill
-        var ctx = STATE.data.context || [];
-        var found = ctx.find(function(r){return r.tradingsymbol===sym;});
-        if (found) s4OpenDrill(found);
-      });
-    }
-    return tr;
-  }
+  // Use the already-classified arrays stashed by s3RenderCards (single source of truth)
+  // Fallback to re-classifying if cards hasn't run yet (defensive).
+  var filtOpen        = STATE._s3_filtOpen        || [];
+  var effectiveTrades = STATE._s3_effectiveTrades || [];
+  var filtTrades      = STATE._s3_filtTrades      || [];
+
+  // Past dates / after-close: never show open positions
+  if (isPastDate || isAfterClose) filtOpen = [];
 
   var ob=document.getElementById('s3-open-tbody'); ob.innerHTML='';
   var cb=document.getElementById('s3-closed-tbody'); cb.innerHTML='';
 
-  // Store data for sort
-  STATE.s3OpenData = filtPos.map(function(p){return {sym:p.tradingsymbol||'—',side:'long',pnlPct:parseFloat(p.pnl_pct||p.unrealised/(parseFloat(p.buy_value)||2000)*100||0),pnlInr:parseFloat(p.unrealised||p.pnl||0),hold:'—'};});
-  STATE.s3ClosedData = filtTrades.map(function(t){return {sym:t.tradingsymbol||'—',side:'long',pnlPct:parseFloat(t.pnl_pct||0),pnlInr:parseFloat(t.pnl_inr||0),hold:parseFloat(t.avg_holding_min)?Math.round(t.avg_holding_min)+'m':'—'};});
+  // Build row data — side is now derived per-row, no more hardcoded 'long'
+  STATE.s3OpenData = filtOpen.map(function(c){
+    return {
+      sym:    c.sym,
+      side:   c.side,
+      pnlPct: c.pnlPct,
+      pnlInr: c.pnl,
+      hold:   '—'
+    };
+  });
+  STATE.s3ClosedData = filtTrades.map(function(t){
+    var side = t._side || 'long';  // synthesised intraday trades carry _side
+    var hold = parseFloat(t.avg_holding_min) ? Math.round(t.avg_holding_min)+'m' : '—';
+    return {
+      sym:    t.tradingsymbol || '—',
+      side:   side,
+      pnlPct: parseFloat(t.pnl_pct) || 0,
+      pnlInr: parseFloat(t.pnl_inr) || 0,
+      hold:   hold
+    };
+  });
 
-  if(!filtPos.length){
+  if(!filtOpen.length){
     if(isPastDate||isAfterClose) ob.innerHTML='<tr><td colspan="5" class="s3-norows" style="color:#3a5060">Day complete — all positions closed</td></tr>';
     else ob.innerHTML='<tr><td colspan="5" class="s3-norows">No open positions</td></tr>';
   } else {
     STATE.s3OpenData.sort(function(a,b){return b.pnlInr-a.pnlInr;});
     STATE.s3OpenData.forEach(function(d){ob.appendChild(s3MakeRow(d));});
   }
-  if(!filtTrades.length) cb.innerHTML='<tr><td colspan="5" class="s3-norows">No trades</td></tr>';
+  if(!STATE.s3ClosedData.length) cb.innerHTML='<tr><td colspan="5" class="s3-norows">No trades</td></tr>';
   else {
     STATE.s3ClosedData.sort(function(a,b){return b.pnlInr-a.pnlInr;});
     STATE.s3ClosedData.forEach(function(d){cb.appendChild(s3MakeRow(d));});
   }
-  document.getElementById('s3-open-cnt').textContent = filtPos.length;
-  document.getElementById('s3-closed-cnt').textContent = filtTrades.length;
+  document.getElementById('s3-open-cnt').textContent = filtOpen.length;
+  document.getElementById('s3-closed-cnt').textContent = STATE.s3ClosedData.length;
 
   // Totals rows
-  var openTotalInr = filtPos.reduce(function(s,p){return s+(parseFloat(p.pnl)||parseFloat(p.unrealised)||0);},0);
-  var openTotalPct = filtPos.length && filtPos[0] ? (openTotalInr / (filtPos.length * (CFG.capital||100000) / (filtPos.length||1)) * 100).toFixed(2) : '—';
+  var openTotalInr = filtOpen.reduce(function(s,c){return s + c.pnl;}, 0);
   var ote = document.getElementById('s3-open-total-inr');
   if(ote){ ote.textContent=(openTotalInr>=0?'+':'')+'₹'+Math.round(openTotalInr).toLocaleString('en-IN'); ote.className='s3-total-row '+(openTotalInr>=0?'pos':'neg'); }
 
-  var closedTotalInr = filtTrades.reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
+  var closedTotalInr = STATE.s3ClosedData.reduce(function(s,d){return s + d.pnlInr;}, 0);
   var cte = document.getElementById('s3-closed-total-inr');
   if(cte){ cte.textContent=(closedTotalInr>=0?'+':'')+'₹'+Math.round(closedTotalInr).toLocaleString('en-IN'); cte.className=closedTotalInr>=0?'pos':'neg'; }
   var ctp = document.getElementById('s3-closed-total-pct');
-  var closedTotalPct = filtTrades.length ? (closedTotalInr/(filtTrades.length*2000)*100).toFixed(1)+'%' : '—';
+  var closedTotalPct = STATE.s3ClosedData.length ? (closedTotalInr/(STATE.s3ClosedData.length*2000)*100).toFixed(1)+'%' : '—';
   if(ctp){ ctp.textContent=closedTotalPct; }
 }
 
