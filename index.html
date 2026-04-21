@@ -1246,10 +1246,116 @@ async function fetchCandlesForDrill(symbol) {
   } catch(e) { return null; }
 }
 
+// ────────────────────────────────────────────────────────────────
+// wipeEODSections — Called from onDateChange BEFORE the new fetch
+// starts, to avoid showing a previous date's EOD data during the
+// async fetch window (which can take 1-2 seconds).
+//
+// Why this exists: sections like Session Quality, Entry Quality,
+// Stars Never Seen have `if (!eodAvail) return;` guards. When the
+// previous view had them populated (e.g. April 17) and the user
+// switches to "Today (Live)", the guard fires but the DOM retains
+// the earlier render. This function forcibly blanks those elements
+// so every date-switch starts from a clean slate.
+//
+// If you add a new EOD-gated section, also add its DOM targets here.
+// ────────────────────────────────────────────────────────────────
+function wipeEODSections() {
+  // Helper: set text on an element by id if it exists
+  function setT(id, text, cls) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    if (cls !== undefined) el.className = cls;
+  }
+  // Helper: set innerHTML on a tbody/container
+  function setH(id, html) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  }
+
+  // Section 5 — Entry Quality / Extraction Efficiency
+  setT('s5-consumed', '—', 'eq-val dim');
+  setT('s5-runway',   '—', 'eq-val dim');
+  setT('s5-ext',      '—', 'eq-val dim');
+  setH('s5-dist',     '');
+  setT('s5-insight', 'Extraction efficiency will populate after market close when EOD outcome fields are available.', 'insight-bar dim');
+
+  // Section 6 — Hold Time
+  setH('s6-tbody', '<tr><td colspan="6" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>');
+  setT('s6-insight', '', 'insight-bar dim');
+
+  // Section 7 — Gate Breakdown + Entry Signal Quality
+  // Note: gate breakdown IS live-ish (TML has current cycle data), so we don't
+  // blank it here — it'll repopulate on the first render.
+  // But signal cards and r915 bucket table ARE EOD. Clear them.
+  setH('s7-gate-tbody', '');
+  setH('s7-signal-cards', '');
+  setH('s7-r915-tbody', '');
+  setH('s7-quartile-tbody', '');
+
+  // Section 8 — Best / Worst trades
+  setH('s8-best-tbody',  '<tr><td colspan="7" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>');
+  setH('s8-worst-tbody', '<tr><td colspan="7" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>');
+  setT('s8-best-total-inr',  '+₹0', '');
+  setT('s8-worst-total-inr', '+₹0', '');
+  setT('s8-best-wr',  'Win rate: —');
+  setT('s8-worst-wr', 'Win rate: —');
+
+  // Section 9 — Top Runners / Interval Returns / Intraday profile
+  // Runners + r915 bucket are live-ish (use pct_from_open fallback), so they're
+  // fine to leave — s9Render always repopulates them.
+  setH('s9-interval-tbody', '<tr><td colspan="3" style="color:var(--dim);padding:10px;font-size:0.62rem;">Available after market close</td></tr>');
+  setH('s9-profile-tbody',  '<tr><td colspan="10" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>');
+
+  // Section 10 — Stars Never Seen / Missed opportunities
+  setH('s10-stars-tbody',  '<tr><td colspan="5" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>');
+  setH('s10-missed-tbody', '<tr><td colspan="5" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>');
+  setT('s10-opp-cost', '');
+
+  // Section 11 — Tomorrow's Watchlist
+  setH('s11-tbody', '<tr><td colspan="6" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>');
+  setT('s11-note', '—', 'insight-bar dim');
+
+  // Section 12 — Session Quality Score
+  setT('s12-score', '—', 'qs-score dim');
+  setT('s12-grade', '—');
+  ['s12-wr','s12-pf','s12-ext','s12-cons','s12-regime'].forEach(function(id){
+    setT(id, '—');
+    setT(id+'-pts', '— / 20');
+  });
+
+  // Section 13 — Simulation Scenarios
+  setH('s13-tbody', '<tr><td colspan="7" style="color:var(--dim);padding:10px;font-size:0.62rem;">Available after market close — requires EOD outcome fields</td></tr>');
+  setH('s13-quartile-tbody', '');
+  setT('s13-delta', '');
+
+  // Section 14 — P&L at Scale
+  // Leave alone — s14 now always renders (from live or realised total).
+
+  // Clear our per-render STATE cache so stale values don't leak into next render
+  STATE._s3_filtOpen = undefined;
+  STATE._s3_filtTrades = undefined;
+  STATE._s3_effectiveTrades = undefined;
+  STATE._s3_openRows = undefined;
+  STATE._s3_totalPnl = undefined;
+  STATE._s3_openPnl = undefined;
+  STATE._s3_realPnl = undefined;
+  STATE._s3_liveMode = undefined;
+}
+
 function onDateChange() {
   STATE.selectedDate = document.getElementById('s1-date-select').value;
   STATE.curveData = [];
   STATE.data.tmlong = [];
+  // Defensive: also clear the main data arrays so any renderAll that fires
+  // before the new fetch returns sees an empty state, not the previous date's.
+  STATE.data.context   = [];
+  STATE.data.profile   = [];
+  STATE.data.trades    = [];
+  STATE.data.positions = [];
+  // Blank every EOD-gated DOM element so the user sees a clean transition.
+  wipeEODSections();
   fetchAll();
 }
 
@@ -1732,6 +1838,12 @@ function s3RenderCards(positions, trades) {
   }
   var tgtPct = CFG.capital ? (totalPnl/(CFG.capital*0.01)*100).toFixed(1) : (totalPnl/1000*100).toFixed(1);
 
+  // Stash live P&L in STATE so s14 and other sections can show a live preview
+  STATE._s3_totalPnl = totalPnl;
+  STATE._s3_openPnl  = openPnl;
+  STATE._s3_realPnl  = realPnl;
+  STATE._s3_liveMode = !(isPastDate || isAfterClose);
+
   var te = document.getElementById('s3-total');
   te.textContent = (totalPnl>=0?'+':'')+'₹'+Math.round(totalPnl).toLocaleString('en-IN');
   te.className = 's3-card-main ' + (totalPnl>=0?'pos':'neg');
@@ -1743,18 +1855,65 @@ function s3RenderCards(positions, trades) {
   document.getElementById('s3-tgt').textContent = tgtPct+'% of 1% target';
 
   // ── Trades card ──────────────────────────────────────────────────
-  var wins  = filtTrades.filter(function(t){return (parseFloat(t.pnl_inr)||0)>0;}).length;
-  var total = filtTrades.length;
-  var wr = total ? (wins/total*100).toFixed(1) : 0;
-  var losses = total - wins;
-  var grossW = filtTrades.filter(function(t){return (parseFloat(t.pnl_inr)||0)>0;}).reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0);
-  var grossL = Math.abs(filtTrades.filter(function(t){return (parseFloat(t.pnl_inr)||0)<0;}).reduce(function(s,t){return s+(parseFloat(t.pnl_inr)||0);},0));
-  var pf = grossL > 0 ? (grossW/grossL).toFixed(2) : '—';
+  // LIVE mode: combine OPEN (live unrealised) + CLOSED (realised) so the card
+  // reflects current-day scorecard, not just the 1-2 that have exited.
+  // PAST/EOD mode: only CLOSED (existing behaviour).
+  //
+  // Classification rule per row:
+  //   pnl > 0 → winner
+  //   pnl < 0 → loser
+  //   pnl == 0 → flat (excluded from W/L count, still in total)
+  var scoreRows;
+  if (isPastDate || isAfterClose) {
+    // Realised-only at EOD
+    scoreRows = filtTrades.map(function(t){return {pnl: parseFloat(t.pnl_inr) || 0};});
+  } else {
+    // Live: union of open unrealised + realised
+    var openScore = filtOpen.map(function(c){return {pnl: c.pnl, _live: true};});
+    var closedScore = filtTrades.map(function(t){return {pnl: parseFloat(t.pnl_inr) || 0};});
+    scoreRows = openScore.concat(closedScore);
+  }
+
+  var wins   = scoreRows.filter(function(r){return r.pnl > 0;}).length;
+  var losses = scoreRows.filter(function(r){return r.pnl < 0;}).length;
+  var total  = scoreRows.length;
+  var wr     = total ? (wins/total*100).toFixed(1) : '0.0';
+  var grossW = scoreRows.filter(function(r){return r.pnl > 0;}).reduce(function(s,r){return s+r.pnl;}, 0);
+  var grossL = Math.abs(scoreRows.filter(function(r){return r.pnl < 0;}).reduce(function(s,r){return s+r.pnl;}, 0));
+  var pf     = grossL > 0 ? (grossW/grossL).toFixed(2) : '—';
+
   document.getElementById('s3-trades').textContent = total;
   document.getElementById('s3-wl').innerHTML = '<span class="pos">'+wins+'W</span> / <span class="neg">'+losses+'L</span>';
   document.getElementById('s3-wr').textContent = wr+'%';
   document.getElementById('s3-pf').textContent = pf;
   document.getElementById('s3-pf').className = 's3-rv '+(parseFloat(pf)>=1?'pos':'neg');
+
+  // Add a LIVE/EOD mode indicator next to the card title (if target element exists)
+  var tradesHdr = document.querySelector('#s3-trades').closest('.s3-card');
+  if (tradesHdr) {
+    var hdrLbl = tradesHdr.querySelector('.s3-card-lbl');
+    if (hdrLbl) {
+      var hasLiveOpens = !isPastDate && !isAfterClose && filtOpen.length > 0;
+      // Remove any prior indicator we added, then add fresh one
+      var prior = hdrLbl.querySelector('.s3-mode-tag');
+      if (prior) prior.remove();
+      var tag = document.createElement('span');
+      tag.className = 's3-mode-tag';
+      tag.style.cssText = 'font-size:0.55rem;padding:1px 5px;margin-left:6px;border-radius:3px;letter-spacing:0.5px;vertical-align:middle;';
+      if (hasLiveOpens) {
+        tag.textContent = 'LIVE';
+        tag.style.background = 'rgba(46,204,113,0.15)';
+        tag.style.color = 'var(--green)';
+        tag.style.border = '1px solid rgba(46,204,113,0.35)';
+      } else {
+        tag.textContent = 'REALISED';
+        tag.style.background = 'rgba(127,140,141,0.15)';
+        tag.style.color = 'var(--dim)';
+        tag.style.border = '1px solid rgba(127,140,141,0.35)';
+      }
+      hdrLbl.appendChild(tag);
+    }
+  }
 
   // ── Capital / deployed ──────────────────────────────────────────
   // Deployed = notional exposure from OPEN rows (|qty| × avg_price), regardless of long/short.
@@ -2530,7 +2689,21 @@ function renderEOD() {
     };
   });
 
-  var eodAvailable = enriched.some(function(t) { return t.max_run !== null; });
+  // eodAvailable determines whether Sections 5/6/7/8/9/10/11/12/13/14 populate.
+  // Previously this was just `enriched.some(t => t.max_run !== null)` which became
+  // true as soon as ONE trade closed on a live day — causing Session Quality, Entry
+  // Quality, P&L at Scale etc. to render with a 1-point sample.
+  //
+  // Correct gate: EOD views are only meaningful when (a) we're viewing a past date,
+  // (b) the market has closed today, or (c) we've accumulated a meaningful sample
+  // of closed trades (>=10) — the 3rd case covers looking at intraday snapshots
+  // late in the session when you still want a preview.
+  var ist_now_eod = new Date(new Date().getTime()+(new Date().getTimezoneOffset()+330)*60000);
+  var isPastDateEod   = STATE.selectedDate !== 'today';
+  var isAfterCloseEod = ist_now_eod.getHours()*60 + ist_now_eod.getMinutes() >= 930; // 15:30 IST
+  var hasEodFields    = enriched.some(function(t) { return t.max_run !== null; });
+  var hasMeaningfulSample = enriched.length >= 10;
+  var eodAvailable = hasEodFields && (isPastDateEod || isAfterCloseEod || hasMeaningfulSample);
 
   s5Render(enriched, eodAvailable);
   s6Render(enriched, eodAvailable);
@@ -2575,7 +2748,19 @@ function eodOpenDrill(sym) {
 // ── SECTION 5 — Entry Quality ─────────────────────────────────
 function s5Render(enriched, eodAvail) {
   var withData = enriched.filter(function(t) { return t.pct_consumed !== null; });
-  if (!withData.length || !eodAvail) return;
+  if (!withData.length || !eodAvail) {
+    // Blank the DOM so stale values from a previous date don't persist.
+    // wipeEODSections() also does this; this handler is the safety net for
+    // any renderAll() call that bypasses onDateChange.
+    ['s5-consumed','s5-runway','s5-ext'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '—'; el.className = 'eq-val dim'; }
+    });
+    var distEl = document.getElementById('s5-dist'); if (distEl) distEl.innerHTML = '';
+    var insEl  = document.getElementById('s5-insight');
+    if (insEl) { insEl.textContent = 'Extraction efficiency will populate after market close when EOD outcome fields are available.'; insEl.className = 'insight-bar dim'; }
+    return;
+  }
 
   var avgConsumed = withData.reduce(function(s,t){return s+t.pct_consumed;},0)/withData.length;
   var avgRunway   = withData.reduce(function(s,t){return s+(t.remaining||0);},0)/withData.length;
@@ -2959,7 +3144,15 @@ function s9Render(context, enriched, profile, eodAvail) {
 
 // ── SECTION 10 — Stars Never Seen + Missed ────────────────────
 function s10Render(context, tmlong, enriched, eodAvail) {
-  if (!eodAvail) return;
+  if (!eodAvail) {
+    var stEl = document.getElementById('s10-stars-tbody');
+    if (stEl) stEl.innerHTML = '<tr><td colspan="5" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>';
+    var msEl = document.getElementById('s10-missed-tbody');
+    if (msEl) msEl.innerHTML = '<tr><td colspan="5" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>';
+    var ocEl = document.getElementById('s10-opp-cost');
+    if (ocEl) ocEl.textContent = '';
+    return;
+  }
   var tradedSet = {};
   enriched.forEach(function(t){ tradedSet[t.sym] = true; });
   // CRITICAL: signalledSet must be restricted to symbols that actually got an
@@ -3035,7 +3228,13 @@ function s10Render(context, tmlong, enriched, eodAvail) {
 
 // ── SECTION 11 — Tomorrow's Watchlist ────────────────────────
 function s11Render(context, profile, eodAvail) {
-  if (!eodAvail) return;
+  if (!eodAvail) {
+    var tbEl = document.getElementById('s11-tbody');
+    if (tbEl) tbEl.innerHTML = '<tr><td colspan="6" class="s3-norows" style="color:var(--dim);padding:10px;font-size:0.62rem;">—</td></tr>';
+    var ntEl = document.getElementById('s11-note');
+    if (ntEl) { ntEl.textContent = '—'; ntEl.className = 'insight-bar dim'; }
+    return;
+  }
   var watchlist = context.filter(function(s){
     return (parseFloat(s.close_position_pct)||0) >= 0.80
       && (parseFloat(s.r_1400_1530)||0) > 0
@@ -3073,6 +3272,21 @@ function s11Render(context, profile, eodAvail) {
 function s12Render(enriched, profile, eodAvail) {
   var trades = enriched;
   if (!trades.length) return;
+
+  // LIVE-MODE GUARD: Session Quality needs an EOD-sized sample to be meaningful.
+  // If eodAvail is false (market still open with <10 closed trades), show a
+  // preview-with-caveat rather than letting the score lock in on a 1-trade sample.
+  if (!eodAvail) {
+    var se = document.getElementById('s12-score');
+    if (se) { se.textContent = '—'; se.className = 'qs-score dim'; }
+    var ge = document.getElementById('s12-grade');
+    if (ge) { ge.textContent = 'LIVE'; }
+    ['s12-wr','s12-pf','s12-ext','s12-cons','s12-regime'].forEach(function(id){
+      var ve = document.getElementById(id); if (ve) ve.textContent = '—';
+      var pe = document.getElementById(id+'-pts'); if (pe) pe.textContent = '— / 20';
+    });
+    return;
+  }
 
   var wins    = trades.filter(function(t){return t.is_winner;}).length;
   var winRate = wins / trades.length;
@@ -3250,7 +3464,18 @@ function s13Render(enriched, context, tmlong, eodAvail) {
 
 // ── SECTION 14 — P&L at Scale ────────────────────────────────
 function s14Render(enriched) {
-  var total = enriched.reduce(function(s,t){return s+t.pnl_inr;},0);
+  // LIVE vs EOD source:
+  //   Live (market still open): scale from the current day's combined P&L
+  //     (unrealised + realised) stashed by s3 — so you see what "today scaled up"
+  //     looks like in real time.
+  //   EOD / past-date: scale from closed-trades total, same as before.
+  var isLive = !!STATE._s3_liveMode;
+  var total;
+  if (isLive && isFinite(STATE._s3_totalPnl)) {
+    total = STATE._s3_totalPnl;
+  } else {
+    total = enriched.reduce(function(s,t){return s+t.pnl_inr;},0);
+  }
   function fmt(v) { return (v>=0?'+':'')+'₹'+Math.abs(Math.round(v)).toLocaleString('en-IN'); }
   function cls(v) { return v>=0?'pos':'neg'; }
   ['1l','5l','10l','50l'].forEach(function(k, i) {
