@@ -1333,6 +1333,13 @@ function wipeEODSections() {
   // Section 14 — P&L at Scale
   // Leave alone — s14 now always renders (from live or realised total).
 
+  // QUALITY card (Section 3) — avg hold time is EOD-derived
+  var holdEl = document.getElementById('s3-hold');
+  if (holdEl) { holdEl.textContent = '—'; holdEl.className = 's3-card-main dim'; }
+
+  // Section 9 — r915 bucket table (EOD-only; requires max_run_from_open_pct)
+  setH('s9-r915-tbody', '<tr><td colspan="4" style="color:var(--dim);padding:8px;font-size:0.62rem">Available after market close</td></tr>');
+
   // Clear our per-render STATE cache so stale values don't leak into next render
   STATE._s3_filtOpen = undefined;
   STATE._s3_filtTrades = undefined;
@@ -1889,9 +1896,11 @@ function s3RenderCards(positions, trades) {
   document.getElementById('s3-pf').className = 's3-rv '+(parseFloat(pf)>=1?'pos':'neg');
 
   // Add a LIVE/EOD mode indicator next to the card title (if target element exists)
-  var tradesHdr = document.querySelector('#s3-trades').closest('.s3-card');
-  if (tradesHdr) {
-    var hdrLbl = tradesHdr.querySelector('.s3-card-lbl');
+  // NOTE: the DOM element we attach to is `.s3-card-hdr` — previously this looked for
+  // `.s3-card-lbl` which doesn't exist, so the tag silently didn't render.
+  var tradesCard = document.querySelector('#s3-trades').closest('.s3-card');
+  if (tradesCard) {
+    var hdrLbl = tradesCard.querySelector('.s3-card-hdr');
     if (hdrLbl) {
       var hasLiveOpens = !isPastDate && !isAfterClose && filtOpen.length > 0;
       // Remove any prior indicator we added, then add fresh one
@@ -1899,7 +1908,7 @@ function s3RenderCards(positions, trades) {
       if (prior) prior.remove();
       var tag = document.createElement('span');
       tag.className = 's3-mode-tag';
-      tag.style.cssText = 'font-size:0.55rem;padding:1px 5px;margin-left:6px;border-radius:3px;letter-spacing:0.5px;vertical-align:middle;';
+      tag.style.cssText = 'font-size:0.6rem;padding:2px 6px;margin-left:8px;border-radius:3px;letter-spacing:0.5px;vertical-align:middle;font-weight:600;';
       if (hasLiveOpens) {
         tag.textContent = 'LIVE';
         tag.style.background = 'rgba(46,204,113,0.15)';
@@ -1935,11 +1944,17 @@ function s3RenderCards(positions, trades) {
   // ── EOD hold time ────────────────────────────────────────────────
   var ist = new Date(new Date().getTime()+(new Date().getTimezoneOffset()+330)*60000);
   var isEOD = STATE.selectedDate !== 'today' || ist.getHours()*60+ist.getMinutes() >= 930;
+  var holdEl = document.getElementById('s3-hold');
   if (isEOD && (trades||[]).length) {
     var holds = trades.map(function(t){return parseFloat(t.avg_holding_min)||0;}).filter(function(v){return v>0;});
     var avgHold = holds.length ? (holds.reduce(function(a,b){return a+b;},0)/holds.length).toFixed(0)+'m' : '—';
-    document.getElementById('s3-hold').textContent = avgHold;
-    document.getElementById('s3-hold').className = 's3-card-main neu';
+    if (holdEl) { holdEl.textContent = avgHold; holdEl.className = 's3-card-main neu'; }
+  } else if (holdEl) {
+    // Live mode — avg hold isn't meaningful yet (intraday closed trades don't carry
+    // avg_holding_min in PositionLog). Reset to dash so a previous date's value
+    // (e.g. "264m" from April 17) doesn't leak through.
+    holdEl.textContent = '—';
+    holdEl.className = 's3-card-main dim';
   }
 }
 
@@ -3082,6 +3097,11 @@ function s9Render(context, enriched, profile, eodAvail) {
       tr.innerHTML = '<td style="color:var(--text)">'+bk[0]+'</td><td class="inf">'+stks.length+'</td><td class="pos">'+med.toFixed(2)+'%</td><td class="neu">'+ran5+' ('+(stks.length?(ran5/stks.length*100).toFixed(0):0)+'%)</td>';
       r9tbody.appendChild(tr);
     });
+  } else {
+    // Blank the r915 bucket table when EOD not available, otherwise
+    // a previous date's distribution (e.g. 446/586/205/55/21/11) persists.
+    var r9tbody = document.getElementById('s9-r915-tbody');
+    if (r9tbody) r9tbody.innerHTML = '<tr><td colspan="4" style="color:var(--dim);padding:8px;font-size:0.62rem">Available after market close</td></tr>';
   }
 
   // Interval returns from DayProfile last row
