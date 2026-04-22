@@ -2645,7 +2645,19 @@ function addChartHover(svgId, tipId, dataArr, timeArr, labelFn) {
     var idx = Math.round(xPct * (dataArr.length-1));
     idx = Math.max(0, Math.min(dataArr.length-1, idx));
     var val = dataArr[idx];
-    var ts = timeArr && timeArr[idx] ? String(timeArr[idx]).slice(11,16) : '';
+    // Timestamp formatting: callers may pass pre-formatted "HH:MM" strings
+    // (e.g. s2AddHovers converts hhmm "935" -> "09:35") OR full ISO timestamps
+    // (e.g. s3 curve uses last_exit_ts like "2026-04-22 10:34:00"). Auto-detect:
+    //   - length 5 with a colon  -> already HH:MM, pass through
+    //   - longer string -> slice positions 11..16 to extract HH:MM from ISO
+    //   - empty/missing -> ''
+    var ts = '';
+    if (timeArr && timeArr[idx] != null) {
+      var raw = String(timeArr[idx]);
+      if (raw.length === 5 && raw.charAt(2) === ':') ts = raw;         // "HH:MM"
+      else if (raw.length >= 16)                    ts = raw.slice(11,16);
+      else                                          ts = raw;          // best effort
+    }
     tip.style.display = 'block';
     tip.style.left = Math.min(e.clientX - rect.left, rect.width - 140) + 'px';
     tip.style.top = '4px';
@@ -2669,24 +2681,68 @@ function addChartHover(svgId, tipId, dataArr, timeArr, labelFn) {
 }
 
 function s2AddHovers(prof, niftyData) {
+  // Build HH:MM array from profile's hhmm field (e.g. "935" -> "09:35")
   var timeArr = prof.map(function(r){
     var h=String(r.hhmm||'');
     return h.length>=3?h.slice(0,-2).padStart(2,'0')+':'+h.slice(-2):h;
   });
   var breadthArr = prof.map(function(r){return parseFloat(r.pct_above_open)||0;});
-  var medArr = prof.map(function(r){return parseFloat(r.median_pct_from_open)||0;});
-  addChartHover('s2-br-svg','s2-br-tip', breadthArr, timeArr, function(v,ts){
-    return '<b style="color:#38b6ff">'+ts+'</b> &nbsp; Breadth: <b style="color:'+(v>=60?'#00e5a0':'#ff4d6a')+'">'+v.toFixed(1)+'%</b>';
+  var medArr     = prof.map(function(r){return parseFloat(r.median_pct_from_open)||0;});
+  var breadthOpen = breadthArr.length ? breadthArr[0] : 0;
+  var medOpen     = medArr.length     ? medArr[0]     : 0;
+
+  // ── Breadth ── show HH:MM, current %, and Δ vs session open
+  addChartHover('s2-br-svg','s2-br-tip', breadthArr, timeArr, function(v,ts,idx){
+    var col = v>=60?'#00e5a0':'#ff4d6a';
+    var delta = v - breadthOpen;
+    var deltaStr = (delta>=0?'+':'')+delta.toFixed(1)+'pp';
+    var deltaCol = delta>=0?'#00e5a0':'#ff4d6a';
+    return '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
+      + 'Breadth: <b style="color:'+col+'">'+v.toFixed(1)+'%</b>'
+      + ' <span style="color:'+deltaCol+';font-size:0.62rem">('+deltaStr+' vs open)</span>';
   });
-  addChartHover('s2-med-svg','s2-med-tip', medArr, timeArr, function(v,ts){
-    return '<b style="color:#38b6ff">'+ts+'</b> &nbsp; Median: <b style="color:'+(v>=0?'#00e5a0':'#ff4d6a')+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</b>';
+
+  // ── Median ── show HH:MM, current %, Δ vs open, and Δ vs previous cycle
+  addChartHover('s2-med-svg','s2-med-tip', medArr, timeArr, function(v,ts,idx){
+    var col = v>=0?'#00e5a0':'#ff4d6a';
+    var deltaOpen = v - medOpen;
+    var openStr = (deltaOpen>=0?'+':'')+deltaOpen.toFixed(2)+'%';
+    var openCol = deltaOpen>=0?'#00e5a0':'#ff4d6a';
+    var tickStr = '';
+    if (idx > 0) {
+      var prev = medArr[idx-1];
+      var d = v - prev;
+      if (Math.abs(d) > 0.001) {
+        var dCol = d>=0?'#00e5a0':'#ff4d6a';
+        tickStr = ' <span style="color:'+dCol+';font-size:0.62rem">('+(d>=0?'+':'')+d.toFixed(2)+'% tick)</span>';
+      }
+    }
+    return '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
+      + 'Median: <b style="color:'+col+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</b>'
+      + ' <span style="color:'+openCol+';font-size:0.62rem">('+openStr+' vs open)</span>'
+      + tickStr;
   });
+
+  // ── NIFTY ── show HH:MM (derived from candle timestamp), price, %/points vs open
   if (niftyData && niftyData.length) {
     var nVals = niftyData.map(function(r){return parseFloat(r.c)||0;});
     var nOpen = nVals[0] || 1;
-    addChartHover('s2-nf-svg','s2-nf-tip', nVals, null, function(v,ts,idx){
-      var pfo=((v-nOpen)/nOpen*100).toFixed(2);
-      return 'NIFTY: <b style="color:#38b6ff">'+v.toFixed(2)+'</b> &nbsp; <b style="color:'+(parseFloat(pfo)>=0?'#00e5a0':'#ff4d6a')+'">'+(parseFloat(pfo)>=0?'+':'')+pfo+'%</b>';
+    // Try to build time array from candles — field name varies by source
+    // ("ts" is most common, "t" / "time" / "date" as fallbacks)
+    var niftyTimeArr = niftyData.map(function(r){
+      var raw = r.ts || r.t || r.time || r.date || r.timestamp || '';
+      return String(raw);
+    });
+    addChartHover('s2-nf-svg','s2-nf-tip', nVals, niftyTimeArr, function(v,ts,idx){
+      var pfo   = (v-nOpen)/nOpen*100;
+      var pts   = v - nOpen;
+      var col   = pfo>=0?'#00e5a0':'#ff4d6a';
+      var pfoStr = (pfo>=0?'+':'')+pfo.toFixed(2)+'%';
+      var ptsStr = (pts>=0?'+':'')+pts.toFixed(1)+'pt';
+      return '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
+        + 'NIFTY: <b style="color:#38b6ff">'+v.toFixed(2)+'</b> '
+        + '<span style="color:'+col+'">'+pfoStr+'</span>'
+        + ' <span style="color:'+col+';font-size:0.62rem">('+ptsStr+')</span>';
     });
   }
 }
