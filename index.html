@@ -622,7 +622,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     <div class="s2-cp">
       <div class="s2-cp-title">Median % from open</div>
       <div class="s2-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap"><span class="s2-ylbl">+2</span><span class="s2-ylbl">+1</span><span class="s2-ylbl"> 0</span><span class="s2-ylbl">-1</span><span class="s2-ylbl">-2</span></div>
+        <div class="s2-ylbl-wrap" id="s2-med-ylbl"><!-- populated dynamically by s2DrawMedianLine --></div>
         <svg id="s2-med-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
       <div class="chart-tooltip" id="s2-med-tip"></div>
       </div>
@@ -1583,7 +1583,7 @@ function s2DrawBreadthBars(data) {
 
 function s2DrawMedianLine(data) {
   var svg = document.getElementById('s2-med-svg'); svg.innerHTML = '';
-  var W=260, H=100, n=data.length;
+  var W=260, H=130, n=data.length;
   if (!n) return;
 
   // ── Adaptive Y-scale (hybrid) ────────────────────────────────────
@@ -1615,7 +1615,7 @@ function s2DrawMedianLine(data) {
   function px(i){return (i/(n-1))*W;}
 
   // ── Dynamic gridlines at round values ────────────────────────────
-  // Pick a step size that yields 4-6 gridlines in the current range.
+  // Pick a step size that yields ~5 gridlines in the current range.
   function niceStep(totalRange) {
     var targetTicks = 5;
     var raw = totalRange / targetTicks;
@@ -1628,13 +1628,13 @@ function s2DrawMedianLine(data) {
   var gridStart = Math.ceil(fMin / step) * step;
   var gridVals = [];
   for (var g = gridStart; g <= fMax + 1e-9; g += step) {
-    // Round to avoid floating-point noise (e.g. 0.30000000004)
     gridVals.push(Math.round(g / step) * step);
   }
-  // Always ensure zero is a gridline (for the bull/bear reference)
+  // Always ensure zero is a gridline (bull/bear reference)
   if (gridVals.indexOf(0) === -1 && fMin < 0 && fMax > 0) gridVals.push(0);
   gridVals.sort(function(a,b){return a-b;});
 
+  // Draw gridlines inside the SVG
   gridVals.forEach(function(v) {
     var l = document.createElementNS('http://www.w3.org/2000/svg','line');
     l.setAttribute('x1',0); l.setAttribute('x2',W); l.setAttribute('y1',py(v)); l.setAttribute('y2',py(v));
@@ -1642,15 +1642,25 @@ function s2DrawMedianLine(data) {
     l.setAttribute('stroke-width', Math.abs(v) < 1e-9 ? '0.8' : '0.5');
     if (Math.abs(v) > 1e-9) l.setAttribute('stroke-dasharray','3,4');
     svg.appendChild(l);
-    // Label (small, at left edge)
-    var lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
-    lbl.setAttribute('x', 2); lbl.setAttribute('y', py(v) - 1);
-    lbl.setAttribute('font-size','7'); lbl.setAttribute('fill','rgba(140,160,175,0.55)');
-    // Format: decimals only if needed (e.g. "+1" vs "+0.25")
-    var decimals = step < 0.5 ? 2 : (step < 1 ? 1 : 0);
-    lbl.textContent = (v >= 0 ? '+' : '') + v.toFixed(decimals) + '%';
-    svg.appendChild(lbl);
   });
+
+  // Populate external Y-label container (replaces the old hardcoded ±2 spans).
+  // Top label comes first because .s2-ylbl-wrap is laid out top→bottom.
+  var ylblEl = document.getElementById('s2-med-ylbl');
+  if (ylblEl) {
+    ylblEl.innerHTML = '';
+    var decimals = step < 0.5 ? 2 : (step < 1 ? 1 : 0);
+    var labelsTopDown = gridVals.slice().sort(function(a,b){return b-a;}); // high→low
+    labelsTopDown.forEach(function(v) {
+      var sp = document.createElement('span');
+      sp.className = 's2-ylbl';
+      var txt;
+      if (Math.abs(v) < 1e-9) txt = '0';
+      else                    txt = (v >= 0 ? '+' : '') + v.toFixed(decimals);
+      sp.textContent = txt;
+      ylblEl.appendChild(sp);
+    });
+  }
 
   // ── Line (green above zero, red below, split at zero crossings) ──
   var zy = py(0);
