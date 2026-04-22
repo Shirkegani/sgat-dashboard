@@ -1584,17 +1584,75 @@ function s2DrawBreadthBars(data) {
 function s2DrawMedianLine(data) {
   var svg = document.getElementById('s2-med-svg'); svg.innerHTML = '';
   var W=260, H=100, n=data.length;
-  var fMin=-2, fMax=4, range=6;  // fixed scale: -2% to +4%
+  if (!n) return;
+
+  // ── Adaptive Y-scale (hybrid) ────────────────────────────────────
+  // Median % from open across ~1,300 stocks rarely exceeds ±1%, so a fixed
+  // −2/+4 scale made most days look flat. Rules:
+  //   1. Start with min/max of data + 15% padding on each side
+  //   2. Enforce a minimum total range of 1% so flat days don't collapse
+  //   3. Always include the zero line (≥ 0.1% on each side of zero)
+  // Result: big days fill the chart, small days still show movement, and
+  // the 0-line remains a meaningful bull/bear reference.
+  var dMin = Math.min.apply(null, data);
+  var dMax = Math.max.apply(null, data);
+  var dRange = dMax - dMin;
+  var pad = dRange > 0 ? dRange * 0.15 : 0.1;
+  var fMin = dMin - pad;
+  var fMax = dMax + pad;
+  var MIN_TOTAL_RANGE = 1.0;
+  if ((fMax - fMin) < MIN_TOTAL_RANGE) {
+    var center = (fMin + fMax) / 2;
+    fMin = center - MIN_TOTAL_RANGE / 2;
+    fMax = center + MIN_TOTAL_RANGE / 2;
+  }
+  // Always keep zero line visible
+  if (fMin > -0.1) fMin = -0.1;
+  if (fMax <  0.1) fMax =  0.1;
+  var range = fMax - fMin;
+
   function py(v){return H-((v-fMin)/range*H);}
   function px(i){return (i/(n-1))*W;}
-  [-2,-1,0,1,2,3,4].forEach(function(v) {
+
+  // ── Dynamic gridlines at round values ────────────────────────────
+  // Pick a step size that yields 4-6 gridlines in the current range.
+  function niceStep(totalRange) {
+    var targetTicks = 5;
+    var raw = totalRange / targetTicks;
+    var mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var norm = raw / mag;  // in [1, 10)
+    var nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+    return nice * mag;
+  }
+  var step = niceStep(range);
+  var gridStart = Math.ceil(fMin / step) * step;
+  var gridVals = [];
+  for (var g = gridStart; g <= fMax + 1e-9; g += step) {
+    // Round to avoid floating-point noise (e.g. 0.30000000004)
+    gridVals.push(Math.round(g / step) * step);
+  }
+  // Always ensure zero is a gridline (for the bull/bear reference)
+  if (gridVals.indexOf(0) === -1 && fMin < 0 && fMax > 0) gridVals.push(0);
+  gridVals.sort(function(a,b){return a-b;});
+
+  gridVals.forEach(function(v) {
     var l = document.createElementNS('http://www.w3.org/2000/svg','line');
     l.setAttribute('x1',0); l.setAttribute('x2',W); l.setAttribute('y1',py(v)); l.setAttribute('y2',py(v));
-    l.setAttribute('stroke',v===0?'rgba(90,112,128,0.55)':'rgba(40,65,80,0.7)');
-    l.setAttribute('stroke-width',v===0?'0.8':'0.5');
-    if(v!==0) l.setAttribute('stroke-dasharray','3,4');
+    l.setAttribute('stroke', Math.abs(v) < 1e-9 ? 'rgba(90,112,128,0.55)' : 'rgba(40,65,80,0.7)');
+    l.setAttribute('stroke-width', Math.abs(v) < 1e-9 ? '0.8' : '0.5');
+    if (Math.abs(v) > 1e-9) l.setAttribute('stroke-dasharray','3,4');
     svg.appendChild(l);
+    // Label (small, at left edge)
+    var lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x', 2); lbl.setAttribute('y', py(v) - 1);
+    lbl.setAttribute('font-size','7'); lbl.setAttribute('fill','rgba(140,160,175,0.55)');
+    // Format: decimals only if needed (e.g. "+1" vs "+0.25")
+    var decimals = step < 0.5 ? 2 : (step < 1 ? 1 : 0);
+    lbl.textContent = (v >= 0 ? '+' : '') + v.toFixed(decimals) + '%';
+    svg.appendChild(lbl);
   });
+
+  // ── Line (green above zero, red below, split at zero crossings) ──
   var zy = py(0);
   for (var i=0;i<n-1;i++) {
     var v1=data[i], v2=data[i+1];
