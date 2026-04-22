@@ -1337,11 +1337,6 @@ function wipeEODSections() {
   var holdEl = document.getElementById('s3-hold');
   if (holdEl) { holdEl.textContent = '—'; holdEl.className = 's3-card-main dim'; }
 
-  // Section 3 — P&L curve SVG (must be wiped so yesterday's/today's curve doesn't
-  // persist when user switches to a date that has no curve data).
-  var pnlSvg = document.getElementById('s3-pnl-svg');
-  if (pnlSvg) pnlSvg.innerHTML = '<text x="300" y="45" fill="#3a5060" text-anchor="middle" font-size="11" font-family="JetBrains Mono">No curve data yet</text>';
-
   // Section 9 — r915 bucket table (EOD-only; requires max_run_from_open_pct)
   setH('s9-r915-tbody', '<tr><td colspan="4" style="color:var(--dim);padding:8px;font-size:0.62rem">Available after market close</td></tr>');
 
@@ -1380,10 +1375,10 @@ function renderAll() {
   s3Render();
   s4RenderTable();
   renderEOD();
-  // Always redraw the P&L curve; s3DrawCurveFromState handles the empty case
-  // (shows "No curve data yet"). Previously this was guarded by curveData.length>=2
-  // which meant a date switch to an empty-curve day left the previous curve stale.
-  s3DrawCurveFromState();
+  // Curve is now in STATE.curveData from dashboard response — draw it
+  if (STATE.curveData && STATE.curveData.length >= 2) {
+    s3DrawCurveFromState();
+  }
 }
 
 // ============================================================
@@ -2036,38 +2031,19 @@ function s3DrawCurveFromState() {
   var curveRaw = STATE.curveData || [];
   var points = [], timestamps = [];
 
-  // Convert server timestamp (often stored as UTC without tz marker) → IST HH:MM
-  // Handles: "2026-04-22 06:59:00" (naive → treated as UTC), "2026-04-22T06:59:00Z",
-  //          "2026-04-22T06:59:00+05:30". For naive strings we append 'Z' so they parse
-  //          as UTC, then we add +5:30 for IST display.
-  function toISTHHMM(raw) {
-    if (!raw) return '';
-    var s = String(raw).trim();
-    if (s.length < 10) return s.slice(11,16) || '';
-    // If no tz marker present, treat as UTC
-    var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
-    var iso = hasTz ? s.replace(' ','T') : s.replace(' ','T') + 'Z';
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return s.slice(11,16) || '';
-    // getUTCHours/Minutes + 5:30 offset for IST
-    var totalMin = d.getUTCHours()*60 + d.getUTCMinutes() + 330;
-    totalMin = ((totalMin % 1440) + 1440) % 1440;  // wrap around midnight
-    var hh = Math.floor(totalMin / 60);
-    var mm = totalMin % 60;
-    return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
-  }
-
   if (curveRaw.length >= 2) {
     // Use dedicated curve data — one point per minute, from positions_curve endpoint
     curveRaw.forEach(function(item) {
       points.push(parseFloat(item.pnl)||0);
-      timestamps.push(toISTHHMM(item.ts));
+      // Format timestamp to HH:MM for display
+      var ts = String(item.ts||'').slice(11,16);
+      timestamps.push(ts);
     });
   } else {
     // Fallback: cumulative closed trades (used when curve data not yet loaded)
     var cum = 0;
     var sorted = trades.slice().sort(function(a,b){return new Date(a.last_exit_ts||0)-new Date(b.last_exit_ts||0);});
-    sorted.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); timestamps.push(toISTHHMM(t.last_exit_ts)); });
+    sorted.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); timestamps.push((t.last_exit_ts||'').slice(11,16)); });
   }
 
   s3RenderCurve(points, timestamps);
@@ -2154,20 +2130,7 @@ function s3DrawCurve(positions, trades) {
   // Placeholder: cumulative from closed trades
   var cum = 0;
   var sorted = (trades||[]).slice().sort(function(a,b){return new Date(a.last_exit_ts||0)-new Date(b.last_exit_ts||0);});
-  // Reuse the UTC→IST helper from s3DrawCurveFromState (inlined here for scope)
-  function toIST(raw) {
-    if (!raw) return '';
-    var s = String(raw).trim();
-    if (s.length < 10) return s.slice(11,16) || '';
-    var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
-    var iso = hasTz ? s.replace(' ','T') : s.replace(' ','T') + 'Z';
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return s.slice(11,16) || '';
-    var totalMin = d.getUTCHours()*60 + d.getUTCMinutes() + 330;
-    totalMin = ((totalMin % 1440) + 1440) % 1440;
-    return String(Math.floor(totalMin/60)).padStart(2,'0') + ':' + String(totalMin%60).padStart(2,'0');
-  }
-  sorted.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); timestamps.push(toIST(t.last_exit_ts)); });
+  sorted.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); timestamps.push((t.last_exit_ts||'').slice(11,16)); });
   if (points.length < 2) { svg.innerHTML = '<text x="300" y="45" fill="#3a5060" text-anchor="middle" font-size="11" font-family=\'JetBrains Mono\'>No curve data yet</text>'; return; }
 
   var W=600, H=110, n=points.length;
@@ -2751,7 +2714,7 @@ function s2AddHovers(prof, niftyData) {
       var d = v - prev;
       if (Math.abs(d) > 0.001) {
         var dCol = d>=0?'#00e5a0':'#ff4d6a';
-        tickStr = ' <span style="color:'+dCol+';font-size:0.62rem">(Δ '+(d>=0?'+':'')+d.toFixed(2)+'%)</span>';
+        tickStr = ' <span style="color:'+dCol+';font-size:0.62rem">('+(d>=0?'+':'')+d.toFixed(2)+'% tick)</span>';
       }
     }
     return '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
