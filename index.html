@@ -2211,13 +2211,23 @@ function s3RenderCards(positions, trades) {
   // Intraday synthetic-trades (from PositionLog CLOSED rows) — used when we're
   // live and DailyTrades hasn't populated yet.
   var intradayTrades = closedRows.map(function(c){
+    // Best-effort ts extraction: PositionLog column names vary across deployments.
+    // Try several candidates; undefined/null here triggers graceful degradation
+    // downstream (s3BuildMiniSeries clamps missing ts to the end of the time grid).
+    var r = c._raw || {};
+    var entryTs = r.first_entry_ts || r.first_buy_ts || r.first_sell_ts
+               || r.entry_ts || r.created_at || null;
+    var exitTs  = r.last_exit_ts || r.last_sell_ts || r.last_buy_ts
+               || r.exit_ts || r.updated_at || r.modified_at || null;
     return {
       tradingsymbol: c.sym,
       pnl_inr: c.pnl,
       pnl_pct: c.pnlPct,
       avg_holding_min: null,  // not tracked in PositionLog
-      buy_value: (parseFloat(c._raw.buy_value)  || 0),
-      sell_value:(parseFloat(c._raw.sell_value) || 0),
+      buy_value: (parseFloat(r.buy_value)  || 0),
+      sell_value:(parseFloat(r.sell_value) || 0),
+      first_entry_ts: entryTs,
+      last_exit_ts:   exitTs,
       _side: c.side,
       _source: 'position_log'
     };
@@ -2548,6 +2558,13 @@ function s3BuildMiniSeries() {
     return { entM: entM, exM: exM, pnl: pnl, win: pnl > 0, bv: bv };
   });
 
+  // Resilience: trades synthesised from PositionLog may lack timestamps.
+  // Stamp missing exM with the grid's last minute so cumulative endpoints
+  // still match the card (shape will be a step at the right edge, which is
+  // better than invisible). Stamp missing entM with (exM − 10min) as a
+  // reasonable default hold duration.
+  // The timeGrid is computed below; we'll patch in-place after building it.
+
   // Open positions (for capital deployment curve on live view)
   var openPos = (STATE._s3_openRows || []).map(function(c) {
     function toMin(raw) {
@@ -2591,6 +2608,17 @@ function s3BuildMiniSeries() {
     for (var m = 9*60+30; m <= 15*60+30; m += 5) timeGrid.push(m);
   }
   if (!timeGrid.length) return null;
+
+  // Patch trades that lack timestamps. Happens for intraday-synthesised trades
+  // from PositionLog that don't carry first_entry_ts / last_exit_ts. We default
+  // exM to the last grid point (cumulative endpoint matches the card), and
+  // entM to (exM − 10min) as a reasonable default hold window.
+  var lastGridMin = timeGrid[timeGrid.length - 1];
+  for (var i = 0; i < tradeInfo.length; i++) {
+    var ti = tradeInfo[i];
+    if (ti.exM == null && lastGridMin != null) ti.exM = lastGridMin;
+    if (ti.entM == null && ti.exM != null)      ti.entM = Math.max(9*60+15, ti.exM - 10);
+  }
 
   // Compute per-grid-point KPI series
   var tradesCum = [], winsCum = [], lossesCum = [], wrCum = [], pfCum = [], depSeries = [];
