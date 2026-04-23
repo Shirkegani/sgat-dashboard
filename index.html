@@ -2527,6 +2527,36 @@ function s3BuildMiniSeries() {
   var curve        = STATE.curveData || [];
   var f            = STATE.filter || 'all';
 
+  // ── One-shot diagnostic (fires once per page load) ────────────────
+  // Prints the available field names on the first trade and first open position
+  // so we can see what timestamp fields actually exist in the sheet.
+  // Remove after the field names are confirmed.
+  if (!window.__s3MiniDebugged && (closedTrades.length || openPosRaw.length)) {
+    window.__s3MiniDebugged = true;
+    try {
+      console.log('=== SGAT mini-curves: field diagnostic ===');
+      if (closedTrades.length) {
+        console.log('First CLOSED trade object:', closedTrades[0]);
+        console.log('  Field names:', Object.keys(closedTrades[0]));
+      } else {
+        console.log('No closed trades yet.');
+      }
+      if (openPosRaw.length) {
+        console.log('First OPEN position (classified):', openPosRaw[0]);
+        if (openPosRaw[0]._raw) {
+          console.log('  _raw field names:', Object.keys(openPosRaw[0]._raw));
+          console.log('  _raw sample:', openPosRaw[0]._raw);
+        }
+      } else {
+        console.log('No open positions.');
+      }
+      if (curve.length) {
+        console.log('First curve point:', curve[0]);
+      }
+      console.log('=== end diagnostic ===');
+    } catch(e) {}
+  }
+
   // Filter CLOSED trades to match chip (matches s3RenderCards filtTrades logic)
   var filt = closedTrades.filter(function(t) {
     if (f === 'all' || f === 'exited') return true;
