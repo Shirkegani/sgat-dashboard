@@ -2233,30 +2233,17 @@ function s3RenderCards(positions, trades) {
     };
   });
 
-  // ── 15:30→EOD cutover logic ────────────────────────────────────
-  // Clock-based `isAfterClose` alone is not a safe trigger to flip the UI into
-  // "trust DailyTrades only" mode. DailyTrades is populated by a separate EOD
-  // workflow that runs *after* 15:30 — there's a gap (sometimes 30+ minutes)
-  // during which DailyTrades is empty. Flipping immediately at 15:30:01 used
-  // to cause the whole dashboard to blank out with zeros until EOD arrived.
-  //
-  // New rule: only treat the day as "EOD-realised" when DailyTrades actually
-  // has data. Between 15:30 and EOD-arrival, stay in live mode so the cards,
-  // tables, and mini-curves keep showing the (final) PositionLog/curve state.
-  var hasEodTrades = !!(trades && trades.length);
-  var eodPending   = isAfterClose && !hasEodTrades && !isPastDate;
-  // `isEodAuthoritative` = the real "show DailyTrades as source of truth" trigger.
-  // Use this everywhere instead of `isPastDate || isAfterClose`.
-  var isEodAuthoritative = isPastDate || (isAfterClose && hasEodTrades);
-
   // Choose the authoritative closed-trades source:
-  //   - Past dates or EOD arrived: DailyTrades
-  //   - Live OR eodPending: PositionLog CLOSED rows, merged with any DailyTrades rows
+  //   - EOD / past dates: DailyTrades (`trades`)
+  //   - Live intraday: PositionLog CLOSED rows, merged with any DailyTrades rows
+  //     that may have arrived (prefer PositionLog — it's fresher)
   var effectiveTrades;
-  if (isEodAuthoritative) {
+  if (isPastDate || isAfterClose) {
     effectiveTrades = trades || [];
   } else {
     if (intradayTrades.length) {
+      // Merge: use intraday rows primarily; add any DailyTrades rows that aren't
+      // already represented.
       var seen = {};
       intradayTrades.forEach(function(t){ seen[t.tradingsymbol] = true; });
       var extra = (trades || []).filter(function(t){ return !seen[t.tradingsymbol]; });
@@ -2297,27 +2284,13 @@ function s3RenderCards(positions, trades) {
   // Prefer PositionLog's aggregate if available (single source of truth from Kite)
   var serverTotal = positions.length ? parseFloat(positions[0]._summary_total_pnl) : NaN;
   var totalPnl;
-  if (isEodAuthoritative) {
+  if (isPastDate || isAfterClose) {
     totalPnl = (effectiveTrades || []).reduce(function(s,t){return s + (parseFloat(t.pnl_inr)||0);}, 0);
     openPnl = 0;
     realPnl = totalPnl;
-  } else if (eodPending) {
-    // Positions have been squared off, PositionLog records cleared, but EOD hasn't
-    // populated yet. The curveData's last point retains the final live P&L value;
-    // use that as the realised number.
-    var curveLast = (STATE.curveData && STATE.curveData.length)
-      ? parseFloat(STATE.curveData[STATE.curveData.length - 1].pnl) : NaN;
-    if (isFinite(curveLast)) {
-      totalPnl = curveLast;
-      realPnl = curveLast;
-      openPnl = 0;
-    } else {
-      totalPnl = openPnl + realPnl;
-    }
   } else {
-    // Live mode — server reports combined (open + realised) running total on every
-    // row at a timestamp. If we have it and it agrees with our sum to within ₹1,
-    // trust it; otherwise use our sum.
+    // Server reports combined (open + realised) running total on every row at a timestamp.
+    // If we have it and it agrees with our sum to within ₹1, trust it; otherwise use our sum.
     var ourSum = openPnl + realPnl;
     totalPnl = isFinite(serverTotal) ? serverTotal : ourSum;
   }
@@ -2327,8 +2300,7 @@ function s3RenderCards(positions, trades) {
   STATE._s3_totalPnl = totalPnl;
   STATE._s3_openPnl  = openPnl;
   STATE._s3_realPnl  = realPnl;
-  STATE._s3_liveMode = !isEodAuthoritative;
-  STATE._s3_eodPending = eodPending;
+  STATE._s3_liveMode = !(isPastDate || isAfterClose);
 
   var te = document.getElementById('s3-total');
   te.textContent = (totalPnl>=0?'+':'')+'₹'+Math.round(totalPnl).toLocaleString('en-IN');
@@ -2336,7 +2308,7 @@ function s3RenderCards(positions, trades) {
   document.getElementById('s3-real').textContent = (realPnl>=0?'+':'')+'₹'+Math.round(realPnl).toLocaleString('en-IN');
   document.getElementById('s3-real').className = 's3-rv '+(realPnl>=0?'pos':'neg');
   var openEl=document.getElementById('s3-open-pnl');
-  if(isEodAuthoritative || eodPending){ openEl.textContent='₹0 (closed)'; openEl.className='s3-rv dim'; }
+  if(isPastDate||isAfterClose){ openEl.textContent='₹0 (closed)'; openEl.className='s3-rv dim'; }
   else { openEl.textContent=(openPnl>=0?'+':'')+'₹'+Math.round(openPnl).toLocaleString('en-IN'); openEl.className='s3-rv '+(openPnl>=0?'pos':'neg'); }
   document.getElementById('s3-tgt').textContent = tgtPct+'% of 1% target';
 
@@ -2350,14 +2322,11 @@ function s3RenderCards(positions, trades) {
   //   pnl < 0 → loser
   //   pnl == 0 → flat (excluded from W/L count, still in total)
   var scoreRows;
-  if (isEodAuthoritative) {
-    // Realised-only at EOD (DailyTrades has arrived)
+  if (isPastDate || isAfterClose) {
+    // Realised-only at EOD
     scoreRows = filtTrades.map(function(t){return {pnl: parseFloat(t.pnl_inr) || 0};});
   } else {
-    // Live OR eodPending: union of open unrealised + realised
-    // During eodPending, openRows is empty (all squared off) so this naturally
-    // degrades to realised-only, which matches what a freshly-populated
-    // DailyTrades would show.
+    // Live: union of open unrealised + realised
     var openScore = filtOpen.map(function(c){return {pnl: c.pnl, _live: true};});
     var closedScore = filtTrades.map(function(t){return {pnl: parseFloat(t.pnl_inr) || 0};});
     scoreRows = openScore.concat(closedScore);
@@ -2384,7 +2353,7 @@ function s3RenderCards(positions, trades) {
   if (tradesCard) {
     var hdrLbl = tradesCard.querySelector('.s3-card-hdr');
     if (hdrLbl) {
-      var hasLiveOpens = !isEodAuthoritative && !eodPending && filtOpen.length > 0;
+      var hasLiveOpens = !isPastDate && !isAfterClose && filtOpen.length > 0;
       // Remove any prior indicator we added, then add fresh one
       var prior = hdrLbl.querySelector('.s3-mode-tag');
       if (prior) prior.remove();
@@ -2396,11 +2365,6 @@ function s3RenderCards(positions, trades) {
         tag.style.background = 'rgba(46,204,113,0.15)';
         tag.style.color = 'var(--green)';
         tag.style.border = '1px solid rgba(46,204,113,0.35)';
-      } else if (eodPending) {
-        tag.textContent = 'EOD PENDING';
-        tag.style.background = 'rgba(255,184,48,0.15)';
-        tag.style.color = 'var(--amber)';
-        tag.style.border = '1px solid rgba(255,184,48,0.35)';
       } else {
         tag.textContent = 'REALISED';
         tag.style.background = 'rgba(127,140,141,0.15)';
@@ -2416,15 +2380,11 @@ function s3RenderCards(positions, trades) {
   // `_summary_open_deployed` is unreliable for short books (server computes buy_value only).
   var cap = CFG.capital || 100000;
   var deployed;
-  if (isEodAuthoritative) {
+  if (isPastDate || isAfterClose) {
     deployed = (effectiveTrades || []).reduce(function(s,t){
       return s + Math.max(parseFloat(t.buy_value)||0, parseFloat(t.sell_value)||0);
     }, 0);
     deployed = Math.min(deployed, cap);
-  } else if (eodPending) {
-    // Positions squared off → current deployed is 0. Freeze the "peak today"
-    // line below to preserve the day's high-water mark.
-    deployed = 0;
   } else {
     deployed = openRows.reduce(function(s,c){return s + c.deployed;}, 0);
   }
@@ -2571,6 +2531,24 @@ function s3BuildMiniSeries() {
   var openPosRaw   = STATE._s3_filtOpen || [];
   var curve        = STATE.curveData || [];
   var f            = STATE.filter || 'all';
+
+  // ── One-shot diagnostic — REMOVE after field names confirmed ───────
+  if (!window.__s3MiniDebugged && (closedTrades.length || openPosRaw.length)) {
+    window.__s3MiniDebugged = true;
+    try {
+      console.log('=== SGAT mini-curves: field diagnostic v3 ===');
+      if (closedTrades.length) {
+        var fc = closedTrades[0];
+        console.log('Closed trade[0]:', fc);
+        console.log('  first_entry_ts:', JSON.stringify(fc.first_entry_ts), ' last_exit_ts:', JSON.stringify(fc.last_exit_ts),
+                    ' avg_holding_min:', JSON.stringify(fc.avg_holding_min));
+      }
+      if (curve.length) {
+        console.log('Curve[0]:', curve[0], ' Curve[-1]:', curve[curve.length-1]);
+      }
+      console.log('=== end diagnostic ===');
+    } catch(e) {}
+  }
 
   if (!curve.length || !closedTrades.length) {
     // Nothing to build — return a minimal empty result so UI shows "—"
@@ -2979,9 +2957,6 @@ function s3RenderTables(positions, trades) {
   var ist_now = new Date(new Date().getTime()+(new Date().getTimezoneOffset()+330)*60000);
   var isPastDate = STATE.selectedDate !== 'today';
   var isAfterClose = ist_now.getHours()*60+ist_now.getMinutes() > 930;
-  // Mirror the card's state triage (s3RenderCards sets this).
-  var eodPending = !!STATE._s3_eodPending;
-  var isEodAuthoritative = isPastDate || (isAfterClose && !eodPending);
 
   // Use the already-classified arrays stashed by s3RenderCards (single source of truth)
   // Fallback to re-classifying if cards hasn't run yet (defensive).
@@ -2989,8 +2964,8 @@ function s3RenderTables(positions, trades) {
   var effectiveTrades = STATE._s3_effectiveTrades || [];
   var filtTrades      = STATE._s3_filtTrades      || [];
 
-  // Past dates / true EOD / EOD-pending: never show open positions (all squared off)
-  if (isEodAuthoritative || eodPending) filtOpen = [];
+  // Past dates / after-close: never show open positions
+  if (isPastDate || isAfterClose) filtOpen = [];
 
   var ob=document.getElementById('s3-open-tbody'); ob.innerHTML='';
   var cb=document.getElementById('s3-closed-tbody'); cb.innerHTML='';
@@ -3018,13 +2993,8 @@ function s3RenderTables(positions, trades) {
   });
 
   if(!filtOpen.length){
-    if (eodPending) {
-      ob.innerHTML='<tr><td colspan="5" class="s3-norows" style="color:#5a7080">All positions squared off · waiting for EOD trade log</td></tr>';
-    } else if (isEodAuthoritative) {
-      ob.innerHTML='<tr><td colspan="5" class="s3-norows" style="color:#3a5060">Day complete — all positions closed</td></tr>';
-    } else {
-      ob.innerHTML='<tr><td colspan="5" class="s3-norows">No open positions</td></tr>';
-    }
+    if(isPastDate||isAfterClose) ob.innerHTML='<tr><td colspan="5" class="s3-norows" style="color:#3a5060">Day complete — all positions closed</td></tr>';
+    else ob.innerHTML='<tr><td colspan="5" class="s3-norows">No open positions</td></tr>';
   } else {
     STATE.s3OpenData.sort(function(a,b){return b.pnlInr-a.pnlInr;});
     STATE.s3OpenData.forEach(function(d){ob.appendChild(s3MakeRow(d));});
