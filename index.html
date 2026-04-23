@@ -2279,7 +2279,12 @@ function s3RenderCards(positions, trades) {
 
   var filtTrades = effectiveTrades.filter(function(t){
     if (f === 'all' || f === 'exited') return true;
-    var side = t._side || 'long';
+    // Authoritative source chain (2026-04-23):
+    //   1. t._side           — set on synth-from-PositionLog during live mode
+    //   2. t.trade_direction — authoritative from DailyTrades (order-flow based, uppercase)
+    //   3. t.side            — future-proof fallback
+    // Normalise to lowercase so 'SHORT' from DailyTrades matches filter chip.
+    var side = String(t._side || t.trade_direction || t.side || 'long').toLowerCase();
     if (f === 'long')  return side === 'long';
     if (f === 'short') return side === 'short';
     return true;
@@ -2977,7 +2982,8 @@ function s3RenderTables(positions, trades) {
     };
   });
   STATE.s3ClosedData = filtTrades.map(function(t){
-    var side = t._side || 'long';  // synthesised intraday trades carry _side
+    // Authoritative side chain (see filtTrades filter above for rationale)
+    var side = String(t._side || t.trade_direction || t.side || 'long').toLowerCase();
     var hold = parseFloat(t.avg_holding_min) ? Math.round(t.avg_holding_min)+'m' : '—';
     return {
       sym:    t.tradingsymbol || '—',
