@@ -2296,36 +2296,17 @@ function s3RenderCards(positions, trades) {
   STATE._s3_effectiveTrades = effectiveTrades;
   STATE._s3_filtTrades     = filtTrades;
 
-  // ── DIAGNOSTIC LOG (safe, one-time per render) ──────────────
-  // Temporarily enabled to diagnose the short-trade visibility issue.
-  // Remove or gate behind STATE._debug once the issue is resolved.
-  if (window && window.console && console.log) {
-    var sampleTrade = (trades && trades[0]) || {};
-    console.log('[SGAT DIAG]',
-      'filter=', f,
-      '| isEodAuth=', isEodAuthoritative,
-      '| eodPending=', eodPending,
-      '| trades.len=', (trades||[]).length,
-      '| intradayTrades.len=', (intradayTrades||[]).length,
-      '| effectiveTrades.len=', effectiveTrades.length,
-      '| filtTrades.len=', filtTrades.length,
-      '| sample trade keys:', Object.keys(sampleTrade).join(','),
-      '| sample trade_direction:', sampleTrade.trade_direction,
-      '| sample _side:', sampleTrade._side,
-      '| SHORT-in-trades=', (trades||[]).filter(function(t){
-        return String(t.trade_direction||t._side||'').toLowerCase()==='short';
-      }).length
-    );
-  }
-
   // ── P&L ──────────────────────────────────────────────────────────
-  var openPnl  = openRows.reduce(function(s,c){return s + c.pnl;}, 0);
+  // All P&L numbers respect the LONG/SHORT chip in live AND EOD mode.
+  // openPnl from filtOpen (live unrealised, filtered); realPnl from
+  // filtTrades (closed, filtered) in EOD or from closedRows in live.
+  var openPnl  = filtOpen.reduce(function(s,c){return s + c.pnl;}, 0);
   var realPnl  = closedRows.reduce(function(s,c){return s + c.pnl;}, 0);
   // Prefer PositionLog's aggregate if available (single source of truth from Kite)
   var serverTotal = positions.length ? parseFloat(positions[0]._summary_total_pnl) : NaN;
   var totalPnl;
   if (isEodAuthoritative) {
-    totalPnl = (effectiveTrades || []).reduce(function(s,t){return s + (parseFloat(t.pnl_inr)||0);}, 0);
+    totalPnl = (filtTrades || []).reduce(function(s,t){return s + (parseFloat(t.pnl_inr)||0);}, 0);
     openPnl = 0;
     realPnl = totalPnl;
   } else if (eodPending) {
@@ -2439,12 +2420,15 @@ function s3RenderCards(positions, trades) {
   }
 
   // ── Capital / deployed ──────────────────────────────────────────
-  // Deployed = notional exposure from OPEN rows (|qty| × avg_price), regardless of long/short.
-  // `_summary_open_deployed` is unreliable for short books (server computes buy_value only).
+  // Deployed = notional exposure, filtered by the active chip.
+  // Round 1 (2026-04-23): was summing over ALL trades regardless of chip.
+  // Now sums over `filtTrades` in EOD mode so LONG/SHORT chips show the
+  // per-side deployed. Live mode uses `filtOpen` for the same reason.
+  // `_summary_open_deployed` from server isn't per-side yet (Round 3 work).
   var cap = CFG.capital || 100000;
   var deployed;
   if (isEodAuthoritative) {
-    deployed = (effectiveTrades || []).reduce(function(s,t){
+    deployed = (filtTrades || []).reduce(function(s,t){
       return s + Math.max(parseFloat(t.buy_value)||0, parseFloat(t.sell_value)||0);
     }, 0);
     deployed = Math.min(deployed, cap);
@@ -2453,7 +2437,7 @@ function s3RenderCards(positions, trades) {
     // line below to preserve the day's high-water mark.
     deployed = 0;
   } else {
-    deployed = openRows.reduce(function(s,c){return s + c.deployed;}, 0);
+    deployed = filtOpen.reduce(function(s,c){return s + c.deployed;}, 0);
   }
   var util = deployed > 0 ? (deployed/cap*100).toFixed(1) : '0';
   document.getElementById('s3-util').textContent = util+'%';
