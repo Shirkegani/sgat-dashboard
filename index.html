@@ -2528,33 +2528,49 @@ function s3BuildMiniSeries() {
   var f            = STATE.filter || 'all';
 
   // ── One-shot diagnostic (fires once per page load) ────────────────
-  // Prints the available field names on the first trade and first open position
-  // so we can see what timestamp fields actually exist in the sheet.
-  // Remove after the field names are confirmed.
+  // Prints the available field names AND actual values on the first trade and
+  // first open position so we can see what timestamp fields actually exist.
   if (!window.__s3MiniDebugged && (closedTrades.length || openPosRaw.length)) {
     window.__s3MiniDebugged = true;
     try {
-      console.log('=== SGAT mini-curves: field diagnostic ===');
+      console.log('=== SGAT mini-curves: field diagnostic v2 ===');
       if (closedTrades.length) {
-        console.log('First CLOSED trade object:', closedTrades[0]);
-        console.log('  Field names:', Object.keys(closedTrades[0]));
+        var first = closedTrades[0];
+        console.log('First CLOSED trade object:', first);
+        console.log('  Field names:', Object.keys(first));
+        console.log('  first_entry_ts VALUE:', JSON.stringify(first.first_entry_ts), 'typeof:', typeof first.first_entry_ts);
+        console.log('  last_exit_ts  VALUE:', JSON.stringify(first.last_exit_ts),  'typeof:', typeof first.last_exit_ts);
+        // Show ts values for the first 5 closed trades
+        console.log('  First 5 trades (sym, entry_ts, exit_ts):');
+        closedTrades.slice(0, 5).forEach(function(t) {
+          console.log('    ['+t.tradingsymbol+']  entry:', JSON.stringify(t.first_entry_ts), ' exit:', JSON.stringify(t.last_exit_ts));
+        });
       } else {
         console.log('No closed trades yet.');
       }
       if (openPosRaw.length) {
-        console.log('First OPEN position (classified):', openPosRaw[0]);
-        if (openPosRaw[0]._raw) {
-          console.log('  _raw field names:', Object.keys(openPosRaw[0]._raw));
-          console.log('  _raw sample:', openPosRaw[0]._raw);
+        var fop = openPosRaw[0];
+        console.log('First OPEN position (classified):', fop);
+        if (fop._raw) {
+          console.log('  _raw field names:', Object.keys(fop._raw));
+          console.log('  _raw sample:', fop._raw);
         }
       } else {
         console.log('No open positions.');
       }
       if (curve.length) {
-        console.log('First curve point:', curve[0]);
+        var fc = curve[0];
+        console.log('First curve point:', fc);
+        console.log('  Curve field names:', Object.keys(fc));
+        console.log('  ts VALUE:', JSON.stringify(fc.ts), 'typeof:', typeof fc.ts);
+        console.log('  count VALUE (if present):', fc.count);
+        // Show last 3 curve points too
+        if (curve.length >= 3) {
+          console.log('  Last 3 curve points:', curve.slice(-3));
+        }
       }
       console.log('=== end diagnostic ===');
-    } catch(e) {}
+    } catch(e) { console.log('Diag error:', e); }
   }
 
   // Filter CLOSED trades to match chip (matches s3RenderCards filtTrades logic)
