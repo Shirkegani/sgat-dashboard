@@ -655,18 +655,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     </div>
   </div>
 
-  <!-- Row 2: Mid-cap & small-cap index breadth charts -->
+  <!-- Row 2: Broad-market size indices + heaviest-weight sectors -->
   <div class="s2-idx-row">
-    <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY MIDCAP 100</div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-mc100-ylbl"></div>
-        <svg id="s2-mc100-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-mc100-tip"></div>
-      </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
-      <div class="s2-note s2-idx-note" id="s2-mc100-cap">—</div>
-    </div>
     <div class="s2-cp s2-idx-cp">
       <div class="s2-cp-title">NIFTY MIDCAP 150</div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
@@ -688,16 +678,6 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-ms400-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY SMLCAP 100</div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-sc100-ylbl"></div>
-        <svg id="s2-sc100-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-sc100-tip"></div>
-      </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
-      <div class="s2-note s2-idx-note" id="s2-sc100-cap">—</div>
-    </div>
-    <div class="s2-cp s2-idx-cp" style="border-right:none;">
       <div class="s2-cp-title">NIFTY SMLCAP 250</div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-sc250-ylbl"></div>
@@ -706,6 +686,80 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       </div>
       <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
       <div class="s2-note s2-idx-note" id="s2-sc250-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY BANK</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-bank-ylbl"></div>
+        <svg id="s2-bank-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-bank-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-bank-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp" style="border-right:none;">
+      <div class="s2-cp-title">NIFTY IT</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-it-ylbl"></div>
+        <svg id="s2-it-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-it-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-it-cap">—</div>
+    </div>
+  </div>
+
+  <!-- Row 3: Remaining sector indices -->
+  <div class="s2-idx-row">
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY AUTO</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-auto-ylbl"></div>
+        <svg id="s2-auto-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-auto-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-auto-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY FMCG</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-fmcg-ylbl"></div>
+        <svg id="s2-fmcg-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-fmcg-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-fmcg-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY PHARMA</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-pharma-ylbl"></div>
+        <svg id="s2-pharma-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-pharma-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-pharma-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY INFRA</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-infra-ylbl"></div>
+        <svg id="s2-infra-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-infra-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-infra-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp" style="border-right:none;">
+      <div class="s2-cp-title">NIFTY REALTY</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-realty-ylbl"></div>
+        <svg id="s2-realty-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-realty-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-realty-cap">—</div>
     </div>
   </div>
 </div>
@@ -1608,13 +1662,21 @@ function s2Render() {
     var nfSvg = document.getElementById('s2-nf-svg'); if (nfSvg) nfSvg.innerHTML = '';
   }
 
-  // Chart row-2: mid/small cap indices as % from open with median-style adaptive scale
+  // Chart row 2 + row 3: all 10 mid/small cap + sector indices
+  // Each rendered as % from open with median-style adaptive scale + hover
   var idxMap = [
-    { sym:'NIFTY MIDCAP 100', svg:'s2-mc100-svg', ylbl:'s2-mc100-ylbl', tip:'s2-mc100-tip', cap:'s2-mc100-cap' },
-    { sym:'NIFTY MIDCAP 150', svg:'s2-mc150-svg', ylbl:'s2-mc150-ylbl', tip:'s2-mc150-tip', cap:'s2-mc150-cap' },
-    { sym:'NIFTY MIDSML 400', svg:'s2-ms400-svg', ylbl:'s2-ms400-ylbl', tip:'s2-ms400-tip', cap:'s2-ms400-cap' },
-    { sym:'NIFTY SMLCAP 100', svg:'s2-sc100-svg', ylbl:'s2-sc100-ylbl', tip:'s2-sc100-tip', cap:'s2-sc100-cap' },
-    { sym:'NIFTY SMLCAP 250', svg:'s2-sc250-svg', ylbl:'s2-sc250-ylbl', tip:'s2-sc250-tip', cap:'s2-sc250-cap' },
+    // Row 2 — broad-market size indices + heaviest-weight sectors
+    { sym:'NIFTY MIDCAP 150', svg:'s2-mc150-svg',  ylbl:'s2-mc150-ylbl',  tip:'s2-mc150-tip',  cap:'s2-mc150-cap'  },
+    { sym:'NIFTY MIDSML 400', svg:'s2-ms400-svg',  ylbl:'s2-ms400-ylbl',  tip:'s2-ms400-tip',  cap:'s2-ms400-cap'  },
+    { sym:'NIFTY SMLCAP 250', svg:'s2-sc250-svg',  ylbl:'s2-sc250-ylbl',  tip:'s2-sc250-tip',  cap:'s2-sc250-cap'  },
+    { sym:'NIFTY BANK',       svg:'s2-bank-svg',   ylbl:'s2-bank-ylbl',   tip:'s2-bank-tip',   cap:'s2-bank-cap'   },
+    { sym:'NIFTY IT',         svg:'s2-it-svg',     ylbl:'s2-it-ylbl',     tip:'s2-it-tip',     cap:'s2-it-cap'     },
+    // Row 3 — remaining sector indices
+    { sym:'NIFTY AUTO',       svg:'s2-auto-svg',   ylbl:'s2-auto-ylbl',   tip:'s2-auto-tip',   cap:'s2-auto-cap'   },
+    { sym:'NIFTY FMCG',       svg:'s2-fmcg-svg',   ylbl:'s2-fmcg-ylbl',   tip:'s2-fmcg-tip',   cap:'s2-fmcg-cap'   },
+    { sym:'NIFTY PHARMA',     svg:'s2-pharma-svg', ylbl:'s2-pharma-ylbl', tip:'s2-pharma-tip', cap:'s2-pharma-cap' },
+    { sym:'NIFTY INFRA',      svg:'s2-infra-svg',  ylbl:'s2-infra-ylbl',  tip:'s2-infra-tip',  cap:'s2-infra-cap'  },
+    { sym:'NIFTY REALTY',     svg:'s2-realty-svg', ylbl:'s2-realty-ylbl', tip:'s2-realty-tip', cap:'s2-realty-cap' },
   ];
   idxMap.forEach(function(cfg) {
     var rows = idxByName[cfg.sym] || [];
@@ -2985,15 +3047,22 @@ function s2AddHovers(prof, niftyData) {
     });
   }
 
-  // ── Row-2 indices (MIDCAP 100, MIDCAP 150, MIDSML 400, SMLCAP 100, SMLCAP 250) ──
+  // ── Row-2 + Row-3 indices — all 10 mid/small cap + sector charts ──
   // Each gets the same hover treatment: HH:MM + % from open + Δ vs open.
   // The s2DrawIndexLine function stashed the pre-computed %series on svg.__pctSeries.
   var idxHoverMap = [
-    { svg:'s2-mc100-svg', tip:'s2-mc100-tip', label:'MIDCAP 100' },
-    { svg:'s2-mc150-svg', tip:'s2-mc150-tip', label:'MIDCAP 150' },
-    { svg:'s2-ms400-svg', tip:'s2-ms400-tip', label:'MIDSML 400' },
-    { svg:'s2-sc100-svg', tip:'s2-sc100-tip', label:'SMLCAP 100' },
-    { svg:'s2-sc250-svg', tip:'s2-sc250-tip', label:'SMLCAP 250' },
+    // Row 2
+    { svg:'s2-mc150-svg',  tip:'s2-mc150-tip',  label:'MIDCAP 150' },
+    { svg:'s2-ms400-svg',  tip:'s2-ms400-tip',  label:'MIDSML 400' },
+    { svg:'s2-sc250-svg',  tip:'s2-sc250-tip',  label:'SMLCAP 250' },
+    { svg:'s2-bank-svg',   tip:'s2-bank-tip',   label:'BANK'       },
+    { svg:'s2-it-svg',     tip:'s2-it-tip',     label:'IT'         },
+    // Row 3
+    { svg:'s2-auto-svg',   tip:'s2-auto-tip',   label:'AUTO'       },
+    { svg:'s2-fmcg-svg',   tip:'s2-fmcg-tip',   label:'FMCG'       },
+    { svg:'s2-pharma-svg', tip:'s2-pharma-tip', label:'PHARMA'     },
+    { svg:'s2-infra-svg',  tip:'s2-infra-tip',  label:'INFRA'      },
+    { svg:'s2-realty-svg', tip:'s2-realty-tip', label:'REALTY'     },
   ];
   idxHoverMap.forEach(function(cfg) {
     var svgEl = document.getElementById(cfg.svg);
