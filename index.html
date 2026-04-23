@@ -220,6 +220,10 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 
 /* CURVES */
 .s2-curves{display:grid;grid-template-columns:1fr 1fr 1fr;}
+.s2-idx-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;border-top:1px solid var(--border);}
+.s2-idx-cp{padding:9px 10px;border-right:1px solid var(--border);min-width:0;}
+.s2-idx-chart{height:100px !important;}
+.s2-idx-note{margin-top:4px;font-size:0.58rem;color:var(--dim);padding-left:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .s2-cp{padding:11px 13px;border-right:1px solid var(--border);}
 .s2-cp:last-child{border-right:none;}
 .s2-cp-title{font-size:0.59rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
@@ -648,6 +652,60 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <div class="s2-nr"><span class="s2-nr-lbl">Consec green</span><span class="s2-nr-val" id="s2-nf-green">—</span></div>
         <div class="s2-nr"><span class="s2-nr-lbl">Direction state</span><span class="s2-nr-val" id="s2-nf-dir">—</span></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Mid-cap & small-cap index breadth charts -->
+  <div class="s2-idx-row">
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY MIDCAP 100</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-mc100-ylbl"></div>
+        <svg id="s2-mc100-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-mc100-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-mc100-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY MIDCAP 150</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-mc150-ylbl"></div>
+        <svg id="s2-mc150-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-mc150-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-mc150-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY MIDSML 400</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-ms400-ylbl"></div>
+        <svg id="s2-ms400-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-ms400-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-ms400-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY SMLCAP 100</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-sc100-ylbl"></div>
+        <svg id="s2-sc100-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-sc100-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-sc100-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp" style="border-right:none;">
+      <div class="s2-cp-title">NIFTY SMLCAP 250</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-sc250-ylbl"></div>
+        <svg id="s2-sc250-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-sc250-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-sc250-cap">—</div>
     </div>
   </div>
 </div>
@@ -1511,11 +1569,44 @@ function s2Render() {
   document.getElementById('s2-nf-dir').textContent  = last.market_direction_state||'—';
   document.getElementById('s2-nf-dir').className    = 's2-nr-val neu';
 
-  // NIFTY chart — from NiftyCandles if available, else skip
-  if (nifty.length) {
-    var niftyVals = nifty.map(function(r){return parseFloat(r.c)||0;}).filter(function(v){return v>0;});
-    if (niftyVals.length) s2DrawNiftyLine(niftyVals);
+  // NIFTY candles — the sheet now contains multiple indices mixed by tradingsymbol.
+  // Group client-side, feed each index to its own chart.
+  var idxByName = {};  // tradingsymbol -> array of candles
+  nifty.forEach(function(r) {
+    var sym = String(r.tradingsymbol || '').trim();
+    if (!sym) return;
+    if (!idxByName[sym]) idxByName[sym] = [];
+    idxByName[sym].push(r);
+  });
+
+  // Ensure each index's rows are time-ordered (sort by ts — ISO strings sort lexicographically correctly)
+  Object.keys(idxByName).forEach(function(k){
+    idxByName[k].sort(function(a,b){ return String(a.ts||'').localeCompare(String(b.ts||'')); });
+  });
+
+  // Chart-1: the existing NIFTY 50 context chart (row 1)
+  var n50 = idxByName['NIFTY 50'] || [];
+  if (n50.length) {
+    var n50Vals = n50.map(function(r){return parseFloat(r.c)||0;}).filter(function(v){return v>0;});
+    if (n50Vals.length) s2DrawNiftyLine(n50Vals);
+  } else {
+    // no NIFTY 50 data — blank the SVG so stale data doesn't persist
+    var nfSvg = document.getElementById('s2-nf-svg'); if (nfSvg) nfSvg.innerHTML = '';
   }
+
+  // Chart row-2: mid/small cap indices as % from open with median-style adaptive scale
+  var idxMap = [
+    { sym:'NIFTY MIDCAP 100', svg:'s2-mc100-svg', ylbl:'s2-mc100-ylbl', tip:'s2-mc100-tip', cap:'s2-mc100-cap' },
+    { sym:'NIFTY MIDCAP 150', svg:'s2-mc150-svg', ylbl:'s2-mc150-ylbl', tip:'s2-mc150-tip', cap:'s2-mc150-cap' },
+    { sym:'NIFTY MIDSML 400', svg:'s2-ms400-svg', ylbl:'s2-ms400-ylbl', tip:'s2-ms400-tip', cap:'s2-ms400-cap' },
+    { sym:'NIFTY SMLCAP 100', svg:'s2-sc100-svg', ylbl:'s2-sc100-ylbl', tip:'s2-sc100-tip', cap:'s2-sc100-cap' },
+    { sym:'NIFTY SMLCAP 250', svg:'s2-sc250-svg', ylbl:'s2-sc250-ylbl', tip:'s2-sc250-tip', cap:'s2-sc250-cap' },
+  ];
+  idxMap.forEach(function(cfg) {
+    var rows = idxByName[cfg.sym] || [];
+    s2DrawIndexLine(cfg.svg, cfg.ylbl, rows);
+    s2FillIndexCaption(cfg.cap, rows);
+  });
 
   // Hover tooltips
   setTimeout(function(){ s2AddHovers(prof, nifty); }, 50);
@@ -1707,6 +1798,138 @@ function s2DrawNiftyLine(data) {
   svg.appendChild(pl);
   var dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
   dot.setAttribute('cx',px(n-1)); dot.setAttribute('cy',py(data[n-1])); dot.setAttribute('r','2.5'); dot.setAttribute('fill','#38b6ff'); svg.appendChild(dot);
+}
+
+// ────────────────────────────────────────────────────────────────
+// s2DrawIndexLine — generic renderer for any index's % from open curve.
+// Used for the 5 mid/small cap indices in row 2. Shares the same
+// adaptive-Y-scale + green/red split + dynamic gridline labels as
+// s2DrawMedianLine so tiny movements remain visible.
+// `candles`: array of {ts, o, c, ...}. Must be pre-sorted by ts.
+// ────────────────────────────────────────────────────────────────
+function s2DrawIndexLine(svgId, ylblId, candles) {
+  var svg = document.getElementById(svgId);
+  var ylblEl = document.getElementById(ylblId);
+  if (!svg) return;
+  svg.innerHTML = '';
+  if (ylblEl) ylblEl.innerHTML = '';
+  if (!candles || !candles.length) return;
+
+  // % from open series — use each candle's close vs the first candle's open
+  var openPx = parseFloat(candles[0].o) || 0;
+  if (!openPx) return;
+  var data = candles.map(function(r){ return ((parseFloat(r.c)||0) - openPx) / openPx * 100; });
+
+  var W=260, H=130, n=data.length;
+
+  // Adaptive Y-scale — same rules as median chart
+  var dMin = Math.min.apply(null, data);
+  var dMax = Math.max.apply(null, data);
+  var dRange = dMax - dMin;
+  var pad = dRange > 0 ? dRange * 0.15 : 0.1;
+  var fMin = dMin - pad;
+  var fMax = dMax + pad;
+  var MIN_TOTAL_RANGE = 1.0;
+  if ((fMax - fMin) < MIN_TOTAL_RANGE) {
+    var center = (fMin + fMax) / 2;
+    fMin = center - MIN_TOTAL_RANGE / 2;
+    fMax = center + MIN_TOTAL_RANGE / 2;
+  }
+  if (fMin > -0.1) fMin = -0.1;
+  if (fMax <  0.1) fMax =  0.1;
+  var range = fMax - fMin;
+
+  function py(v){return H-((v-fMin)/range*H);}
+  function px(i){return (i/(n-1))*W;}
+
+  // Nice-step for gridlines (~5 ticks)
+  function niceStep(totalRange) {
+    var raw = totalRange / 5;
+    var mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var norm = raw / mag;
+    var nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+    return nice * mag;
+  }
+  var step = niceStep(range);
+  var gridStart = Math.ceil(fMin / step) * step;
+  var gridVals = [];
+  for (var g = gridStart; g <= fMax + 1e-9; g += step) {
+    gridVals.push(Math.round(g / step) * step);
+  }
+  if (gridVals.indexOf(0) === -1 && fMin < 0 && fMax > 0) gridVals.push(0);
+  gridVals.sort(function(a,b){return a-b;});
+
+  gridVals.forEach(function(v) {
+    var l = document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',0); l.setAttribute('x2',W); l.setAttribute('y1',py(v)); l.setAttribute('y2',py(v));
+    l.setAttribute('stroke', Math.abs(v) < 1e-9 ? 'rgba(90,112,128,0.55)' : 'rgba(40,65,80,0.7)');
+    l.setAttribute('stroke-width', Math.abs(v) < 1e-9 ? '0.8' : '0.5');
+    if (Math.abs(v) > 1e-9) l.setAttribute('stroke-dasharray','3,4');
+    svg.appendChild(l);
+  });
+
+  // Populate external Y-label container (top→bottom)
+  if (ylblEl) {
+    var decimals = step < 0.5 ? 2 : (step < 1 ? 1 : 0);
+    var labelsTop = gridVals.slice().sort(function(a,b){return b-a;});
+    labelsTop.forEach(function(v) {
+      var sp = document.createElement('span');
+      sp.className = 's2-ylbl';
+      sp.textContent = Math.abs(v)<1e-9 ? '0' : ((v>=0?'+':'')+v.toFixed(decimals));
+      ylblEl.appendChild(sp);
+    });
+  }
+
+  // Line — green above zero, red below, split at zero crossings
+  var zy = py(0);
+  for (var i=0;i<n-1;i++) {
+    var v1=data[i], v2=data[i+1];
+    var x1=px(i), x2=px(i+1), y1=py(v1), y2=py(v2);
+    if ((v1>=0) !== (v2>=0)) {
+      var t=v1/(v1-v2), xm=x1+t*(x2-x1);
+      [{x1:x1,y1:y1,x2:xm,y2:zy,v:v1},{x1:xm,y1:zy,x2:x2,y2:y2,v:v2}].forEach(function(seg) {
+        var s=document.createElementNS('http://www.w3.org/2000/svg','line');
+        s.setAttribute('x1',seg.x1); s.setAttribute('y1',seg.y1); s.setAttribute('x2',seg.x2); s.setAttribute('y2',seg.y2);
+        s.setAttribute('stroke',seg.v>=0?'#00e5a0':'#ff4d6a'); s.setAttribute('stroke-width','1.5'); s.setAttribute('stroke-linecap','round');
+        svg.appendChild(s);
+      });
+    } else {
+      var s=document.createElementNS('http://www.w3.org/2000/svg','line');
+      s.setAttribute('x1',x1); s.setAttribute('y1',y1); s.setAttribute('x2',x2); s.setAttribute('y2',y2);
+      s.setAttribute('stroke',v1>=0?'#00e5a0':'#ff4d6a'); s.setAttribute('stroke-width','1.5'); s.setAttribute('stroke-linecap','round');
+      svg.appendChild(s);
+    }
+  }
+  var lv = data[n-1];
+  var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  dot.setAttribute('cx',px(n-1)); dot.setAttribute('cy',py(lv)); dot.setAttribute('r','2.5');
+  dot.setAttribute('fill',lv>=0?'#00e5a0':'#ff4d6a');
+  svg.appendChild(dot);
+
+  // Stash the pct series on the SVG element so s2AddHovers can find it
+  svg.__pctSeries = data;
+  svg.__candles   = candles;
+}
+
+// ────────────────────────────────────────────────────────────────
+// s2FillIndexCaption — one-line summary below each index chart
+// Shows "Now ±X% · Peak ±X% · Low ±X%" so user has hard numbers without
+// needing to hover.
+// ────────────────────────────────────────────────────────────────
+function s2FillIndexCaption(capId, candles) {
+  var el = document.getElementById(capId);
+  if (!el) return;
+  if (!candles || !candles.length) { el.textContent = '—'; return; }
+  var openPx = parseFloat(candles[0].o) || 0;
+  if (!openPx) { el.textContent = '—'; return; }
+  var pct = candles.map(function(r){ return ((parseFloat(r.c)||0) - openPx) / openPx * 100; });
+  var now = pct[pct.length-1];
+  var hi  = Math.max.apply(null, pct);
+  var lo  = Math.min.apply(null, pct);
+  function f(v) { return (v>=0?'+':'')+v.toFixed(2)+'%'; }
+  el.innerHTML = 'Now <span style="color:'+(now>=0?'#00e5a0':'#ff4d6a')+'">'+f(now)+'</span>'
+               + ' · Peak <span style="color:#00e5a0">'+f(hi)+'</span>'
+               + ' · Low <span style="color:#ff4d6a">'+f(lo)+'</span>';
 }
 
 // ============================================================
@@ -2723,15 +2946,17 @@ function s2AddHovers(prof, niftyData) {
       + tickStr;
   });
 
-  // ── NIFTY ── show HH:MM (derived from candle timestamp), price, %/points vs open
-  if (niftyData && niftyData.length) {
-    var nVals = niftyData.map(function(r){return parseFloat(r.c)||0;});
+  // ── NIFTY 50 ── show HH:MM, price, %/points vs open
+  // Now that niftyData contains multiple indices, filter to NIFTY 50 here.
+  var n50rows = (niftyData || []).filter(function(r){return String(r.tradingsymbol||'').trim()==='NIFTY 50';});
+  n50rows.sort(function(a,b){return String(a.ts||'').localeCompare(String(b.ts||''));});
+  if (n50rows.length) {
+    var nVals = n50rows.map(function(r){return parseFloat(r.c)||0;});
     var nOpen = nVals[0] || 1;
-    // Try to build time array from candles — field name varies by source
-    // ("ts" is most common, "t" / "time" / "date" as fallbacks)
-    var niftyTimeArr = niftyData.map(function(r){
-      var raw = r.ts || r.t || r.time || r.date || r.timestamp || '';
-      return String(raw);
+    // Each candle has ts in "YYYY-MM-DDTHH:MM:SS+0530" — slice(11,16) is safe here
+    var niftyTimeArr = n50rows.map(function(r){
+      var raw = String(r.ts || r.t || r.time || r.date || r.timestamp || '');
+      return raw;  // addChartHover auto-detects format
     });
     addChartHover('s2-nf-svg','s2-nf-tip', nVals, niftyTimeArr, function(v,ts,idx){
       var pfo   = (v-nOpen)/nOpen*100;
@@ -2745,6 +2970,34 @@ function s2AddHovers(prof, niftyData) {
         + ' <span style="color:'+col+';font-size:0.62rem">('+ptsStr+')</span>';
     });
   }
+
+  // ── Row-2 indices (MIDCAP 100, MIDCAP 150, MIDSML 400, SMLCAP 100, SMLCAP 250) ──
+  // Each gets the same hover treatment: HH:MM + % from open + Δ vs open.
+  // The s2DrawIndexLine function stashed the pre-computed %series on svg.__pctSeries.
+  var idxHoverMap = [
+    { svg:'s2-mc100-svg', tip:'s2-mc100-tip', label:'MIDCAP 100' },
+    { svg:'s2-mc150-svg', tip:'s2-mc150-tip', label:'MIDCAP 150' },
+    { svg:'s2-ms400-svg', tip:'s2-ms400-tip', label:'MIDSML 400' },
+    { svg:'s2-sc100-svg', tip:'s2-sc100-tip', label:'SMLCAP 100' },
+    { svg:'s2-sc250-svg', tip:'s2-sc250-tip', label:'SMLCAP 250' },
+  ];
+  idxHoverMap.forEach(function(cfg) {
+    var svgEl = document.getElementById(cfg.svg);
+    if (!svgEl || !svgEl.__pctSeries || !svgEl.__pctSeries.length) return;
+    var pctSeries = svgEl.__pctSeries;
+    var candles   = svgEl.__candles || [];
+    var openPct   = pctSeries[0];
+    var tsArr = candles.map(function(r){return String(r.ts || '');});
+    addChartHover(cfg.svg, cfg.tip, pctSeries, tsArr, function(v,ts,idx) {
+      var col = v>=0?'#00e5a0':'#ff4d6a';
+      var deltaOpen = v - openPct;
+      var openCol = deltaOpen>=0?'#00e5a0':'#ff4d6a';
+      var openStr = (deltaOpen>=0?'+':'')+deltaOpen.toFixed(2)+'%';
+      return '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
+        + cfg.label+': <b style="color:'+col+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</b>'
+        + ' <span style="color:'+openCol+';font-size:0.62rem">('+openStr+' vs open)</span>';
+    });
+  });
 }
 
 
