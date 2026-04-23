@@ -1569,12 +1569,26 @@ function s2Render() {
   document.getElementById('s2-nf-dir').textContent  = last.market_direction_state||'—';
   document.getElementById('s2-nf-dir').className    = 's2-nr-val neu';
 
-  // NIFTY candles — the sheet now contains multiple indices mixed by tradingsymbol.
-  // Group client-side, feed each index to its own chart.
-  var idxByName = {};  // tradingsymbol -> array of candles
+  // NIFTY candles — the sheet now contains multiple indices mixed by tradingsymbol,
+  // and also multiple dates. Filter to the selected date first, then group by symbol.
+  // Candle ts format: "2026-04-23T09:15:00+0530" → first 10 chars = IST date
+  var targetDate;
+  if (STATE.selectedDate === 'today') {
+    var _now = new Date();
+    var _ist = new Date(_now.getTime() + (_now.getTimezoneOffset()+330)*60000);
+    targetDate = _ist.getUTCFullYear() + '-'
+               + String(_ist.getUTCMonth()+1).padStart(2,'0') + '-'
+               + String(_ist.getUTCDate()).padStart(2,'0');
+  } else {
+    targetDate = STATE.selectedDate;  // already YYYY-MM-DD
+  }
+
+  var idxByName = {};  // tradingsymbol -> array of candles (filtered to targetDate)
   nifty.forEach(function(r) {
     var sym = String(r.tradingsymbol || '').trim();
     if (!sym) return;
+    var tsRaw = String(r.ts || '');
+    if (tsRaw.slice(0,10) !== targetDate) return;  // skip other days
     if (!idxByName[sym]) idxByName[sym] = [];
     idxByName[sym].push(r);
   });
