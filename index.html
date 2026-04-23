@@ -2522,12 +2522,13 @@ function s3_minTs(s) {  // "HH:MM" -> minutes since midnight; safe on malformed
 // Build the time grid (labels) + series arrays by walking the curve data.
 // Falls back to a synthetic 09:30-15:30 grid at 5-min steps if no curve data.
 function s3BuildMiniSeries() {
-  var trades = STATE._s3_effectiveTrades || STATE.data.trades || [];
-  var curve  = STATE.curveData || [];
-  var f = STATE.filter || 'all';
+  var closedTrades = STATE._s3_effectiveTrades || STATE.data.trades || [];
+  var openPosRaw   = STATE._s3_filtOpen || [];
+  var curve        = STATE.curveData || [];
+  var f            = STATE.filter || 'all';
 
-  // Filter trades to match the active chip
-  var filt = trades.filter(function(t) {
+  // Filter CLOSED trades to match chip (matches s3RenderCards filtTrades logic)
+  var filt = closedTrades.filter(function(t) {
     if (f === 'all' || f === 'exited') return true;
     var side = t._side || 'long';
     if (f === 'long')  return side === 'long';
@@ -2535,60 +2536,45 @@ function s3BuildMiniSeries() {
     return true;
   });
 
-  // Pre-compute each trade's close time (in minutes) and win/loss
-  var tradeInfo = filt.map(function(t) {
-    // Use the same UTC→IST convention as the PnL curve
-    function toMin(raw) {
-      if (!raw) return null;
-      var s = String(raw).trim();
-      if (s.length < 10) return null;
-      var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
-      var iso = hasTz ? s.replace(' ','T') : s.replace(' ','T') + 'Z';
-      var d = new Date(iso);
-      if (isNaN(d.getTime())) return null;
-      var total = d.getUTCHours()*60 + d.getUTCMinutes() + 330;
-      return ((total % 1440) + 1440) % 1440;
-    }
+  // Helper: ISO/naive → minutes since midnight IST
+  function toMin(raw) {
+    if (!raw) return null;
+    var s = String(raw).trim();
+    if (s.length < 10) return null;
+    var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
+    var iso = hasTz ? s.replace(' ','T') : s.replace(' ','T') + 'Z';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    var total = d.getUTCHours()*60 + d.getUTCMinutes() + 330;
+    return ((total % 1440) + 1440) % 1440;
+  }
+
+  // Closed trade info: {entM, exM, pnl, win, bv, kind:'closed'}
+  var closedInfo = filt.map(function(t) {
     var entM = toMin(t.first_entry_ts);
     var exM  = toMin(t.last_exit_ts);
     var pnl  = parseFloat(t.pnl_inr) || 0;
-    // buy_value preferred; fall back to |qty × avg_price|
-    var bv = parseFloat(t.buy_value) || 0;
+    var bv   = parseFloat(t.buy_value) || 0;
     if (!bv) bv = Math.abs((parseFloat(t.quantity)||0) * (parseFloat(t.average_price)||0));
-    return { entM: entM, exM: exM, pnl: pnl, win: pnl > 0, bv: bv };
+    return { entM: entM, exM: exM, pnl: pnl, win: pnl > 0, bv: bv, kind: 'closed' };
   });
 
-  // Resilience: trades synthesised from PositionLog may lack timestamps.
-  // Stamp missing exM with the grid's last minute so cumulative endpoints
-  // still match the card (shape will be a step at the right edge, which is
-  // better than invisible). Stamp missing entM with (exM − 10min) as a
-  // reasonable default hold duration.
-  // The timeGrid is computed below; we'll patch in-place after building it.
-
-  // Open positions (for capital deployment curve on live view)
-  var openPos = (STATE._s3_openRows || []).map(function(c) {
-    function toMin(raw) {
-      if (!raw) return null;
-      var s = String(raw).trim();
-      if (s.length < 10) return null;
-      var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
-      var iso = hasTz ? s.replace(' ','T') : s.replace(' ','T') + 'Z';
-      var d = new Date(iso);
-      if (isNaN(d.getTime())) return null;
-      var total = d.getUTCHours()*60 + d.getUTCMinutes() + 330;
-      return ((total % 1440) + 1440) % 1440;
-    }
-    return {
-      entM: toMin(c._raw && c._raw.first_entry_ts),
-      bv:   Math.abs(c.qty * (parseFloat(c._raw && c._raw.average_price) || 0)) || (parseFloat(c._raw && c._raw.buy_value) || 0),
-    };
+  // Open position info: {entM, exM:null, pnl (live unrealised), bv, kind:'open'}
+  // Treat as "still open" — no exit time; we'll classify them at every grid point
+  // ≥ their entM using their current live pnl.
+  var openInfo = openPosRaw.map(function(c) {
+    var r = c._raw || {};
+    var entTs = r.first_entry_ts || r.first_buy_ts || r.first_sell_ts || r.entry_ts || r.created_at || null;
+    var entM  = toMin(entTs);
+    var pnl   = parseFloat(c.pnl) || 0;
+    var bv    = Math.abs(c.qty * (parseFloat(r.average_price) || 0)) || (parseFloat(r.buy_value) || 0);
+    return { entM: entM, exM: null, pnl: pnl, win: pnl > 0, bv: bv, kind: 'open' };
   });
 
   // Build a time grid from curveData if available, else synthesize
   var timeGrid = [];
   if (curve.length >= 2) {
     curve.forEach(function(pt) {
-      // Apply same UTC→IST conversion
       var s = String(pt.ts || '').trim();
       if (s.length >= 10) {
         var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
@@ -2604,58 +2590,70 @@ function s3BuildMiniSeries() {
       timeGrid.push(null);
     });
   } else {
-    // Synthetic grid: 09:30 → 15:30 at 5-min steps
     for (var m = 9*60+30; m <= 15*60+30; m += 5) timeGrid.push(m);
   }
   if (!timeGrid.length) return null;
 
-  // Patch trades that lack timestamps. Happens for intraday-synthesised trades
-  // from PositionLog that don't carry first_entry_ts / last_exit_ts. We default
-  // exM to the last grid point (cumulative endpoint matches the card), and
-  // entM to (exM − 10min) as a reasonable default hold window.
+  // Resilience: fill missing timestamps so everything shows up.
+  //   - Missing exM (closed trade)  → stamp to last grid point
+  //   - Missing entM                → stamp to (exM − 10) or 09:15 for opens
   var lastGridMin = timeGrid[timeGrid.length - 1];
-  for (var i = 0; i < tradeInfo.length; i++) {
-    var ti = tradeInfo[i];
-    if (ti.exM == null && lastGridMin != null) ti.exM = lastGridMin;
-    if (ti.entM == null && ti.exM != null)      ti.entM = Math.max(9*60+15, ti.exM - 10);
-  }
+  var firstGridMin = timeGrid[0];
+  closedInfo.forEach(function(ti) {
+    if (ti.exM == null) ti.exM = lastGridMin;
+    if (ti.entM == null) ti.entM = Math.max(9*60+15, ti.exM - 10);
+  });
+  openInfo.forEach(function(ti) {
+    if (ti.entM == null) ti.entM = firstGridMin;  // assume open since session start
+  });
 
-  // Compute per-grid-point KPI series
+  // Combined trade universe
+  var allInfo = closedInfo.concat(openInfo);
+
+  // Per-grid-point KPI series
   var tradesCum = [], winsCum = [], lossesCum = [], wrCum = [], pfCum = [], depSeries = [];
-  var gpRun = 0, glRun = 0, wRun = 0, lRun = 0;
 
   timeGrid.forEach(function(t) {
     if (t == null) {
-      // carry-forward on bad timestamp
-      tradesCum.push(wRun + lRun); winsCum.push(wRun); lossesCum.push(lRun);
-      wrCum.push((wRun+lRun)?wRun/(wRun+lRun)*100:0);
-      pfCum.push(glRun > 0 ? gpRun/glRun : (gpRun > 0 ? 2 : 0));
-      depSeries.push(0);
+      var n1 = tradesCum.length ? tradesCum[tradesCum.length-1] : 0;
+      tradesCum.push(n1);
+      winsCum.push(winsCum.length ? winsCum[winsCum.length-1] : 0);
+      lossesCum.push(lossesCum.length ? lossesCum[lossesCum.length-1] : 0);
+      wrCum.push(wrCum.length ? wrCum[wrCum.length-1] : 0);
+      pfCum.push(pfCum.length ? pfCum[pfCum.length-1] : 0);
+      depSeries.push(depSeries.length ? depSeries[depSeries.length-1] : 0);
       return;
     }
-    // Recompute from scratch — trade list is usually small
-    var wins = 0, losses = 0, gp = 0, gl = 0;
-    tradeInfo.forEach(function(ti) {
-      if (ti.exM != null && ti.exM <= t) {
-        if (ti.win) { wins++; gp += ti.pnl; }
-        else        { losses++; gl += Math.abs(ti.pnl); }
-      }
+    var wins = 0, losses = 0, gp = 0, gl = 0, count = 0, dep = 0;
+    allInfo.forEach(function(ti) {
+      // Does this trade "exist" at time t?
+      //   closed: included once we've passed exM
+      //   open:   included once we've passed entM (still open through "now")
+      var exists = false;
+      if (ti.kind === 'closed') exists = (ti.exM != null && ti.exM <= t);
+      else                       exists = (ti.entM != null && ti.entM <= t);
+      if (!exists) return;
+
+      count++;
+      // Classify by pnl (live pnl for opens, final pnl for closed)
+      if (ti.pnl > 0) { wins++; gp += ti.pnl; }
+      else if (ti.pnl < 0) { losses++; gl += Math.abs(ti.pnl); }
+      // pnl === 0 → flat (not in W or L, still in count)
+
+      // Deployed capital: is this position still holding at time t?
+      //   closed: deployed during [entM, exM)
+      //   open:   deployed since entM, still holding
+      var deployed = false;
+      if (ti.kind === 'closed') deployed = (ti.entM != null && ti.entM <= t && t < ti.exM);
+      else                       deployed = (ti.entM != null && ti.entM <= t);
+      if (deployed) dep += ti.bv;
     });
-    tradesCum.push(wins + losses);
+
+    tradesCum.push(count);
     winsCum.push(wins);
     lossesCum.push(losses);
-    wrCum.push((wins+losses) ? wins/(wins+losses)*100 : 0);
+    wrCum.push(count ? wins/count*100 : 0);
     pfCum.push(gl > 0 ? gp/gl : (gp > 0 ? 2 : 0));
-
-    // Capital deployed: sum of buy_value for trades whose window contains t,
-    // plus open positions whose entry is ≤ t (still open)
-    var dep = 0;
-    tradeInfo.forEach(function(ti) {
-      if (ti.entM != null && ti.exM != null && ti.entM <= t && t < ti.exM) dep += ti.bv;
-    });
-    openPos.forEach(function(op) {
-      if (op.entM != null && op.entM <= t) dep += op.bv;
-    });
     depSeries.push(dep);
   });
 
@@ -2667,10 +2665,9 @@ function s3BuildMiniSeries() {
     wrCum: wrCum,
     pfCum: pfCum,
     dep: depSeries,
-    // Index at which we cross the low-confidence threshold
     confIdx: (function(){
       for (var i=0;i<tradesCum.length;i++) if (tradesCum[i] >= S3_MINI_CONF_N) return i;
-      return tradesCum.length;  // never crossed
+      return tradesCum.length;
     })(),
   };
 }
