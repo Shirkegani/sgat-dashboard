@@ -2296,6 +2296,28 @@ function s3RenderCards(positions, trades) {
   STATE._s3_effectiveTrades = effectiveTrades;
   STATE._s3_filtTrades     = filtTrades;
 
+  // ── DIAGNOSTIC LOG (safe, one-time per render) ──────────────
+  // Temporarily enabled to diagnose the short-trade visibility issue.
+  // Remove or gate behind STATE._debug once the issue is resolved.
+  if (window && window.console && console.log) {
+    var sampleTrade = (trades && trades[0]) || {};
+    console.log('[SGAT DIAG]',
+      'filter=', f,
+      '| isEodAuth=', isEodAuthoritative,
+      '| eodPending=', eodPending,
+      '| trades.len=', (trades||[]).length,
+      '| intradayTrades.len=', (intradayTrades||[]).length,
+      '| effectiveTrades.len=', effectiveTrades.length,
+      '| filtTrades.len=', filtTrades.length,
+      '| sample trade keys:', Object.keys(sampleTrade).join(','),
+      '| sample trade_direction:', sampleTrade.trade_direction,
+      '| sample _side:', sampleTrade._side,
+      '| SHORT-in-trades=', (trades||[]).filter(function(t){
+        return String(t.trade_direction||t._side||'').toLowerCase()==='short';
+      }).length
+    );
+  }
+
   // ── P&L ──────────────────────────────────────────────────────────
   var openPnl  = openRows.reduce(function(s,c){return s + c.pnl;}, 0);
   var realPnl  = closedRows.reduce(function(s,c){return s + c.pnl;}, 0);
@@ -2700,7 +2722,7 @@ function s3DrawMini(svgId, data, color, opts) {
     if (range <= 1e-9) return H/2;
     return H - MARGIN - ((v - mn) / range * usable);
   }
-  function px(i) { return (i/(n-1))*W; }
+  function px(i) { return n > 1 ? (i/(n-1))*W : W; }
 
   var dimUntil = opts.dimUntil || 0;
   var pts = data.map(function(v,i){ return px(i)+','+py(v); });
@@ -2754,7 +2776,7 @@ function s3DrawMiniWL(winsArr, lossesArr) {
   var maxTotal = Math.max.apply(null, totals);
   if (!maxTotal) return;
   function py(v){return H - MARGIN - (v/maxTotal*usable);}
-  function px(i){return (i/(n-1))*W;}
+  function px(i){return n > 1 ? (i/(n-1))*W : W;}
 
   // Losses area (stacked on top of wins — red)
   var lossPts = '0,'+H;
