@@ -139,6 +139,26 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* Curve */
 .s3-curve-wrap{padding:10px 14px 8px;border-bottom:1px solid var(--border);}
 .s3-curve-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+
+/* ── Split PnL / mini-KPI layout ────────────────────────────── */
+.s3-curve-split{display:grid;grid-template-columns:58fr 42fr;border-bottom:1px solid var(--border);}
+.s3-pnl-pane{padding:10px 14px 8px;border-right:1px solid var(--border);min-width:0;}
+.s3-mini-pane{padding:6px 4px 6px 0;display:flex;flex-direction:column;min-width:0;position:relative;}
+.s3-mini-row{display:grid;grid-template-columns:14px 65px 1fr 88px;align-items:center;gap:8px;padding:3px 10px 3px 14px;border-bottom:1px solid rgba(30,42,53,0.5);min-height:28px;cursor:crosshair;position:relative;}
+.s3-mini-row:last-child{border-bottom:none;}
+.s3-mini-row:hover{background:rgba(56,182,255,0.03);}
+.s3-mini-dot{width:5px;height:5px;border-radius:50%;}
+.s3-mini-lbl{font-size:0.55rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
+.s3-mini-chart{width:100%;height:22px;position:relative;min-width:0;}
+.s3-mini-chart svg{width:100%;height:100%;display:block;}
+.s3-mini-val{font-size:0.68rem;font-weight:600;text-align:right;font-family:var(--font-mono);letter-spacing:.02em;}
+.s3-cross-line{position:absolute;top:0;bottom:0;width:1px;background:rgba(56,182,255,0.45);pointer-events:none;display:none;z-index:2;}
+.s3-cross-tip{position:absolute;background:#0d1318;border:1px solid var(--border2);border-radius:4px;padding:8px 11px;font-size:0.6rem;color:var(--text);pointer-events:none;z-index:100;display:none;font-family:var(--font-mono);white-space:nowrap;line-height:1.7;}
+.s3-cross-tip .ct-hdr{color:var(--blue);font-weight:700;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.s3-cross-tip .ct-row{display:flex;justify-content:space-between;gap:16px;}
+.s3-cross-tip .ct-lbl{color:var(--dim);}
+.s3-cross-tip .ct-val{font-weight:600;}
+.s3-cross-tip .ct-note{color:var(--dim);font-size:0.5rem;margin-top:4px;font-style:italic;}
 .s3-curve-lbl{font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;}
 .s3-chart{width:100%;height:110px;position:relative;}
 .s3-chart svg{width:100%;height:100%;}
@@ -487,14 +507,58 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     </div>
   </div>
 
-  <!-- Equity Curve -->
-  <div class="s3-curve-wrap">
-    <div class="s3-curve-hdr">
-      <div class="s3-curve-lbl">Live P&amp;L curve</div>
-      <div class="pos" id="s3-curve-val" style="font-size:0.8rem;font-weight:600;">—</div>
+  <!-- Equity Curve + KPI mini-sparklines (split 58/42) -->
+  <div class="s3-curve-split">
+    <!-- LEFT: existing P&L curve (width reduced to 58%) -->
+    <div class="s3-pnl-pane">
+      <div class="s3-curve-hdr">
+        <div class="s3-curve-lbl">Live P&amp;L curve</div>
+        <div class="pos" id="s3-curve-val" style="font-size:0.8rem;font-weight:600;">—</div>
+      </div>
+      <div class="s3-chart"><svg id="s3-pnl-svg" viewBox="0 0 600 110" preserveAspectRatio="none" style="width:100%;height:110px;"></svg></div>
+      <div class="s3-xaxis"><span>09:30</span><span>10:30</span><span>11:30</span><span>12:30</span><span>13:30</span><span>14:30</span><span>15:30</span></div>
     </div>
-    <div class="s3-chart"><svg id="s3-pnl-svg" viewBox="0 0 600 110" preserveAspectRatio="none" style="width:100%;height:110px;"></svg></div>
-    <div class="s3-xaxis"><span>09:30</span><span>10:30</span><span>11:30</span><span>12:30</span><span>13:30</span><span>14:30</span><span>15:30</span></div>
+
+    <!-- RIGHT: 5 mini-curves + unified hover -->
+    <div class="s3-mini-pane" id="s3-mini-pane">
+      <div class="s3-cross-line" id="s3-cross-line"></div>
+      <div class="s3-cross-tip" id="s3-cross-tip"></div>
+
+      <div class="s3-mini-row" data-curve="trades">
+        <div class="s3-mini-dot" style="background:var(--blue)"></div>
+        <div class="s3-mini-lbl">Trades</div>
+        <div class="s3-mini-chart"><svg id="s3-mini-trades" viewBox="0 0 400 22" preserveAspectRatio="none"></svg></div>
+        <div class="s3-mini-val inf" id="s3-mini-val-trades">—</div>
+      </div>
+
+      <div class="s3-mini-row" data-curve="wl">
+        <div class="s3-mini-dot" style="background:var(--red)"></div>
+        <div class="s3-mini-lbl">W / L</div>
+        <div class="s3-mini-chart"><svg id="s3-mini-wl" viewBox="0 0 400 22" preserveAspectRatio="none"></svg></div>
+        <div class="s3-mini-val" id="s3-mini-val-wl">—</div>
+      </div>
+
+      <div class="s3-mini-row" data-curve="wr">
+        <div class="s3-mini-dot" style="background:var(--amber)"></div>
+        <div class="s3-mini-lbl">Win rate</div>
+        <div class="s3-mini-chart"><svg id="s3-mini-wr" viewBox="0 0 400 22" preserveAspectRatio="none"></svg></div>
+        <div class="s3-mini-val neu" id="s3-mini-val-wr">—</div>
+      </div>
+
+      <div class="s3-mini-row" data-curve="pf">
+        <div class="s3-mini-dot" style="background:var(--purple)"></div>
+        <div class="s3-mini-lbl">Profit factor</div>
+        <div class="s3-mini-chart"><svg id="s3-mini-pf" viewBox="0 0 400 22" preserveAspectRatio="none"></svg></div>
+        <div class="s3-mini-val" id="s3-mini-val-pf">—</div>
+      </div>
+
+      <div class="s3-mini-row" data-curve="cap">
+        <div class="s3-mini-dot" style="background:var(--blue)"></div>
+        <div class="s3-mini-lbl">Capital</div>
+        <div class="s3-mini-chart"><svg id="s3-mini-cap" viewBox="0 0 400 22" preserveAspectRatio="none"></svg></div>
+        <div class="s3-mini-val inf" id="s3-mini-val-cap">—</div>
+      </div>
+    </div>
   </div>
 
 
@@ -1461,6 +1525,14 @@ function wipeEODSections() {
   STATE._s3_openPnl = undefined;
   STATE._s3_realPnl = undefined;
   STATE._s3_liveMode = undefined;
+  STATE._s3_miniSeries = undefined;
+  // Wipe the 5 mini-curve SVGs and their right-side values
+  ['s3-mini-trades','s3-mini-wl','s3-mini-wr','s3-mini-pf','s3-mini-cap'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.innerHTML = '';
+  });
+  ['s3-mini-val-trades','s3-mini-val-wl','s3-mini-val-wr','s3-mini-val-pf','s3-mini-val-cap'].forEach(function(id){
+    var el = document.getElementById(id); if (el) { el.textContent = '—'; el.className = 's3-mini-val dim'; }
+  });
 }
 
 function onDateChange() {
@@ -1487,10 +1559,12 @@ function renderAll() {
   s3Render();
   s4RenderTable();
   renderEOD();
-  // Curve is now in STATE.curveData from dashboard response — draw it
-  if (STATE.curveData && STATE.curveData.length >= 2) {
-    s3DrawCurveFromState();
-  }
+  // Always redraw P&L curve — s3DrawCurveFromState handles empty-curve state
+  // internally. Previously this was guarded, which leaked the prior-date curve
+  // on a switch to a no-trade date.
+  s3DrawCurveFromState();
+  // Mini KPI sparklines (Trades / W-L / WR / PF / Capital deployed)
+  s3RenderMiniCurves();
 }
 
 // ============================================================
@@ -2415,6 +2489,374 @@ function s3RenderCurve(points, timestamps) {
   });
 }
 
+// ────────────────────────────────────────────────────────────────
+// MINI KPI CURVES — 5 sparklines showing how Trades/W-L/WR/PF/Capital
+// evolved through the session. Data is derived from STATE.data.trades[]
+// and STATE.curveData (for the time grid).
+//
+// Respects the filter chip (all/long/short/exited) the same way the
+// PnL curve does — so LONG mode rebuilds the curves using only long
+// trades etc.
+// ────────────────────────────────────────────────────────────────
+
+// Low-confidence threshold: below this trade count, WR/PF are dimmed
+var S3_MINI_CONF_N = 10;
+
+function s3_minTs(s) {  // "HH:MM" -> minutes since midnight; safe on malformed
+  if (!s || s.length < 5) return 0;
+  var h = parseInt(s.slice(0,2),10), m = parseInt(s.slice(3,5),10);
+  if (isNaN(h) || isNaN(m)) return 0;
+  return h*60 + m;
+}
+
+// Build the time grid (labels) + series arrays by walking the curve data.
+// Falls back to a synthetic 09:30-15:30 grid at 5-min steps if no curve data.
+function s3BuildMiniSeries() {
+  var trades = STATE._s3_effectiveTrades || STATE.data.trades || [];
+  var curve  = STATE.curveData || [];
+  var f = STATE.filter || 'all';
+
+  // Filter trades to match the active chip
+  var filt = trades.filter(function(t) {
+    if (f === 'all' || f === 'exited') return true;
+    var side = t._side || 'long';
+    if (f === 'long')  return side === 'long';
+    if (f === 'short') return side === 'short';
+    return true;
+  });
+
+  // Pre-compute each trade's close time (in minutes) and win/loss
+  var tradeInfo = filt.map(function(t) {
+    // Use the same UTC→IST convention as the PnL curve
+    function toMin(raw) {
+      if (!raw) return null;
+      var s = String(raw).trim();
+      if (s.length < 10) return null;
+      var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
+      var iso = hasTz ? s.replace(' ','T') : s.replace(' ','T') + 'Z';
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return null;
+      var total = d.getUTCHours()*60 + d.getUTCMinutes() + 330;
+      return ((total % 1440) + 1440) % 1440;
+    }
+    var entM = toMin(t.first_entry_ts);
+    var exM  = toMin(t.last_exit_ts);
+    var pnl  = parseFloat(t.pnl_inr) || 0;
+    // buy_value preferred; fall back to |qty × avg_price|
+    var bv = parseFloat(t.buy_value) || 0;
+    if (!bv) bv = Math.abs((parseFloat(t.quantity)||0) * (parseFloat(t.average_price)||0));
+    return { entM: entM, exM: exM, pnl: pnl, win: pnl > 0, bv: bv };
+  });
+
+  // Open positions (for capital deployment curve on live view)
+  var openPos = (STATE._s3_openRows || []).map(function(c) {
+    function toMin(raw) {
+      if (!raw) return null;
+      var s = String(raw).trim();
+      if (s.length < 10) return null;
+      var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
+      var iso = hasTz ? s.replace(' ','T') : s.replace(' ','T') + 'Z';
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return null;
+      var total = d.getUTCHours()*60 + d.getUTCMinutes() + 330;
+      return ((total % 1440) + 1440) % 1440;
+    }
+    return {
+      entM: toMin(c._raw && c._raw.first_entry_ts),
+      bv:   Math.abs(c.qty * (parseFloat(c._raw && c._raw.average_price) || 0)) || (parseFloat(c._raw && c._raw.buy_value) || 0),
+    };
+  });
+
+  // Build a time grid from curveData if available, else synthesize
+  var timeGrid = [];
+  if (curve.length >= 2) {
+    curve.forEach(function(pt) {
+      // Apply same UTC→IST conversion
+      var s = String(pt.ts || '').trim();
+      if (s.length >= 10) {
+        var hasTz = /[Z]|[+-]\d\d:?\d\d$/.test(s);
+        var iso = hasTz ? s.replace(' ','T') : s.replace(' ','T') + 'Z';
+        var d = new Date(iso);
+        if (!isNaN(d.getTime())) {
+          var total = d.getUTCHours()*60 + d.getUTCMinutes() + 330;
+          total = ((total % 1440) + 1440) % 1440;
+          timeGrid.push(total);
+          return;
+        }
+      }
+      timeGrid.push(null);
+    });
+  } else {
+    // Synthetic grid: 09:30 → 15:30 at 5-min steps
+    for (var m = 9*60+30; m <= 15*60+30; m += 5) timeGrid.push(m);
+  }
+  if (!timeGrid.length) return null;
+
+  // Compute per-grid-point KPI series
+  var tradesCum = [], winsCum = [], lossesCum = [], wrCum = [], pfCum = [], depSeries = [];
+  var gpRun = 0, glRun = 0, wRun = 0, lRun = 0;
+
+  timeGrid.forEach(function(t) {
+    if (t == null) {
+      // carry-forward on bad timestamp
+      tradesCum.push(wRun + lRun); winsCum.push(wRun); lossesCum.push(lRun);
+      wrCum.push((wRun+lRun)?wRun/(wRun+lRun)*100:0);
+      pfCum.push(glRun > 0 ? gpRun/glRun : (gpRun > 0 ? 2 : 0));
+      depSeries.push(0);
+      return;
+    }
+    // Recompute from scratch — trade list is usually small
+    var wins = 0, losses = 0, gp = 0, gl = 0;
+    tradeInfo.forEach(function(ti) {
+      if (ti.exM != null && ti.exM <= t) {
+        if (ti.win) { wins++; gp += ti.pnl; }
+        else        { losses++; gl += Math.abs(ti.pnl); }
+      }
+    });
+    tradesCum.push(wins + losses);
+    winsCum.push(wins);
+    lossesCum.push(losses);
+    wrCum.push((wins+losses) ? wins/(wins+losses)*100 : 0);
+    pfCum.push(gl > 0 ? gp/gl : (gp > 0 ? 2 : 0));
+
+    // Capital deployed: sum of buy_value for trades whose window contains t,
+    // plus open positions whose entry is ≤ t (still open)
+    var dep = 0;
+    tradeInfo.forEach(function(ti) {
+      if (ti.entM != null && ti.exM != null && ti.entM <= t && t < ti.exM) dep += ti.bv;
+    });
+    openPos.forEach(function(op) {
+      if (op.entM != null && op.entM <= t) dep += op.bv;
+    });
+    depSeries.push(dep);
+  });
+
+  return {
+    timeGrid: timeGrid,
+    tradesCum: tradesCum,
+    winsCum: winsCum,
+    lossesCum: lossesCum,
+    wrCum: wrCum,
+    pfCum: pfCum,
+    dep: depSeries,
+    // Index at which we cross the low-confidence threshold
+    confIdx: (function(){
+      for (var i=0;i<tradesCum.length;i++) if (tradesCum[i] >= S3_MINI_CONF_N) return i;
+      return tradesCum.length;  // never crossed
+    })(),
+  };
+}
+
+// Generic sparkline with tight adaptive scale (every movement visible)
+function s3DrawMini(svgId, data, color, opts) {
+  opts = opts || {};
+  var svg = document.getElementById(svgId);
+  if (!svg) return;
+  svg.innerHTML = '';
+  var n = data.length;
+  if (!n) return;
+
+  var W = 400, H = 22, MARGIN = 2;
+  var usable = H - 2*MARGIN;
+
+  var mn = Math.min.apply(null, data);
+  var mx = Math.max.apply(null, data);
+  var range = mx - mn;
+
+  function py(v) {
+    if (range <= 1e-9) return H/2;
+    return H - MARGIN - ((v - mn) / range * usable);
+  }
+  function px(i) { return (i/(n-1))*W; }
+
+  var dimUntil = opts.dimUntil || 0;
+  var pts = data.map(function(v,i){ return px(i)+','+py(v); });
+
+  // Dimmed prefix
+  if (dimUntil > 0 && dimUntil < n) {
+    var dimSeg = pts.slice(0, dimUntil+1).join(' ');
+    var pl1 = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    pl1.setAttribute('points', dimSeg);
+    pl1.setAttribute('fill','none');
+    pl1.setAttribute('stroke', color);
+    pl1.setAttribute('stroke-width','1.3');
+    pl1.setAttribute('stroke-linejoin','round');
+    pl1.setAttribute('stroke-linecap','round');
+    pl1.setAttribute('opacity','0.25');
+    svg.appendChild(pl1);
+  }
+  // Live section
+  var startIdx = Math.max(0, dimUntil);
+  var liveSeg = pts.slice(startIdx).join(' ');
+  var pl2 = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+  pl2.setAttribute('points', liveSeg);
+  pl2.setAttribute('fill','none');
+  pl2.setAttribute('stroke', color);
+  pl2.setAttribute('stroke-width','1.3');
+  pl2.setAttribute('stroke-linejoin','round');
+  pl2.setAttribute('stroke-linecap','round');
+  svg.appendChild(pl2);
+
+  // Last-point dot
+  var lastX = px(n-1), lastY = py(data[n-1]);
+  var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  dot.setAttribute('cx', lastX);
+  dot.setAttribute('cy', lastY);
+  dot.setAttribute('r', '1.8');
+  dot.setAttribute('fill', color);
+  svg.appendChild(dot);
+}
+
+// Stacked W/L area — wins at the bottom (green), losses stacked on top (red).
+// Keeps the shared 0→total scale so the ratio is honest.
+function s3DrawMiniWL(winsArr, lossesArr) {
+  var svg = document.getElementById('s3-mini-wl');
+  if (!svg) return;
+  svg.innerHTML = '';
+  var n = winsArr.length;
+  if (!n) return;
+  var W = 400, H = 22, MARGIN = 1.5;
+  var usable = H - 2*MARGIN;
+  var totals = winsArr.map(function(w,i){return w + lossesArr[i];});
+  var maxTotal = Math.max.apply(null, totals);
+  if (!maxTotal) return;
+  function py(v){return H - MARGIN - (v/maxTotal*usable);}
+  function px(i){return (i/(n-1))*W;}
+
+  // Losses area (stacked on top of wins — red)
+  var lossPts = '0,'+H;
+  for (var i=0;i<n;i++) lossPts += ' '+px(i)+','+py(winsArr[i]+lossesArr[i]);
+  lossPts += ' '+W+','+H;
+  var lossArea = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+  lossArea.setAttribute('points', lossPts);
+  lossArea.setAttribute('fill','rgba(255,77,106,0.40)');
+  lossArea.setAttribute('stroke','#ff4d6a');
+  lossArea.setAttribute('stroke-width','0.8');
+  svg.appendChild(lossArea);
+
+  // Wins area (bottom — green)
+  var winPts = '0,'+H;
+  for (var i=0;i<n;i++) winPts += ' '+px(i)+','+py(winsArr[i]);
+  winPts += ' '+W+','+H;
+  var winArea = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+  winArea.setAttribute('points', winPts);
+  winArea.setAttribute('fill','rgba(0,229,160,0.55)');
+  winArea.setAttribute('stroke','#00e5a0');
+  winArea.setAttribute('stroke-width','0.8');
+  svg.appendChild(winArea);
+}
+
+function s3RenderMiniCurves() {
+  var S = s3BuildMiniSeries();
+  if (!S) {
+    // Wipe all 5 minis
+    ['s3-mini-trades','s3-mini-wl','s3-mini-wr','s3-mini-pf','s3-mini-cap'].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.innerHTML = '';
+    });
+    ['s3-mini-val-trades','s3-mini-val-wl','s3-mini-val-wr','s3-mini-val-pf','s3-mini-val-cap'].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.textContent = '—';
+    });
+    return;
+  }
+  // Stash for the hover handler
+  STATE._s3_miniSeries = S;
+
+  // Determine CFG capital for % conversion
+  var totalCap = (typeof CFG !== 'undefined' && CFG.capital) ? parseFloat(CFG.capital) : 100000;
+  var depPct = S.dep.map(function(v){ return v/totalCap*100; });
+
+  s3DrawMini('s3-mini-trades', S.tradesCum, '#38b6ff');
+  s3DrawMiniWL(S.winsCum, S.lossesCum);
+  s3DrawMini('s3-mini-wr', S.wrCum, '#ffb830', { dimUntil: S.confIdx });
+  s3DrawMini('s3-mini-pf', S.pfCum, '#b06aff', { dimUntil: S.confIdx });
+  s3DrawMini('s3-mini-cap', depPct, '#38b6ff');
+
+  // Right-side current values
+  var last = S.tradesCum.length - 1;
+  var lastTrades = S.tradesCum[last];
+  var lastW = S.winsCum[last], lastL = S.lossesCum[last];
+  var lastWR = S.wrCum[last];
+  var lastPF = S.pfCum[last];
+  var lastDep = S.dep[last];
+  var lastDepPct = depPct[last];
+  var confLow = lastTrades < S3_MINI_CONF_N;
+
+  function setT(id, html, cls) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = html;
+    if (cls !== undefined) el.className = 's3-mini-val ' + cls;
+  }
+  setT('s3-mini-val-trades', String(lastTrades), 'inf');
+  setT('s3-mini-val-wl',
+    '<span class="pos">'+lastW+'</span><span class="dim"> · </span><span class="neg">'+lastL+'</span>',
+    '');
+  setT('s3-mini-val-wr', lastWR.toFixed(1)+'%' + (confLow?' <span class="dim">·low n</span>':''), confLow?'dim':'neu');
+  setT('s3-mini-val-pf', lastPF.toFixed(2) + (confLow?' <span class="dim">·low n</span>':''),
+    confLow ? 'dim' : (lastPF >= 1 ? 'pos' : 'neg'));
+  setT('s3-mini-val-cap', '₹'+Math.round(lastDep).toLocaleString('en-IN')+' · '+lastDepPct.toFixed(1)+'%', 'inf');
+
+  // Wire the unified crosshair/tooltip (idempotent — removes prior listeners)
+  s3WireMiniHover();
+}
+
+function s3WireMiniHover() {
+  var pane = document.getElementById('s3-mini-pane');
+  var line = document.getElementById('s3-cross-line');
+  var tip  = document.getElementById('s3-cross-tip');
+  if (!pane || !line || !tip) return;
+
+  // Replace pane to drop prior listeners
+  if (pane.__miniWired) return;  // first wire is permanent — rendering only changes data
+  pane.__miniWired = true;
+
+  pane.addEventListener('mousemove', function(e) {
+    var S = STATE._s3_miniSeries;
+    if (!S) return;
+    var chart = pane.querySelector('.s3-mini-chart');
+    if (!chart) return;
+    var rect = chart.getBoundingClientRect();
+    var paneRect = pane.getBoundingClientRect();
+    var xPct = (e.clientX - rect.left) / rect.width;
+    xPct = Math.max(0, Math.min(1, xPct));
+    var idx = Math.round(xPct * (S.tradesCum.length-1));
+
+    var chartLeftInPane = rect.left - paneRect.left;
+    var xAbs = chartLeftInPane + (xPct * rect.width);
+    line.style.left = xAbs + 'px';
+    line.style.display = 'block';
+
+    var tmin = S.timeGrid[idx];
+    var tStr = (tmin == null) ? '—' : (String(Math.floor(tmin/60)).padStart(2,'0')+':'+String(tmin%60).padStart(2,'0'));
+    var trd = S.tradesCum[idx], w = S.winsCum[idx], l = S.lossesCum[idx];
+    var wr = S.wrCum[idx], pf = S.pfCum[idx], dep = S.dep[idx];
+    var totalCap = (typeof CFG !== 'undefined' && CFG.capital) ? parseFloat(CFG.capital) : 100000;
+    var depPct = dep/totalCap*100;
+    var confLow = trd < S3_MINI_CONF_N;
+    var pfCol = pf >= 1 ? '#00e5a0' : '#ff4d6a';
+
+    tip.innerHTML = '<div class="ct-hdr">'+tStr+'</div>'
+      + '<div class="ct-row"><span class="ct-lbl">Trades</span><span class="ct-val inf">'+trd+'</span></div>'
+      + '<div class="ct-row"><span class="ct-lbl">W / L</span><span class="ct-val"><span class="pos">'+w+'</span><span class="dim"> · </span><span class="neg">'+l+'</span></span></div>'
+      + '<div class="ct-row"><span class="ct-lbl">Win rate</span><span class="ct-val'+(confLow?' dim':' neu')+'">'+wr.toFixed(1)+'%'+(confLow?' *':'')+'</span></div>'
+      + '<div class="ct-row"><span class="ct-lbl">Profit factor</span><span class="ct-val" style="color:'+(confLow?'var(--dim)':pfCol)+'">'+pf.toFixed(2)+(confLow?' *':'')+'</span></div>'
+      + '<div class="ct-row"><span class="ct-lbl">Deployed</span><span class="ct-val inf">₹'+Math.round(dep).toLocaleString('en-IN')+' · '+depPct.toFixed(1)+'%</span></div>'
+      + (confLow ? '<div class="ct-note">* low confidence (<'+S3_MINI_CONF_N+' trades)</div>' : '');
+
+    var tipW = 220;
+    var leftPref = xAbs + 14;
+    if (leftPref + tipW > paneRect.width - 10) leftPref = xAbs - tipW - 10;
+    if (leftPref < 4) leftPref = 4;
+    tip.style.left = leftPref + 'px';
+    tip.style.top = '4px';
+    tip.style.display = 'block';
+  });
+  pane.addEventListener('mouseleave', function() {
+    line.style.display = 'none';
+    tip.style.display = 'none';
+  });
+}
+
 function s3DrawCurve(positions, trades) {
   // Called on initial render — use trades as placeholder until curve data arrives
   var svg = document.getElementById('s3-pnl-svg'); svg.innerHTML = '';
@@ -2587,6 +3029,8 @@ function s3SetFilter(f) {
   });
   document.getElementById('s3-btn-'+f).className = 's3-fbtn s3-f-'+f;
   s3Render();
+  // Mini KPI curves must also respect the filter
+  s3RenderMiniCurves();
 }
 
 // ============================================================
