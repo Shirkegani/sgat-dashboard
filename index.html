@@ -2567,26 +2567,52 @@ function s3_minTs(s) {  // "HH:MM" -> minutes since midnight; safe on malformed
 // For capital deployed: use avg_holding_min (or 30min default) to synthesize entry times
 // backward from each trade's inferred close time.
 function s3BuildMiniSeries() {
-  var closedTrades = STATE._s3_effectiveTrades || STATE.data.trades || [];
-  var openPosRaw   = STATE._s3_filtOpen || [];
-  var curve        = STATE.curveData || [];
-  var f            = STATE.filter || 'all';
+  var curve = STATE.curveData || [];
+  var f     = STATE.filter || 'all';
 
-  if (!curve.length || !closedTrades.length) {
-    // Nothing to build — return a minimal empty result so UI shows "—"
-    return null;
+  if (!curve.length) return null;
+
+  // ARCHITECTURE (from 2026-04-23): the server's curveData now carries
+  // pre-aggregated {trades, wins, losses, gp, gl, deployed, long_*, short_*}
+  // per minute-tick. We just read them. No reconstruction, no timestamp
+  // math, no trade-array walking — the server did the work.
+  //
+  // Filter chip mapping:
+  //   'all'    → {trades, wins, losses, gp, gl, deployed}
+  //   'long'   → {long_count, long_wins, long_losses, long_gp, long_gl}
+  //   'short'  → {short_count, short_wins, short_losses, short_gp, short_gl}
+  //   'exited' → same as 'all' (WR/PF are defined over all rows)
+
+  function pickSide(tick) {
+    if (f === 'long') {
+      return {
+        trades: Number(tick.long_count) || 0,
+        wins:   Number(tick.long_wins) || 0,
+        losses: Number(tick.long_losses) || 0,
+        gp:     Number(tick.long_gp) || 0,
+        gl:     Number(tick.long_gl) || 0,
+      };
+    }
+    if (f === 'short') {
+      return {
+        trades: Number(tick.short_count) || 0,
+        wins:   Number(tick.short_wins) || 0,
+        losses: Number(tick.short_losses) || 0,
+        gp:     Number(tick.short_gp) || 0,
+        gl:     Number(tick.short_gl) || 0,
+      };
+    }
+    // 'all' / 'exited' use globals
+    return {
+      trades: Number(tick.trades) || ((Number(tick.open_count)||0) + (Number(tick.closed_count)||0)),
+      wins:   Number(tick.wins) || 0,
+      losses: Number(tick.losses) || 0,
+      gp:     Number(tick.gp) || 0,
+      gl:     Number(tick.gl) || 0,
+    };
   }
 
-  // Filter trades by chip
-  var filt = closedTrades.filter(function(t) {
-    if (f === 'all' || f === 'exited') return true;
-    var side = t._side || 'long';
-    if (f === 'long')  return side === 'long';
-    if (f === 'short') return side === 'short';
-    return true;
-  });
-
-  // Helper: parse curve timestamps. Server sends "YYYY-MM-DDTHH:MM" naive UTC.
+  // Parse curve timestamps (server sends "YYYY-MM-DDTHH:MM" naive UTC)
   function tsToMin(raw) {
     if (!raw) return null;
     var s = String(raw).trim();
@@ -2599,108 +2625,53 @@ function s3BuildMiniSeries() {
     return ((total % 1440) + 1440) % 1440;
   }
 
-  // Build time grid + count series from curveData
-  var timeGrid = [];
-  var countSeries = [];
-  curve.forEach(function(pt) {
-    timeGrid.push(tsToMin(pt.ts));
-    countSeries.push(parseInt(pt.count, 10) || 0);
+  // Walk the curve; emit per-tick series for every mini-curve.
+  var timeGrid = [], tradesCum = [], winsCum = [], lossesCum = [],
+      wrCum = [], pfCum = [], depSeries = [];
+
+  curve.forEach(function(tick) {
+    timeGrid.push(tsToMin(tick.ts));
+    var v = pickSide(tick);
+    tradesCum.push(v.trades);
+    winsCum.push(v.wins);
+    lossesCum.push(v.losses);
+    var tot = v.wins + v.losses;
+    wrCum.push(tot ? v.wins/tot*100 : 0);
+    pfCum.push(v.gl > 0 ? v.gp/v.gl : (v.gp > 0 ? 2 : 0));
+    depSeries.push(Number(tick.deployed) || 0);
   });
-  if (!timeGrid.length) return null;
 
-  // Apply filter adjustment to count: if filter is 'all'/'exited', server count works.
-  // For LONG/SHORT, we need a per-filter count. The server's count isn't filter-aware,
-  // so we scale by the ratio of filtered-to-total: an approximation, but only matters
-  // for LONG/SHORT chips.
-  var totalClosed = closedTrades.length;
-  var filtRatio = totalClosed > 0 ? (filt.length / totalClosed) : 1;
-  var tradeCount = countSeries.map(function(c){ return Math.round(c * filtRatio); });
-
-  // Sort trades by their perceived chronological order. DailyTrades rows are typically
-  // appended in exit-time order, so the array index IS the order. Use as-is, then apply
-  // the same filter — `filt` preserves that order.
-  var orderedTrades = filt;
-
-  // Walk the trade list in parallel with tradeCount to derive cumulative metrics.
-  // For each grid tick i, take the first `tradeCount[i]` trades from orderedTrades.
-  var winsCum = [], lossesCum = [], wrCum = [], pfCum = [];
-  var runWins = 0, runLosses = 0, runGP = 0, runGL = 0, tradesSeen = 0;
-
-  tradeCount.forEach(function(k) {
-    // Catch up to k by incorporating new trades
-    while (tradesSeen < k && tradesSeen < orderedTrades.length) {
-      var t = orderedTrades[tradesSeen];
-      var pnl = parseFloat(t.pnl_inr) || 0;
-      if (pnl > 0) { runWins++;   runGP += pnl; }
-      else if (pnl < 0) { runLosses++; runGL += Math.abs(pnl); }
-      tradesSeen++;
+  // Defensive: trim leading ticks where aggregates are suspiciously blank
+  // (a one-day transition artifact from the 2026-04-23 schema rollout —
+  // rows written BEFORE the PositionLog got new columns have 0s there).
+  //   "blank" = wins=0 AND losses=0 AND trades=0
+  // If ALL ticks are blank (past dates / empty session) we keep them as-is.
+  var firstValid = 0;
+  var anyValid = winsCum.some(function(w,i){ return w>0 || lossesCum[i]>0 || tradesCum[i]>0; });
+  if (anyValid) {
+    while (firstValid < winsCum.length &&
+           winsCum[firstValid] === 0 &&
+           lossesCum[firstValid] === 0 &&
+           tradesCum[firstValid] === 0) {
+      firstValid++;
     }
-    winsCum.push(runWins);
-    lossesCum.push(runLosses);
-    var tot = runWins + runLosses;
-    wrCum.push(tot ? runWins/tot*100 : 0);
-    pfCum.push(runGL > 0 ? runGP/runGL : (runGP > 0 ? 2 : 0));
-  });
+  }
 
-  // Capital deployed — synthesize per-trade close times from count transitions,
-  // then subtract avg_holding_min to get synthetic entry times.
-  // Each trade's close time = the curve timestamp where countSeries hit its index + 1.
-  var closeMinByTradeIdx = new Array(orderedTrades.length);  // index → close minute
-  var seenForClose = 0;
-  timeGrid.forEach(function(gridMin, i) {
-    if (gridMin == null) return;
-    while (seenForClose < tradeCount[i] && seenForClose < orderedTrades.length) {
-      closeMinByTradeIdx[seenForClose] = gridMin;
-      seenForClose++;
-    }
-  });
-
-  var DEFAULT_HOLD = 30;  // fallback hold minutes when avg_holding_min is null
-  var entryMinByTradeIdx = orderedTrades.map(function(t, idx) {
-    var closeM = closeMinByTradeIdx[idx];
-    if (closeM == null) return null;
-    var hold = parseFloat(t.avg_holding_min);
-    if (!isFinite(hold) || hold <= 0) hold = DEFAULT_HOLD;
-    return Math.max(9*60+15, closeM - hold);
-  });
-
-  // At each grid minute t, deployed = Σ buy_value for trades whose [entry, close) contains t
-  var depSeries = timeGrid.map(function(t) {
-    if (t == null) return 0;
-    var dep = 0;
-    for (var j = 0; j < orderedTrades.length; j++) {
-      var entM = entryMinByTradeIdx[j];
-      var clsM = closeMinByTradeIdx[j];
-      if (entM != null && clsM != null && entM <= t && t < clsM) {
-        var bv = parseFloat(orderedTrades[j].buy_value) || 0;
-        dep += bv;
-      }
-    }
-    // Plus any CURRENTLY open positions whose entry ≤ t
-    openPosRaw.forEach(function(c) {
-      var bv = Math.abs((c.qty || 0) * (parseFloat((c._raw||{}).average_price) || 0))
-            || (parseFloat((c._raw||{}).buy_value) || 0);
-      // Since open position entry ts is also null, approximate: they started at session start
-      dep += bv;
-    });
-    return dep;
-  });
-
-  // Confidence threshold index
-  var confIdx = tradeCount.length;
-  for (var i = 0; i < tradeCount.length; i++) {
-    if (tradeCount[i] >= S3_MINI_CONF_N) { confIdx = i; break; }
+  // Confidence threshold (WR/PF dimmed until this many trades are in)
+  var confIdx = tradesCum.length;
+  for (var i = 0; i < tradesCum.length; i++) {
+    if (tradesCum[i] >= S3_MINI_CONF_N) { confIdx = i; break; }
   }
 
   return {
-    timeGrid: timeGrid,
-    tradesCum: tradeCount,
-    winsCum: winsCum,
-    lossesCum: lossesCum,
-    wrCum: wrCum,
-    pfCum: pfCum,
-    dep: depSeries,
-    confIdx: confIdx,
+    timeGrid:  timeGrid.slice(firstValid),
+    tradesCum: tradesCum.slice(firstValid),
+    winsCum:   winsCum.slice(firstValid),
+    lossesCum: lossesCum.slice(firstValid),
+    wrCum:     wrCum.slice(firstValid),
+    pfCum:     pfCum.slice(firstValid),
+    dep:       depSeries.slice(firstValid),
+    confIdx:   Math.max(0, confIdx - firstValid),
   };
 }
 
