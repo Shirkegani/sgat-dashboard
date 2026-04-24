@@ -2463,21 +2463,51 @@ function s3RenderCards(positions, trades) {
 function s3DrawCurveFromState() {
   var trades = STATE.data.trades || [];
   var curveRaw = STATE.curveData || [];
+  var f = STATE.filter || 'all';
   var points = [], timestamps = [];
+
+  // ── Pick the right per-tick PnL field based on filter chip ────
+  // 'long'  → item.long_pnl   (set by PositionLogger v3)
+  // 'short' → item.short_pnl  (set by PositionLogger v3)
+  // default → item.pnl        (total session pnl)
+  // Past dates (before v3 schema) won't have long_pnl/short_pnl — they'll
+  // parse as NaN here; we fall back to total pnl so the curve stays alive.
+  function pickPnl(item) {
+    if (f === 'long') {
+      var v = parseFloat(item.long_pnl);
+      return isFinite(v) ? v : (parseFloat(item.pnl) || 0);
+    }
+    if (f === 'short') {
+      var v = parseFloat(item.short_pnl);
+      return isFinite(v) ? v : (parseFloat(item.pnl) || 0);
+    }
+    return parseFloat(item.pnl) || 0;
+  }
 
   if (curveRaw.length >= 2) {
     // Use dedicated curve data — one point per minute, from positions_curve endpoint
     curveRaw.forEach(function(item) {
-      points.push(parseFloat(item.pnl)||0);
+      points.push(pickPnl(item));
       // Format timestamp to HH:MM for display
       var ts = String(item.ts||'').slice(11,16);
       timestamps.push(ts);
     });
   } else {
-    // Fallback: cumulative closed trades (used when curve data not yet loaded)
+    // Fallback: cumulative closed trades (used when curve data not yet loaded).
+    // Respect the filter chip using trade_direction (authoritative) or _side.
+    var sideMatch = function(t) {
+      if (f === 'all' || f === 'exited') return true;
+      var s = String(t._side || t.trade_direction || t.side || 'long').toLowerCase();
+      return s === f;
+    };
     var cum = 0;
-    var sorted = trades.slice().sort(function(a,b){return new Date(a.last_exit_ts||0)-new Date(b.last_exit_ts||0);});
-    sorted.forEach(function(t){ cum += parseFloat(t.pnl_inr)||0; points.push(cum); timestamps.push((t.last_exit_ts||'').slice(11,16)); });
+    var sorted = trades.filter(sideMatch).slice()
+      .sort(function(a,b){return new Date(a.last_exit_ts||0)-new Date(b.last_exit_ts||0);});
+    sorted.forEach(function(t){
+      cum += parseFloat(t.pnl_inr)||0;
+      points.push(cum);
+      timestamps.push((t.last_exit_ts||'').slice(11,16));
+    });
   }
 
   s3RenderCurve(points, timestamps);
