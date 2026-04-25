@@ -437,20 +437,21 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   padding:2px 6px;letter-spacing:.05em;z-index:5;}
 .sup-toggle:hover{color:var(--text);}
 
-/* Each block in row 1 */
-.sup-block{display:flex;flex-direction:column;justify-content:center;
-  padding:8px 12px;border-right:1px solid var(--border);min-height:78px;
-  flex:0 0 auto;}
+/* Each block in row 1 — labels TOP-aligned for consistent baseline */
+.sup-block{display:flex;flex-direction:column;justify-content:flex-start;
+  padding:10px 12px;border-right:1px solid var(--border);min-height:88px;
+  flex:0 0 auto;gap:6px;}
 .sup-block:last-child{border-right:none;}
 .sup-label{font-size:0.5rem;letter-spacing:.08em;color:var(--dim);
-  text-transform:uppercase;margin-bottom:5px;line-height:1;
+  text-transform:uppercase;line-height:1;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-/* Block-specific widths (Row 1 — no reason block) */
-.sup-blk-regime{width:90px;}
-.sup-blk-flags{width:155px;}
-.sup-blk-breadth{width:135px;}
-.sup-blk-chips{flex:1 1 0;min-width:0;}
+/* Block-specific widths (Row 1) */
+.sup-blk-regime{width:100px;}
+.sup-blk-flags{width:165px;}
+.sup-blk-breadth{width:140px;}
+.sup-blk-chips-ind{flex:1.3 1 0;min-width:0;}    /* industries wider — long names */
+.sup-blk-chips-idx{flex:1 1 0;min-width:0;}      /* indices narrower — NIFTY-prefix */
 .sup-blk-age{width:90px;align-items:flex-end;}
 
 /* Regime pill */
@@ -461,34 +462,35 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sup-pill-bull{background:var(--green-bg);color:var(--green);}
 .sup-pill-chop{background:var(--amber-bg);color:var(--amber);}
 .sup-pill-na{background:rgba(58,80,96,0.15);color:var(--dim);}
-.sup-pill-meta{font-size:0.55rem;color:var(--dim);margin-top:3px;letter-spacing:.04em;
+.sup-pill-meta{font-size:0.55rem;color:var(--dim);letter-spacing:.04em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-/* Action dots */
-.sup-dots{display:flex;gap:8px;}
-.sup-dot{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:default;}
+/* Action dots — short 2-char labels (TL/TS/FL/FS), full name in tooltip */
+.sup-dots{display:flex;gap:10px;align-items:flex-start;}
+.sup-dot{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:default;}
 .sup-dot-glyph{width:8px;height:8px;border-radius:50%;background:#2a2f39;transition:all 0.2s;}
 .sup-dot.on .sup-dot-glyph{background:var(--red);box-shadow:0 0 6px rgba(255,77,106,0.55);}
-.sup-dot-lbl{font-size:0.48rem;color:var(--dim);letter-spacing:.04em;white-space:nowrap;}
+.sup-dot-lbl{font-size:0.55rem;color:var(--dim);letter-spacing:.06em;
+  white-space:nowrap;font-weight:500;}
 .sup-dot.on .sup-dot-lbl{color:var(--red);}
 
-/* Breadth gauge */
+/* Breadth — 3-line stack: numbers / decay / bar */
 .sup-breadth-num{font-size:0.78rem;font-weight:500;color:var(--text);line-height:1.2;
   white-space:nowrap;}
 .sup-breadth-num .now{color:var(--amber);}
 .sup-breadth-num .peak{color:var(--dim);}
-.sup-breadth-num .delta{font-size:0.58rem;margin-left:3px;}
-.sup-breadth-num .delta.bad{color:var(--red);}
-.sup-breadth-num .delta.warn{color:var(--amber);}
-.sup-breadth-num .delta.ok{color:var(--green);}
+.sup-breadth-delta{font-size:0.62rem;line-height:1;font-weight:500;}
+.sup-breadth-delta.bad{color:var(--red);}
+.sup-breadth-delta.warn{color:var(--amber);}
+.sup-breadth-delta.ok{color:var(--green);}
 .sup-breadth-bar{height:3px;background:var(--card);border-radius:2px;
-  margin-top:5px;position:relative;width:100%;max-width:115px;}
+  position:relative;width:100%;max-width:115px;}
 .sup-breadth-fill{position:absolute;height:100%;border-radius:2px;
   background:linear-gradient(90deg,var(--red) 0%,var(--amber) 100%);}
 
 /* Chips — vertical stack, 1 chip per line */
 .sup-chips{display:flex;flex-direction:column;gap:3px;align-items:flex-start;}
-.sup-chip{font-size:0.58rem;padding:2px 6px;border-radius:3px;letter-spacing:.02em;
+.sup-chip{font-size:0.6rem;padding:2px 7px;border-radius:3px;letter-spacing:.02em;
   line-height:1.4;white-space:nowrap;max-width:100%;
   overflow:hidden;text-overflow:ellipsis;}
 .sup-chip-long{background:var(--green-bg);color:var(--green);
@@ -505,9 +507,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sup-age-num.fresh{color:var(--green);}
 .sup-age-unit{font-size:0.55rem;color:var(--dim);font-weight:400;}
 .sup-age-tag{font-size:0.5rem;color:var(--amber);letter-spacing:.06em;
-  margin-top:2px;white-space:nowrap;}
-.sup-age-hhmm{font-size:0.55rem;color:var(--dim);margin-top:2px;
   white-space:nowrap;}
+.sup-age-hhmm{font-size:0.55rem;color:var(--dim);white-space:nowrap;}
 
 /* Row 2 — reasoning strip below the 8 blocks */
 .sup-row-reason{padding:8px 14px;border-top:1px solid var(--border);
@@ -628,10 +629,10 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     <div class="sup-block sup-blk-flags">
       <div class="sup-label">Action flags</div>
       <div class="sup-dots">
-        <div class="sup-dot" id="sup-dot-tl" title="tighten_trail_long"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">T-LONG</div></div>
-        <div class="sup-dot" id="sup-dot-ts" title="tighten_trail_short"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">T-SHORT</div></div>
-        <div class="sup-dot" id="sup-dot-fl" title="force_exit_long"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">F-LONG</div></div>
-        <div class="sup-dot" id="sup-dot-fs" title="force_exit_short"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">F-SHORT</div></div>
+        <div class="sup-dot" id="sup-dot-tl" title="Tighten trail — long"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">TL</div></div>
+        <div class="sup-dot" id="sup-dot-ts" title="Tighten trail — short"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">TS</div></div>
+        <div class="sup-dot" id="sup-dot-fl" title="Force exit — long"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">FL</div></div>
+        <div class="sup-dot" id="sup-dot-fs" title="Force exit — short"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">FS</div></div>
       </div>
     </div>
 
@@ -640,27 +641,27 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="sup-breadth-num">
         <span class="now" id="sup-breadth-now">—</span> /
         <span class="peak" id="sup-breadth-peak">—</span>
-        <span class="delta" id="sup-breadth-delta">—</span>
       </div>
+      <div class="sup-breadth-delta" id="sup-breadth-delta">—</div>
       <div class="sup-breadth-bar"><div class="sup-breadth-fill" id="sup-breadth-fill" style="width:0%"></div></div>
     </div>
 
-    <div class="sup-block sup-blk-chips">
+    <div class="sup-block sup-blk-chips-ind">
       <div class="sup-label">Long industries</div>
       <div class="sup-chips" id="sup-chips-ind-long"><span class="sup-chip sup-chip-na">—</span></div>
     </div>
 
-    <div class="sup-block sup-blk-chips">
+    <div class="sup-block sup-blk-chips-ind">
       <div class="sup-label">Short industries</div>
       <div class="sup-chips" id="sup-chips-ind-short"><span class="sup-chip sup-chip-na">—</span></div>
     </div>
 
-    <div class="sup-block sup-blk-chips">
+    <div class="sup-block sup-blk-chips-idx">
       <div class="sup-label">Long indices</div>
       <div class="sup-chips" id="sup-chips-idx-long"><span class="sup-chip sup-chip-na">—</span></div>
     </div>
 
-    <div class="sup-block sup-blk-chips">
+    <div class="sup-block sup-blk-chips-idx">
       <div class="sup-label">Short indices</div>
       <div class="sup-chips" id="sup-chips-idx-short"><span class="sup-chip sup-chip-na">—</span></div>
     </div>
@@ -1984,7 +1985,7 @@ function supRender() {
   document.getElementById('sup-breadth-peak').textContent = bPeakTxt;
   var dEl = document.getElementById('sup-breadth-delta');
   dEl.textContent = bDecTxt;
-  dEl.className = 'delta ' + decCls;
+  dEl.className = 'sup-breadth-delta ' + decCls;
   document.getElementById('sup-breadth-fill').style.width = supBreadthFill(bNow, bPeak) + '%';
   // mini
   document.getElementById('sup-mini-breadth-now').textContent  = bNowTxt;
