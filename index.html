@@ -826,6 +826,60 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-realty-cap">—</div>
     </div>
   </div>
+
+  <!-- Row 4: Remaining sector indices (added 2026-04-25) -->
+  <div class="s2-idx-row">
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY CONSR DURBL</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-consdur-ylbl"></div>
+        <svg id="s2-consdur-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-consdur-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-consdur-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY HEALTHCARE</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-health-ylbl"></div>
+        <svg id="s2-health-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-health-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-health-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY METAL</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-metal-ylbl"></div>
+        <svg id="s2-metal-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-metal-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-metal-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title">NIFTY OIL AND GAS</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-oilgas-ylbl"></div>
+        <svg id="s2-oilgas-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-oilgas-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-oilgas-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp" style="border-right:none;">
+      <div class="s2-cp-title">NIFTY PSU BANK</div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-psubank-ylbl"></div>
+        <svg id="s2-psubank-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-psubank-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-psubank-cap">—</div>
+    </div>
+  </div>
 </div>
 <!-- END SECTION 2 -->
 
@@ -1751,6 +1805,12 @@ function s2Render() {
     { sym:'NIFTY PHARMA',     svg:'s2-pharma-svg', ylbl:'s2-pharma-ylbl', tip:'s2-pharma-tip', cap:'s2-pharma-cap' },
     { sym:'NIFTY INFRA',      svg:'s2-infra-svg',  ylbl:'s2-infra-ylbl',  tip:'s2-infra-tip',  cap:'s2-infra-cap'  },
     { sym:'NIFTY REALTY',     svg:'s2-realty-svg', ylbl:'s2-realty-ylbl', tip:'s2-realty-tip', cap:'s2-realty-cap' },
+    // Row 4 — remaining sector indices (added 2026-04-25)
+    { sym:'NIFTY CONSR DURBL', svg:'s2-consdur-svg',ylbl:'s2-consdur-ylbl',tip:'s2-consdur-tip', cap:'s2-consdur-cap' },
+    { sym:'NIFTY HEALTHCARE',  svg:'s2-health-svg', ylbl:'s2-health-ylbl', tip:'s2-health-tip',  cap:'s2-health-cap'  },
+    { sym:'NIFTY METAL',       svg:'s2-metal-svg',  ylbl:'s2-metal-ylbl',  tip:'s2-metal-tip',   cap:'s2-metal-cap'   },
+    { sym:'NIFTY OIL AND GAS', svg:'s2-oilgas-svg', ylbl:'s2-oilgas-ylbl', tip:'s2-oilgas-tip',  cap:'s2-oilgas-cap'  },
+    { sym:'NIFTY PSU BANK',    svg:'s2-psubank-svg',ylbl:'s2-psubank-ylbl',tip:'s2-psubank-tip', cap:'s2-psubank-cap' },
   ];
   idxMap.forEach(function(cfg) {
     var rows = idxByName[cfg.sym] || [];
