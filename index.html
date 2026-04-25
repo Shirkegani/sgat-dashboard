@@ -415,6 +415,100 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 
 .s4-dr-lbl{color:var(--dim);}.s4-dr-val{font-weight:500;}
 
+/* ============================================================
+   SUPERVISOR BANNER (added 2026-04-25)
+   Sits between Section 1 (header) and Section 3.
+   Reads SupervisorState latest row, refreshed every 30s with the
+   rest of the dashboard payload.
+   ============================================================ */
+.sup-banner{background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  margin:0 18px 12px;padding:0;font-family:var(--font-mono);position:relative;}
+.sup-banner.collapsed .sup-row-full{display:none;}
+.sup-banner.collapsed .sup-row-mini{display:flex;}
+.sup-banner .sup-row-mini{display:none;}
+.sup-banner .sup-row-full{display:flex;align-items:stretch;flex-wrap:nowrap;}
+
+/* Toggle button — top-right corner */
+.sup-toggle{position:absolute;top:6px;right:8px;background:transparent;border:none;
+  color:var(--dim);font-family:var(--font-mono);font-size:0.6rem;cursor:pointer;
+  padding:2px 6px;letter-spacing:.05em;z-index:5;}
+.sup-toggle:hover{color:var(--text);}
+
+/* Each block */
+.sup-block{display:flex;flex-direction:column;justify-content:center;
+  padding:10px 14px;border-right:1px solid var(--border);min-height:78px;}
+.sup-block:last-child{border-right:none;}
+.sup-label{font-size:0.5rem;letter-spacing:.08em;color:var(--dim);
+  text-transform:uppercase;margin-bottom:5px;line-height:1;}
+
+/* Regime pill */
+.sup-pill{display:inline-block;font-weight:600;font-size:1rem;
+  padding:3px 10px;border-radius:4px;letter-spacing:.04em;line-height:1.2;}
+.sup-pill-bear{background:var(--red-bg);color:var(--red);}
+.sup-pill-bull{background:var(--green-bg);color:var(--green);}
+.sup-pill-chop{background:var(--amber-bg);color:var(--amber);}
+.sup-pill-na{background:rgba(58,80,96,0.15);color:var(--dim);}
+.sup-pill-meta{font-size:0.55rem;color:var(--dim);margin-top:3px;letter-spacing:.04em;}
+
+/* Action dots */
+.sup-dots{display:flex;gap:9px;}
+.sup-dot{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:default;}
+.sup-dot-glyph{width:8px;height:8px;border-radius:50%;background:#2a2f39;transition:all 0.2s;}
+.sup-dot.on .sup-dot-glyph{background:var(--red);box-shadow:0 0 6px rgba(255,77,106,0.55);}
+.sup-dot-lbl{font-size:0.5rem;color:var(--dim);letter-spacing:.04em;}
+.sup-dot.on .sup-dot-lbl{color:var(--red);}
+
+/* Breadth gauge */
+.sup-breadth-num{font-size:0.78rem;font-weight:500;color:var(--text);line-height:1.2;}
+.sup-breadth-num .now{color:var(--amber);}
+.sup-breadth-num .peak{color:var(--dim);}
+.sup-breadth-num .delta{font-size:0.58rem;margin-left:3px;}
+.sup-breadth-num .delta.bad{color:var(--red);}
+.sup-breadth-num .delta.warn{color:var(--amber);}
+.sup-breadth-num .delta.ok{color:var(--green);}
+.sup-breadth-bar{height:3px;background:var(--card);border-radius:2px;
+  margin-top:5px;position:relative;width:100px;}
+.sup-breadth-fill{position:absolute;height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--red) 0%,var(--amber) 100%);}
+
+/* Chips */
+.sup-chips{display:flex;gap:3px;flex-wrap:wrap;align-items:center;}
+.sup-chip{font-size:0.58rem;padding:2px 6px;border-radius:3px;letter-spacing:.02em;line-height:1.4;}
+.sup-chip-long{background:var(--green-bg);color:var(--green);
+  border:1px solid rgba(0,229,160,0.18);}
+.sup-chip-short{background:var(--red-bg);color:var(--red);
+  border:1px solid rgba(255,77,106,0.18);}
+.sup-chip-na{background:rgba(58,80,96,0.1);color:var(--dim);
+  border:1px solid rgba(58,80,96,0.2);}
+
+/* Reasoning */
+.sup-reason-block{flex:1;min-width:0;cursor:pointer;}
+.sup-reason{font-style:italic;font-size:0.62rem;color:var(--muted);
+  line-height:1.4;overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.sup-reason.expanded{-webkit-line-clamp:unset;display:block;}
+.sup-rules{font-size:0.5rem;color:var(--dim);margin-top:4px;
+  letter-spacing:.02em;line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sup-reason-block.expanded .sup-rules{white-space:normal;}
+
+/* Age block */
+.sup-age{align-items:flex-end;text-align:right;}
+.sup-age-num{font-size:0.95rem;font-weight:500;color:var(--text);line-height:1.1;}
+.sup-age-num.stale{color:var(--amber);}
+.sup-age-num.fresh{color:var(--green);}
+.sup-age-unit{font-size:0.55rem;color:var(--dim);font-weight:400;}
+.sup-age-tag{font-size:0.5rem;color:var(--amber);letter-spacing:.06em;margin-top:2px;}
+.sup-age-hhmm{font-size:0.55rem;color:var(--dim);margin-top:2px;}
+
+/* Mini (collapsed) row */
+.sup-row-mini{align-items:center;padding:6px 14px;gap:18px;}
+.sup-row-mini .sup-mini-pill{font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:3px;}
+.sup-row-mini .sup-mini-dots{display:flex;gap:6px;}
+.sup-row-mini .sup-mini-breadth{font-size:0.65rem;color:var(--text);}
+.sup-row-mini .sup-mini-breadth .delta{font-size:0.55rem;margin-left:3px;}
+.sup-row-mini .sup-mini-age{margin-left:auto;font-size:0.6rem;color:var(--dim);}
+
 </style>
 </head>
 <body>
@@ -487,6 +581,98 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   </div>
 </div>
 <!-- END SECTION 1 -->
+
+<!-- ============================================================
+     SUPERVISOR BANNER (added 2026-04-25)
+     Sheet: SupervisorState (latest cycle)
+     Renders: regime, action flags, breadth, top industries/indices,
+              reasoning, active rules, cycle age.
+     Collapsible: click ▾ to switch to single-line minimal mode.
+     State persists in localStorage as 'sgat_sup_collapsed'.
+     ============================================================ -->
+<div class="sup-banner" id="sup-banner">
+  <button class="sup-toggle" id="sup-toggle" onclick="supToggleCollapse()">▾</button>
+
+  <!-- Full row (default) -->
+  <div class="sup-row-full" id="sup-row-full">
+    <div class="sup-block">
+      <div class="sup-label">Regime</div>
+      <div class="sup-pill sup-pill-na" id="sup-regime">—</div>
+      <div class="sup-pill-meta" id="sup-regime-meta">— · wave —</div>
+    </div>
+
+    <div class="sup-block">
+      <div class="sup-label">Action flags</div>
+      <div class="sup-dots">
+        <div class="sup-dot" id="sup-dot-tl" title="tighten_trail_long"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">T-LONG</div></div>
+        <div class="sup-dot" id="sup-dot-ts" title="tighten_trail_short"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">T-SHORT</div></div>
+        <div class="sup-dot" id="sup-dot-fl" title="force_exit_long"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">F-LONG</div></div>
+        <div class="sup-dot" id="sup-dot-fs" title="force_exit_short"><div class="sup-dot-glyph"></div><div class="sup-dot-lbl">F-SHORT</div></div>
+      </div>
+    </div>
+
+    <div class="sup-block">
+      <div class="sup-label">Breadth</div>
+      <div class="sup-breadth-num">
+        <span class="now" id="sup-breadth-now">—</span> /
+        <span class="peak" id="sup-breadth-peak">—</span>
+        <span class="delta" id="sup-breadth-delta">—</span>
+      </div>
+      <div class="sup-breadth-bar"><div class="sup-breadth-fill" id="sup-breadth-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="sup-block">
+      <div class="sup-label">Long industries</div>
+      <div class="sup-chips" id="sup-chips-ind-long"><span class="sup-chip sup-chip-na">—</span></div>
+    </div>
+
+    <div class="sup-block">
+      <div class="sup-label">Short industries</div>
+      <div class="sup-chips" id="sup-chips-ind-short"><span class="sup-chip sup-chip-na">—</span></div>
+    </div>
+
+    <div class="sup-block">
+      <div class="sup-label">Long indices</div>
+      <div class="sup-chips" id="sup-chips-idx-long"><span class="sup-chip sup-chip-na">—</span></div>
+    </div>
+
+    <div class="sup-block">
+      <div class="sup-label">Short indices</div>
+      <div class="sup-chips" id="sup-chips-idx-short"><span class="sup-chip sup-chip-na">—</span></div>
+    </div>
+
+    <div class="sup-block sup-reason-block" id="sup-reason-block" onclick="supToggleReason()">
+      <div class="sup-label">Reasoning <span style="opacity:0.4">(click to expand)</span></div>
+      <div class="sup-reason" id="sup-reason">—</div>
+      <div class="sup-rules" id="sup-rules">—</div>
+    </div>
+
+    <div class="sup-block sup-age">
+      <div class="sup-label">Cycle age</div>
+      <div class="sup-age-num fresh" id="sup-age-num">— <span class="sup-age-unit">min</span></div>
+      <div class="sup-age-tag" id="sup-age-tag" style="display:none">STALE</div>
+      <div class="sup-age-hhmm" id="sup-age-hhmm">—</div>
+    </div>
+  </div>
+
+  <!-- Mini row (collapsed) -->
+  <div class="sup-row-mini" id="sup-row-mini">
+    <div class="sup-mini-pill sup-pill-na" id="sup-mini-regime">—</div>
+    <div class="sup-mini-dots">
+      <div class="sup-dot" id="sup-mini-tl" title="tighten_trail_long"><div class="sup-dot-glyph"></div></div>
+      <div class="sup-dot" id="sup-mini-ts" title="tighten_trail_short"><div class="sup-dot-glyph"></div></div>
+      <div class="sup-dot" id="sup-mini-fl" title="force_exit_long"><div class="sup-dot-glyph"></div></div>
+      <div class="sup-dot" id="sup-mini-fs" title="force_exit_short"><div class="sup-dot-glyph"></div></div>
+    </div>
+    <div class="sup-mini-breadth">
+      Breadth <span id="sup-mini-breadth-now" style="color:var(--amber)">—</span>
+      / <span id="sup-mini-breadth-peak" style="color:var(--dim)">—</span>
+      <span class="delta" id="sup-mini-breadth-delta">—</span>
+    </div>
+    <div class="sup-mini-age" id="sup-mini-age">—</div>
+  </div>
+</div>
+<!-- END SUPERVISOR BANNER -->
 
 <!-- DASH BODY START -->
 <div class="dash-body">
@@ -1609,6 +1795,7 @@ function onDateChange() {
 // ============================================================
 function renderAll() {
   s1UpdateClock();
+  supRender();
   s2Render();
   s3Render();
   s4RenderTable();
@@ -1619,6 +1806,208 @@ function renderAll() {
   s3DrawCurveFromState();
   // Mini KPI sparklines (Trades / W-L / WR / PF / Capital deployed)
   s3RenderMiniCurves();
+}
+
+// ============================================================
+// SUPERVISOR BANNER (added 2026-04-25)
+// Reads STATE.data.supervisor (set by Apps Script v6 dashboard route).
+// Refreshes via the same 30s cycle as everything else.
+// ============================================================
+
+// Initialize collapsed state from localStorage on first paint
+(function supInit(){
+  try {
+    var collapsed = localStorage.getItem('sgat_sup_collapsed') === '1';
+    if (collapsed) document.getElementById('sup-banner').classList.add('collapsed');
+    var btn = document.getElementById('sup-toggle');
+    if (btn) btn.textContent = collapsed ? '▸' : '▾';
+  } catch(e) {}
+})();
+
+function supToggleCollapse() {
+  var el = document.getElementById('sup-banner');
+  if (!el) return;
+  el.classList.toggle('collapsed');
+  var collapsed = el.classList.contains('collapsed');
+  document.getElementById('sup-toggle').textContent = collapsed ? '▸' : '▾';
+  try { localStorage.setItem('sgat_sup_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+}
+
+function supToggleReason() {
+  var el = document.getElementById('sup-reason-block');
+  if (!el) return;
+  el.classList.toggle('expanded');
+  document.getElementById('sup-reason').classList.toggle('expanded');
+}
+
+// Map regime string → pill CSS class
+function supRegimeClass(regime) {
+  var r = String(regime || '').toUpperCase();
+  if (r === 'BEAR') return 'sup-pill-bear';
+  if (r === 'BULL') return 'sup-pill-bull';
+  if (r === 'CHOP') return 'sup-pill-chop';
+  return 'sup-pill-na';
+}
+
+// Parse a comma-separated string into an array of trimmed non-empty strings
+function supSplitCsv(s) {
+  if (!s) return [];
+  return String(s).split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+}
+
+// Render a row of chips into a container
+function supRenderChips(containerId, items, cls) {
+  var c = document.getElementById(containerId);
+  if (!c) return;
+  if (!items || !items.length) {
+    c.innerHTML = '<span class="sup-chip sup-chip-na">—</span>';
+    return;
+  }
+  c.innerHTML = items.map(function(it){
+    return '<span class="sup-chip ' + cls + '">' + supEscape(it) + '</span>';
+  }).join('');
+}
+
+function supEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Convert breadth_decay_pct → bar fill % and color class
+// fill = (breadth_now / breadth_peak_today) clipped 0..100
+function supBreadthFill(now, peak) {
+  var n = parseFloat(now), p = parseFloat(peak);
+  if (!isFinite(n) || !isFinite(p) || p <= 0) return 0;
+  var pct = (n / p) * 100;
+  return Math.max(0, Math.min(100, pct));
+}
+
+function supDecayClass(decayPct) {
+  var d = parseFloat(decayPct);
+  if (!isFinite(d)) return '';
+  if (d > 40) return 'bad';
+  if (d > 20) return 'warn';
+  return 'ok';
+}
+
+function supFormatHHMM(hhmm) {
+  var n = parseFloat(hhmm);
+  if (!isFinite(n) || n <= 0) return '—';
+  var h = Math.floor(n / 100), m = n % 100;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+// Truthy check tolerant to TRUE/true/"1"/1/etc.
+function supIsTrue(v) {
+  if (v === true || v === 1) return true;
+  var s = String(v == null ? '' : v).trim().toUpperCase();
+  return s === 'TRUE' || s === '1' || s === 'YES';
+}
+
+// Set a single dot's on/off state (works for both full + mini rows)
+function supSetDot(id, on) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (on) el.classList.add('on');
+  else el.classList.remove('on');
+}
+
+// Main render — invoked from renderAll
+function supRender() {
+  var s = (STATE.data && STATE.data.supervisor) || null;
+
+  // Graceful degradation — if supervisor is null/undefined (older Apps Script
+  // version, missing sheet, or empty sheet), leave placeholders.
+  if (!s) {
+    document.getElementById('sup-regime').className = 'sup-pill sup-pill-na';
+    document.getElementById('sup-regime').textContent = '—';
+    document.getElementById('sup-mini-regime').className = 'sup-mini-pill sup-pill-na';
+    document.getElementById('sup-mini-regime').textContent = '—';
+    return;
+  }
+
+  // ── Block 1: Regime pill ──────────────────────────────────
+  var regime = String(s.regime || '—').toUpperCase();
+  var regClass = supRegimeClass(regime);
+  var regimePill = document.getElementById('sup-regime');
+  regimePill.className = 'sup-pill ' + regClass;
+  regimePill.textContent = regime;
+  var stableC = parseFloat(s.regime_stable_cycles);
+  var stableTxt = isFinite(stableC) ? (stableC.toFixed(0) + 'c') : '—';
+  var wave = String(s.wave_structure || '—').toUpperCase();
+  document.getElementById('sup-regime-meta').textContent = stableTxt + ' · wave ' + wave;
+  // mini
+  document.getElementById('sup-mini-regime').className = 'sup-mini-pill ' + regClass;
+  document.getElementById('sup-mini-regime').textContent = regime;
+
+  // ── Block 2: Action flags (4 dots) ────────────────────────
+  var tl = supIsTrue(s.tighten_trail_long);
+  var ts = supIsTrue(s.tighten_trail_short);
+  var fl = supIsTrue(s.force_exit_long);
+  var fs = supIsTrue(s.force_exit_short);
+  supSetDot('sup-dot-tl', tl);  supSetDot('sup-mini-tl', tl);
+  supSetDot('sup-dot-ts', ts);  supSetDot('sup-mini-ts', ts);
+  supSetDot('sup-dot-fl', fl);  supSetDot('sup-mini-fl', fl);
+  supSetDot('sup-dot-fs', fs);  supSetDot('sup-mini-fs', fs);
+
+  // ── Block 3: Breadth gauge ────────────────────────────────
+  var bNow  = parseFloat(s.breadth_now);
+  var bPeak = parseFloat(s.breadth_peak_today);
+  var bDec  = parseFloat(s.breadth_decay_pct);
+  var bNowTxt  = isFinite(bNow)  ? bNow.toFixed(1)  : '—';
+  var bPeakTxt = isFinite(bPeak) ? bPeak.toFixed(1) : '—';
+  var bDecTxt  = isFinite(bDec)  ? (bDec >= 0 ? '-' : '+') + Math.abs(bDec).toFixed(0) + '%' : '—';
+  var decCls   = supDecayClass(bDec);
+  document.getElementById('sup-breadth-now').textContent  = bNowTxt;
+  document.getElementById('sup-breadth-peak').textContent = bPeakTxt;
+  var dEl = document.getElementById('sup-breadth-delta');
+  dEl.textContent = bDecTxt;
+  dEl.className = 'delta ' + decCls;
+  document.getElementById('sup-breadth-fill').style.width = supBreadthFill(bNow, bPeak) + '%';
+  // mini
+  document.getElementById('sup-mini-breadth-now').textContent  = bNowTxt;
+  document.getElementById('sup-mini-breadth-peak').textContent = bPeakTxt;
+  var dEl2 = document.getElementById('sup-mini-breadth-delta');
+  dEl2.textContent = bDecTxt;
+  dEl2.className = 'delta ' + decCls;
+  dEl2.style.color = decCls === 'bad' ? 'var(--red)' : decCls === 'warn' ? 'var(--amber)' : 'var(--green)';
+
+  // ── Blocks 4-7: Top-3 chip groups ─────────────────────────
+  supRenderChips('sup-chips-ind-long',  supSplitCsv(s.top3_industries_long).slice(0,3),  'sup-chip-long');
+  supRenderChips('sup-chips-ind-short', supSplitCsv(s.top3_industries_short).slice(0,3), 'sup-chip-short');
+  supRenderChips('sup-chips-idx-long',  supSplitCsv(s.top3_indices_long).slice(0,3),     'sup-chip-long');
+  supRenderChips('sup-chips-idx-short', supSplitCsv(s.top3_indices_short).slice(0,3),    'sup-chip-short');
+
+  // ── Block 8: Reasoning + active rules ─────────────────────
+  document.getElementById('sup-reason').textContent = s.reasoning || '—';
+  var rules = supSplitCsv(s.active_rules);
+  document.getElementById('sup-rules').textContent =
+    rules.length ? rules.join(' · ') : '—';
+
+  // ── Block 9: Cycle age ────────────────────────────────────
+  // dayprofile_age_min is the freshness indicator. If absent, fall back to
+  // computing from cycle_ts vs now.
+  var ageMin = parseFloat(s.dayprofile_age_min);
+  if (!isFinite(ageMin) && s.cycle_ts) {
+    var d = new Date(s.cycle_ts);
+    if (!isNaN(d)) ageMin = Math.max(0, (Date.now() - d.getTime()) / 60000);
+  }
+  var ageEl = document.getElementById('sup-age-num');
+  if (isFinite(ageMin)) {
+    ageEl.innerHTML = Math.round(ageMin) + ' <span class="sup-age-unit">min</span>';
+    // STALE if older than 7 minutes (cycle is 5min, so > 7 means missed a cycle)
+    var stale = ageMin > 7;
+    ageEl.className = 'sup-age-num ' + (stale ? 'stale' : 'fresh');
+    document.getElementById('sup-age-tag').style.display = stale ? 'block' : 'none';
+  } else {
+    ageEl.innerHTML = '— <span class="sup-age-unit">min</span>';
+    ageEl.className = 'sup-age-num';
+    document.getElementById('sup-age-tag').style.display = 'none';
+  }
+  document.getElementById('sup-age-hhmm').textContent = supFormatHHMM(s.hhmm);
+  // mini
+  var miniAge = isFinite(ageMin) ? Math.round(ageMin) + 'm · ' + supFormatHHMM(s.hhmm) : '—';
+  document.getElementById('sup-mini-age').textContent = miniAge;
 }
 
 // ============================================================
