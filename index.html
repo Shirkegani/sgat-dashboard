@@ -533,6 +533,63 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sup-row-mini .sup-mini-breadth .delta{font-size:0.55rem;margin-left:3px;}
 .sup-row-mini .sup-mini-age{margin-left:auto;font-size:0.6rem;color:var(--dim);}
 
+/* ============================================================
+   INDUSTRY BREADTH STRIP (added 2026-04-26, Phase 3)
+   Sheet: IndustryContext (latest cycle, ~22 rows)
+   New section sitting between Section 2 (Day Profile) and the
+   EOD analytics. Shows all NSE industries as compact tiles ranked
+   by strength_rank.
+   ============================================================ */
+.ib-wrap{background:var(--card);border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;margin-bottom:10px;}
+.ib-hdr{display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;border-bottom:1px solid var(--border);}
+.ib-title{font-size:0.7rem;letter-spacing:.1em;color:var(--muted);
+  text-transform:uppercase;font-weight:500;}
+.ib-meta{font-size:0.62rem;color:var(--dim);letter-spacing:.04em;}
+.ib-meta .bull-cnt{color:var(--green);}
+.ib-meta .bear-cnt{color:var(--red);}
+.ib-meta .chop-cnt{color:var(--amber);}
+.ib-meta .flat-cnt{color:var(--dim);}
+.ib-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:10px 14px;}
+.ib-tile{background:var(--bg);border:1px solid var(--border);
+  border-left:2px solid var(--border);border-radius:4px;
+  padding:7px 9px;cursor:pointer;transition:all 0.15s;
+  min-height:78px;display:flex;flex-direction:column;gap:4px;
+  position:relative;}
+.ib-tile:hover{background:var(--surface);border-color:var(--border2);}
+.ib-tile.bull{border-left-color:var(--green);}
+.ib-tile.bear{border-left-color:var(--red);}
+.ib-tile.chop{border-left-color:var(--amber);}
+.ib-tile.flat{border-left-color:var(--dim);}
+.ib-trow{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
+.ib-tname{font-size:0.65rem;font-weight:500;color:var(--text);
+  line-height:1.2;overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  word-break:break-word;}
+.ib-rank{font-size:0.58rem;color:var(--dim);font-weight:500;flex-shrink:0;}
+.ib-rank.top{color:var(--amber);}
+.ib-pfo{font-size:0.92rem;font-weight:600;line-height:1;}
+.ib-pfo.green{color:var(--green);}
+.ib-pfo.red{color:var(--red);}
+.ib-pfo.amber{color:var(--amber);}
+.ib-pfo.dim{color:var(--dim);}
+.ib-meta-row{display:flex;gap:8px;font-size:0.55rem;
+  color:var(--dim);letter-spacing:.02em;line-height:1;flex-wrap:wrap;}
+.ib-meta-row .ib-br-pct{color:var(--muted);}
+/* Expanded tile — show top1/bot1 rows */
+.ib-tile.expanded{background:var(--surface);}
+.ib-expand{display:none;margin-top:6px;border-top:1px dashed var(--border);
+  padding-top:6px;font-size:0.55rem;color:var(--muted);line-height:1.5;}
+.ib-tile.expanded .ib-expand{display:block;}
+.ib-expand .ib-er{display:flex;justify-content:space-between;gap:6px;}
+.ib-expand .ib-esym{color:var(--text);font-weight:500;}
+.ib-expand .ib-eval{font-weight:500;}
+.ib-expand .ib-eval.green{color:var(--green);}
+.ib-expand .ib-eval.red{color:var(--red);}
+.ib-norows{padding:30px 14px;text-align:center;color:var(--dim);
+  font-size:0.65rem;font-style:italic;}
+
 </style>
 </head>
 <body>
@@ -1092,6 +1149,23 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   </div>
 </div>
 <!-- END SECTION 2 -->
+
+<!-- ============================================================
+     INDUSTRY BREADTH STRIP (added 2026-04-26, Phase 3)
+     Sheet: IndustryContext (latest cycle from Apps Script v6)
+     Shows ~22 NSE industries as 5-col grid tiles, sorted by strength_rank.
+     Click a tile to expand and see top1/bot1 symbols.
+     ============================================================ -->
+<div class="ib-wrap">
+  <div class="ib-hdr">
+    <div class="ib-title">Industry breadth · ranked by strength</div>
+    <div class="ib-meta" id="ib-meta">— industries</div>
+  </div>
+  <div class="ib-grid" id="ib-grid">
+    <div class="ib-norows">No industry data — Apps Script v6 returns industryctx.</div>
+  </div>
+</div>
+<!-- END INDUSTRY BREADTH STRIP -->
 
 <!-- ============================================================
      SECTION 12: SESSION QUALITY SCORE
@@ -1821,6 +1895,7 @@ function renderAll() {
   s1UpdateClock();
   supRender();
   s2Render();
+  ibRender();
   s3Render();
   s4RenderTable();
   renderEOD();
@@ -2032,6 +2107,130 @@ function supRender() {
   // mini
   var miniAge = isFinite(ageMin) ? Math.round(ageMin) + 'm · ' + supFormatHHMM(s.hhmm) : '—';
   document.getElementById('sup-mini-age').textContent = miniAge;
+}
+
+// ============================================================
+// INDUSTRY BREADTH STRIP (added 2026-04-26, Phase 3)
+// Reads STATE.data.industryctx — array of ~22 industry rows from
+// Apps Script v6. Renders 5-col grid sorted by strength_rank.
+// Refreshes every 30s with renderAll.
+// ============================================================
+
+// Map industry_structure → CSS class for left-border tinting
+function ibStructClass(s) {
+  var u = String(s || '').toUpperCase();
+  if (u === 'BULL') return 'bull';
+  if (u === 'BEAR') return 'bear';
+  if (u === 'CHOP') return 'chop';
+  return 'flat';
+}
+
+// Color-grade median pfo: red < -1%, amber -1..0%, green 0..1%, bright green > 1%
+function ibPfoClass(p) {
+  var n = parseFloat(p);
+  if (!isFinite(n)) return 'dim';
+  if (n <= -1.0) return 'red';
+  if (n < 0)     return 'amber';
+  if (n < 1.0)   return 'green';
+  return 'green';
+}
+
+function ibFmtPct(v, dp) {
+  var n = parseFloat(v);
+  if (!isFinite(n)) return '—';
+  var prefix = n > 0 ? '+' : '';
+  return prefix + n.toFixed(dp == null ? 2 : dp) + '%';
+}
+
+function ibEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Click handler — toggle expanded view on a tile (using event delegation)
+function ibToggleTile(idx) {
+  var tile = document.getElementById('ib-tile-' + idx);
+  if (tile) tile.classList.toggle('expanded');
+}
+
+function ibRender() {
+  var grid = document.getElementById('ib-grid');
+  var meta = document.getElementById('ib-meta');
+  if (!grid || !meta) return;
+
+  var rows = (STATE.data && STATE.data.industryctx) || [];
+  if (!Array.isArray(rows) || rows.length === 0) {
+    grid.innerHTML = '<div class="ib-norows">No industry data — Apps Script v6 returns industryctx.</div>';
+    meta.textContent = '— industries';
+    return;
+  }
+
+  // Sort by strength_rank ascending (rank 1 = strongest)
+  var sorted = rows.slice().sort(function(a,b){
+    var ra = parseFloat(a.strength_rank), rb = parseFloat(b.strength_rank);
+    if (!isFinite(ra)) ra = 999;
+    if (!isFinite(rb)) rb = 999;
+    return ra - rb;
+  });
+
+  // Header counts
+  var counts = { bull:0, bear:0, chop:0, flat:0 };
+  sorted.forEach(function(r){
+    var k = ibStructClass(r.industry_structure);
+    counts[k] = (counts[k] || 0) + 1;
+  });
+  meta.innerHTML = sorted.length + ' industries · ' +
+    '<span class="bull-cnt">' + counts.bull + ' bull</span> · ' +
+    '<span class="chop-cnt">' + counts.chop + ' chop</span> · ' +
+    '<span class="bear-cnt">' + counts.bear + ' bear</span>' +
+    (counts.flat ? ' · <span class="flat-cnt">' + counts.flat + ' flat</span>' : '');
+
+  // Build tiles
+  var html = sorted.map(function(r, i){
+    var struct = ibStructClass(r.industry_structure);
+    var pfoCls = ibPfoClass(r.median_pfo);
+    var rank = parseFloat(r.strength_rank);
+    var rankCls = (isFinite(rank) && rank <= 3) ? 'top' : '';
+    var name = ibEscape(r.industry || '—');
+
+    var pfoTxt = ibFmtPct(r.median_pfo);
+    var brTxt  = isFinite(parseFloat(r.pct_above_open))
+      ? Math.round(parseFloat(r.pct_above_open)) + '% &gt;op'
+      : '—';
+    var nstk = parseFloat(r.n_stocks);
+    var nstkTxt = isFinite(nstk) ? Math.round(nstk) + ' stk' : '— stk';
+
+    // Expand panel data
+    var top1Sym = ibEscape(r.top1_symbol || '—');
+    var bot1Sym = ibEscape(r.bot1_symbol || '—');
+    var top1Pfo = ibFmtPct(r.top1_pfo);
+    var bot1Pfo = ibFmtPct(r.bot1_pfo);
+    var top1ValCls = (parseFloat(r.top1_pfo) >= 0) ? 'green' : 'red';
+    var bot1ValCls = (parseFloat(r.bot1_pfo) >= 0) ? 'green' : 'red';
+
+    var rankTxt = isFinite(rank) ? '#' + Math.round(rank) : '#—';
+
+    return '<div class="ib-tile ' + struct + '" id="ib-tile-' + i +
+      '" onclick="ibToggleTile(' + i + ')">' +
+      '<div class="ib-trow">' +
+        '<div class="ib-tname">' + name + '</div>' +
+        '<div class="ib-rank ' + rankCls + '">' + rankTxt + '</div>' +
+      '</div>' +
+      '<div class="ib-pfo ' + pfoCls + '">' + pfoTxt + '</div>' +
+      '<div class="ib-meta-row">' +
+        '<span class="ib-br-pct">' + brTxt + '</span> · ' +
+        '<span class="ib-n">' + nstkTxt + '</span>' +
+      '</div>' +
+      '<div class="ib-expand">' +
+        '<div class="ib-er"><span class="ib-esym">▲ ' + top1Sym + '</span>' +
+          '<span class="ib-eval ' + top1ValCls + '">' + top1Pfo + '</span></div>' +
+        '<div class="ib-er"><span class="ib-esym">▼ ' + bot1Sym + '</span>' +
+          '<span class="ib-eval ' + bot1ValCls + '">' + bot1Pfo + '</span></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  grid.innerHTML = html;
 }
 
 // ============================================================
