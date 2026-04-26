@@ -590,6 +590,53 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .ib-norows{padding:30px 14px;text-align:center;color:var(--dim);
   font-size:0.65rem;font-style:italic;}
 
+/* ============================================================
+   SECTION 2 INDEX PANEL CHIPS (added 2026-04-26, Phase 2)
+   Sheet: IndexContext (latest cycle from Apps Script v6)
+   Each of the 15 sector panels gets a small chip showing:
+     [#rank ↑/↓/→] — color-coded by structure
+   Click chip to toggle a tooltip with velocity_5m / velocity_15m /
+   relative_to_nifty50 / EMA state.
+   ============================================================ */
+/* Make panel title a flex row so chip aligns to the right */
+.s2-idx-cp .s2-cp-title{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.s2-idx-cp .s2-cp-title .s2-cp-name{
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;}
+
+/* Chip itself */
+.s2-ix-chip{font-family:var(--font-mono);display:flex;align-items:center;gap:4px;
+  line-height:1;flex-shrink:0;cursor:pointer;}
+.s2-ix-chip .s2-ix-rk{color:var(--muted);font-weight:500;padding:2px 5px;
+  background:rgba(58,80,96,0.18);border-radius:3px;font-size:0.55rem;
+  letter-spacing:.02em;}
+.s2-ix-chip .s2-ix-rk.top{color:var(--amber);background:rgba(255,184,48,0.10);}
+.s2-ix-chip .s2-ix-ar{font-size:0.7rem;line-height:1;}
+.s2-ix-chip .s2-ix-ar.green{color:var(--green);}
+.s2-ix-chip .s2-ix-ar.red{color:var(--red);}
+.s2-ix-chip .s2-ix-ar.amber{color:var(--amber);}
+.s2-ix-chip .s2-ix-ar.dim{color:var(--dim);}
+.s2-ix-chip:hover .s2-ix-rk{background:rgba(58,80,96,0.28);}
+
+/* Tooltip — overlay positioned over the panel, shown on click */
+.s2-idx-cp{position:relative;}
+.s2-ix-tt{position:absolute;top:30px;right:8px;z-index:120;
+  background:var(--surface);border:1px solid var(--border2);border-radius:5px;
+  padding:8px 10px;min-width:180px;
+  font-family:var(--font-mono);font-size:0.58rem;
+  box-shadow:0 4px 12px rgba(0,0,0,0.35);
+  display:none;}
+.s2-ix-tt.open{display:block;}
+.s2-ix-tt .s2-ix-tt-row{display:flex;justify-content:space-between;gap:8px;
+  padding:2px 0;}
+.s2-ix-tt .s2-ix-tt-lbl{color:var(--dim);letter-spacing:.04em;
+  text-transform:uppercase;font-size:0.5rem;}
+.s2-ix-tt .s2-ix-tt-val{color:var(--text);font-weight:500;white-space:nowrap;}
+.s2-ix-tt .s2-ix-tt-val.green{color:var(--green);}
+.s2-ix-tt .s2-ix-tt-val.red{color:var(--red);}
+.s2-ix-tt .s2-ix-tt-val.amber{color:var(--amber);}
+.s2-ix-tt .s2-ix-tt-val.dim{color:var(--dim);}
+.s2-ix-tt .s2-ix-tt-sep{height:1px;background:var(--border);margin:4px 0;}
+
 </style>
 </head>
 <body>
@@ -989,7 +1036,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   <!-- Row 2: Broad-market size indices + heaviest-weight sectors -->
   <div class="s2-idx-row">
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY MIDCAP 150</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY MIDCAP 150</span><span class="s2-ix-chip" id="s2-ix-chip-mc150" onclick="s2IxToggleTip('mc150')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-mc150"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-mc150-ylbl"></div>
         <svg id="s2-mc150-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -999,7 +1047,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-mc150-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY MIDSML 400</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY MIDSML 400</span><span class="s2-ix-chip" id="s2-ix-chip-ms400" onclick="s2IxToggleTip('ms400')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-ms400"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-ms400-ylbl"></div>
         <svg id="s2-ms400-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1009,7 +1058,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-ms400-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY SMLCAP 250</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY SMLCAP 250</span><span class="s2-ix-chip" id="s2-ix-chip-sc250" onclick="s2IxToggleTip('sc250')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-sc250"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-sc250-ylbl"></div>
         <svg id="s2-sc250-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1019,7 +1069,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-sc250-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY BANK</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY BANK</span><span class="s2-ix-chip" id="s2-ix-chip-bank" onclick="s2IxToggleTip('bank')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-bank"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-bank-ylbl"></div>
         <svg id="s2-bank-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1029,7 +1080,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-bank-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp" style="border-right:none;">
-      <div class="s2-cp-title">NIFTY IT</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY IT</span><span class="s2-ix-chip" id="s2-ix-chip-it" onclick="s2IxToggleTip('it')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-it"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-it-ylbl"></div>
         <svg id="s2-it-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1043,7 +1095,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   <!-- Row 3: Remaining sector indices -->
   <div class="s2-idx-row">
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY AUTO</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY AUTO</span><span class="s2-ix-chip" id="s2-ix-chip-auto" onclick="s2IxToggleTip('auto')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-auto"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-auto-ylbl"></div>
         <svg id="s2-auto-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1053,7 +1106,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-auto-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY FMCG</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY FMCG</span><span class="s2-ix-chip" id="s2-ix-chip-fmcg" onclick="s2IxToggleTip('fmcg')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-fmcg"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-fmcg-ylbl"></div>
         <svg id="s2-fmcg-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1063,7 +1117,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-fmcg-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY PHARMA</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY PHARMA</span><span class="s2-ix-chip" id="s2-ix-chip-pharma" onclick="s2IxToggleTip('pharma')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-pharma"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-pharma-ylbl"></div>
         <svg id="s2-pharma-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1073,7 +1128,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-pharma-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY INFRA</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY INFRA</span><span class="s2-ix-chip" id="s2-ix-chip-infra" onclick="s2IxToggleTip('infra')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-infra"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-infra-ylbl"></div>
         <svg id="s2-infra-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1083,7 +1139,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-infra-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp" style="border-right:none;">
-      <div class="s2-cp-title">NIFTY REALTY</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY REALTY</span><span class="s2-ix-chip" id="s2-ix-chip-realty" onclick="s2IxToggleTip('realty')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-realty"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-realty-ylbl"></div>
         <svg id="s2-realty-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1097,7 +1154,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   <!-- Row 4: Remaining sector indices (added 2026-04-25) -->
   <div class="s2-idx-row">
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY CONSR DURBL</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY CONSR DURBL</span><span class="s2-ix-chip" id="s2-ix-chip-consdur" onclick="s2IxToggleTip('consdur')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-consdur"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-consdur-ylbl"></div>
         <svg id="s2-consdur-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1107,7 +1165,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-consdur-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY HEALTHCARE</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY HEALTHCARE</span><span class="s2-ix-chip" id="s2-ix-chip-health" onclick="s2IxToggleTip('health')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-health"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-health-ylbl"></div>
         <svg id="s2-health-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1117,7 +1176,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-health-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY METAL</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY METAL</span><span class="s2-ix-chip" id="s2-ix-chip-metal" onclick="s2IxToggleTip('metal')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-metal"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-metal-ylbl"></div>
         <svg id="s2-metal-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1127,7 +1187,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-metal-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title">NIFTY OIL AND GAS</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY OIL AND GAS</span><span class="s2-ix-chip" id="s2-ix-chip-oilgas" onclick="s2IxToggleTip('oilgas')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-oilgas"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-oilgas-ylbl"></div>
         <svg id="s2-oilgas-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1137,7 +1198,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-oilgas-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp" style="border-right:none;">
-      <div class="s2-cp-title">NIFTY PSU BANK</div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY PSU BANK</span><span class="s2-ix-chip" id="s2-ix-chip-psubank" onclick="s2IxToggleTip('psubank')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-psubank"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
         <div class="s2-ylbl-wrap" id="s2-psubank-ylbl"></div>
         <svg id="s2-psubank-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
@@ -1895,6 +1957,7 @@ function renderAll() {
   s1UpdateClock();
   supRender();
   s2Render();
+  s2IxRender();
   ibRender();
   s3Render();
   s4RenderTable();
@@ -2256,6 +2319,175 @@ function s1UpdateClock() {
   // countdown label
   document.getElementById('s1-refresh-btn').title = 'Refresh · Next in ' + STATE.countdownSec + 's';
 }
+
+// ============================================================
+// SECTION 2 INDEX PANEL CHIPS (added 2026-04-26, Phase 2)
+// Reads STATE.data.indexctx (16 rows from Apps Script v6 IndexContext).
+// Renders rank+structure chip on each of the 15 sector panels.
+// Click chip → toggles a detail tooltip with velocity & EMA state.
+// ============================================================
+
+// Sector-panel prefix → IndexContext symbol name
+// (NIFTY 50 panel is excluded — has its own multi-row data display)
+var S2_IX_PANELS = [
+  ['mc150',   'NIFTY MIDCAP 150'],
+  ['ms400',   'NIFTY MIDSML 400'],
+  ['sc250',   'NIFTY SMLCAP 250'],
+  ['bank',    'NIFTY BANK'],
+  ['it',      'NIFTY IT'],
+  ['auto',    'NIFTY AUTO'],
+  ['fmcg',    'NIFTY FMCG'],
+  ['pharma',  'NIFTY PHARMA'],
+  ['infra',   'NIFTY INFRA'],
+  ['realty',  'NIFTY REALTY'],
+  ['consdur', 'NIFTY CONSR DURBL'],
+  ['health',  'NIFTY HEALTHCARE'],
+  ['metal',   'NIFTY METAL'],
+  ['oilgas',  'NIFTY OIL AND GAS'],
+  ['psubank', 'NIFTY PSU BANK']
+];
+
+// Map structure → arrow glyph + color class
+function s2IxArrow(structure) {
+  var u = String(structure || '').toUpperCase();
+  if (u === 'BULL') return { glyph:'↑', cls:'green' };
+  if (u === 'BEAR') return { glyph:'↓', cls:'red' };
+  if (u === 'CHOP') return { glyph:'→', cls:'amber' };
+  return { glyph:'·', cls:'dim' };
+}
+
+// Format a numeric value for tooltip — handles signs and precision
+function s2IxFmt(v, dp, suffix) {
+  var n = parseFloat(v);
+  if (!isFinite(n)) return '—';
+  var prefix = n > 0 ? '+' : '';
+  return prefix + n.toFixed(dp == null ? 2 : dp) + (suffix || '');
+}
+
+// Class for a number: positive → green, negative → red, dim if NaN
+function s2IxNumCls(v) {
+  var n = parseFloat(v);
+  if (!isFinite(n)) return 'dim';
+  if (n > 0) return 'green';
+  if (n < 0) return 'red';
+  return 'dim';
+}
+
+function s2IxEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Build a sym→row map from STATE.data.indexctx
+function s2IxBuildMap() {
+  var rows = (STATE.data && STATE.data.indexctx) || [];
+  if (!Array.isArray(rows)) return {};
+  var m = {};
+  rows.forEach(function(r){
+    var sym = String(r.symbol || r.index_symbol || r.index_name || '').trim().toUpperCase();
+    if (sym) m[sym] = r;
+  });
+  return m;
+}
+
+// Click handler — toggle a tooltip; close others first
+function s2IxToggleTip(prefix) {
+  var tt = document.getElementById('s2-ix-tt-' + prefix);
+  if (!tt) return;
+  var wasOpen = tt.classList.contains('open');
+  // Close all chip tooltips first
+  document.querySelectorAll('.s2-ix-tt.open').forEach(function(el){
+    el.classList.remove('open');
+  });
+  if (!wasOpen) tt.classList.add('open');
+}
+
+// Populate a single panel's chip and tooltip from a context row
+function s2IxRenderPanel(prefix, row) {
+  var chip = document.getElementById('s2-ix-chip-' + prefix);
+  var tt   = document.getElementById('s2-ix-tt-' + prefix);
+  if (!chip || !tt) return;
+
+  if (!row) {
+    chip.innerHTML = '';
+    tt.innerHTML = '';
+    return;
+  }
+
+  // Chip — rank badge + colored arrow
+  var rank = parseFloat(row.strength_rank);
+  var rankTxt = isFinite(rank) ? '#' + Math.round(rank) : '#—';
+  var rankCls = (isFinite(rank) && rank <= 3) ? ' top' : '';
+  var arr = s2IxArrow(row.structure || row.industry_structure);
+  chip.innerHTML =
+    '<span class="s2-ix-rk' + rankCls + '">' + rankTxt + '</span>' +
+    '<span class="s2-ix-ar ' + arr.cls + '">' + arr.glyph + '</span>';
+
+  // Tooltip — velocity, relative_to_nifty50, EMA state, structure
+  // Field names tolerated: velocity_5m / vel_5m, velocity_15m / vel_15m,
+  // relative_to_nifty50 / rel_to_nifty50 / rel_nifty, ema_state / pfo_ema_state
+  var vel5  = row.velocity_5m  != null ? row.velocity_5m  : row.vel_5m;
+  var vel15 = row.velocity_15m != null ? row.velocity_15m : row.vel_15m;
+  var rel   = row.relative_to_nifty50 != null ? row.relative_to_nifty50
+            : (row.rel_to_nifty50 != null ? row.rel_to_nifty50 : row.rel_nifty);
+  var ema   = row.ema_state || row.pfo_ema_state || '—';
+  var pfo   = row.pfo != null ? row.pfo : row.pct_from_open;
+  var struct = row.structure || row.industry_structure || '—';
+
+  // Build the tooltip rows
+  var pfoCls = s2IxNumCls(pfo);
+  var v5Cls  = s2IxNumCls(vel5);
+  var v15Cls = s2IxNumCls(vel15);
+  var relCls = s2IxNumCls(rel);
+  var emaCls = (function(){
+    var u = String(ema).toUpperCase();
+    if (u.indexOf('BULL') >= 0 || u === 'ABOVE') return 'green';
+    if (u.indexOf('BEAR') >= 0 || u === 'BELOW') return 'red';
+    return 'dim';
+  })();
+  var structCls = (function(){
+    var u = String(struct).toUpperCase();
+    if (u === 'BULL') return 'green';
+    if (u === 'BEAR') return 'red';
+    if (u === 'CHOP') return 'amber';
+    return 'dim';
+  })();
+
+  tt.innerHTML =
+    '<div class="s2-ix-tt-row"><span class="s2-ix-tt-lbl">Rank</span>' +
+      '<span class="s2-ix-tt-val">' + rankTxt + ' / 16</span></div>' +
+    '<div class="s2-ix-tt-row"><span class="s2-ix-tt-lbl">Structure</span>' +
+      '<span class="s2-ix-tt-val ' + structCls + '">' + s2IxEscape(struct) + '</span></div>' +
+    '<div class="s2-ix-tt-sep"></div>' +
+    '<div class="s2-ix-tt-row"><span class="s2-ix-tt-lbl">% from open</span>' +
+      '<span class="s2-ix-tt-val ' + pfoCls + '">' + s2IxFmt(pfo, 2, '%') + '</span></div>' +
+    '<div class="s2-ix-tt-row"><span class="s2-ix-tt-lbl">Velocity 5m</span>' +
+      '<span class="s2-ix-tt-val ' + v5Cls + '">' + s2IxFmt(vel5, 2, '%') + '</span></div>' +
+    '<div class="s2-ix-tt-row"><span class="s2-ix-tt-lbl">Velocity 15m</span>' +
+      '<span class="s2-ix-tt-val ' + v15Cls + '">' + s2IxFmt(vel15, 2, '%') + '</span></div>' +
+    '<div class="s2-ix-tt-sep"></div>' +
+    '<div class="s2-ix-tt-row"><span class="s2-ix-tt-lbl">vs NIFTY 50</span>' +
+      '<span class="s2-ix-tt-val ' + relCls + '">' + s2IxFmt(rel, 2, '%') + '</span></div>' +
+    '<div class="s2-ix-tt-row"><span class="s2-ix-tt-lbl">EMA state</span>' +
+      '<span class="s2-ix-tt-val ' + emaCls + '">' + s2IxEscape(ema) + '</span></div>';
+}
+
+// Main render — called from renderAll
+function s2IxRender() {
+  var map = s2IxBuildMap();
+  S2_IX_PANELS.forEach(function(p){
+    s2IxRenderPanel(p[0], map[p[1].toUpperCase()] || null);
+  });
+}
+
+// Close any open chip tooltip when clicking outside the chip area
+document.addEventListener('click', function(ev){
+  if (ev.target && ev.target.closest && ev.target.closest('.s2-ix-chip')) return;
+  if (ev.target && ev.target.closest && ev.target.closest('.s2-ix-tt')) return;
+  document.querySelectorAll('.s2-ix-tt.open').forEach(function(el){
+    el.classList.remove('open');
+  });
+});
 
 // ============================================================
 // SECTION 2 — DAY PROFILE INTELLIGENCE
