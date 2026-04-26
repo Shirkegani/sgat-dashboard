@@ -2300,6 +2300,19 @@ function ibRender() {
 // SECTION 1 — CLOCK & MARKET STATUS
 // ============================================================
 function pad(n) { return String(n).padStart(2,'0'); }
+
+// Returns true if Indian markets are currently open (Mon-Fri, 9:15-15:30 IST).
+// Does not account for market holidays — those will generate at most one
+// wasted fetch per holiday before user manually disables auto-refresh.
+function isMarketOpen() {
+  var now = new Date();
+  var ist = new Date(now.getTime() + (now.getTimezoneOffset()+330)*60000);
+  var minutes = ist.getHours() * 60 + ist.getMinutes();
+  var dayOfWeek = ist.getDay();  // 0=Sun, 1=Mon ... 6=Sat
+  return dayOfWeek >= 1 && dayOfWeek <= 5
+      && minutes >= 555 && minutes <= 930;  // 9:15 = 555, 15:30 = 930
+}
+
 function s1UpdateClock() {
   var now = new Date();
   var ist = new Date(now.getTime() + (now.getTimezoneOffset()+330)*60000);
@@ -2308,16 +2321,23 @@ function s1UpdateClock() {
   document.getElementById('s1-day').textContent = da[ist.getDay()];
   document.getElementById('s1-time').textContent = pad(ist.getHours())+':'+pad(ist.getMinutes())+':'+pad(ist.getSeconds());
   document.getElementById('s1-date').textContent = pad(ist.getDate())+' '+mo[ist.getMonth()]+' '+ist.getFullYear();
-  var m = ist.getHours()*60 + ist.getMinutes();
-  var day = ist.getDay(); var open = m >= 555 && m <= 930 && day >= 1 && day <= 5;
+  var open = isMarketOpen();
   var badge = document.getElementById('s1-market-badge');
   var dot = document.getElementById('s1-dot');
   var txt = document.getElementById('s1-market-text');
   badge.className = 's1-badge ' + (open ? 's1-open' : 's1-closed');
   dot.className = 's1-dot ' + (open ? 's1-dot-open' : 's1-dot-closed');
   txt.textContent = open ? 'MARKET OPEN' : 'MARKET CLOSED';
-  // countdown label
-  document.getElementById('s1-refresh-btn').title = 'Refresh · Next in ' + STATE.countdownSec + 's';
+  // Refresh button title — reflects whether auto-refresh is active
+  var btn = document.getElementById('s1-refresh-btn');
+  var autoActive = (STATE.selectedDate === 'today') && open;
+  if (autoActive) {
+    btn.title = 'Refresh · Next auto-refresh in ' + STATE.countdownSec + 's';
+  } else if (STATE.selectedDate !== 'today') {
+    btn.title = 'Refresh · Auto-refresh paused (viewing historical data)';
+  } else {
+    btn.title = 'Refresh · Auto-refresh paused (market closed)';
+  }
 }
 
 // ============================================================
@@ -5499,7 +5519,11 @@ function startCountdown() {
     s1UpdateClock();
     if(STATE.countdownSec<=0){
       STATE.countdownSec=interval;
-      if(STATE.selectedDate==='today') fetchAll();
+      // Auto-refresh ONLY when viewing today AND market is open.
+      // - Historical data is static — no need to refetch
+      // - After market close, sheets stop updating — no point fetching
+      // Manual refresh button bypasses these gates and always works.
+      if(STATE.selectedDate==='today' && isMarketOpen()) fetchAll();
     }
   },1000);
 }
