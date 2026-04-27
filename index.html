@@ -5748,11 +5748,24 @@ function s3StocksPopupOpen(source, value, displayTitle) {
     return v === target;
   });
 
-  // Sort by abs(pct_from_open) descending (biggest movers first)
+  // Sort: positives first (by pct desc), then negatives (by pct asc — biggest
+  // loser first), then stocks with no pct data. This gives a clean
+  // green-block then red-block visual grouping.
   matches.sort(function(a, b) {
-    var pa = Math.abs(parseFloat(a.pct_from_open) || 0);
-    var pb = Math.abs(parseFloat(b.pct_from_open) || 0);
-    return pb - pa;
+    var pa = parseFloat(a.pct_from_open);
+    var pb = parseFloat(b.pct_from_open);
+    var va = isFinite(pa);
+    var vb = isFinite(pb);
+    // No-data rows go to the bottom
+    if (!va && !vb) return 0;
+    if (!va) return 1;
+    if (!vb) return -1;
+    // Positive vs negative grouping
+    var sa = pa >= 0 ? 0 : 1;  // 0 = positive group, 1 = negative group
+    var sb = pb >= 0 ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    // Within positive group: bigger first; within negative group: more-negative first
+    return sa === 0 ? (pb - pa) : (pa - pb);
   });
 
   // Set header
@@ -5849,7 +5862,6 @@ window.onload = function() {
         <div class="sp-head-lbl" id="sp-head-lbl">—</div>
         <div class="sp-head-name" id="sp-head-name">—</div>
       </div>
-      <div class="sp-close" onclick="s3StocksPopupClose()">×</div>
     </div>
     <div class="sp-body" id="sp-body"></div>
   </div>
