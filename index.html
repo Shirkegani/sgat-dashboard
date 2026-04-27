@@ -1209,6 +1209,65 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-psubank-cap">—</div>
     </div>
   </div>
+
+  <!-- Row 5 — added 2026-04-27: NIFTY CONSUMPTION, ENERGY, FIN SERVICE, MEDIA, SERV SECTOR -->
+  <div class="s2-idx-row">
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY CONSUMPTION</span><span class="s2-ix-chip" id="s2-ix-chip-cons" onclick="s2IxToggleTip('cons')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-cons"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-cons-ylbl"></div>
+        <svg id="s2-cons-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-cons-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-cons-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY ENERGY</span><span class="s2-ix-chip" id="s2-ix-chip-energy" onclick="s2IxToggleTip('energy')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-energy"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-energy-ylbl"></div>
+        <svg id="s2-energy-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-energy-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-energy-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY FIN SERVICE</span><span class="s2-ix-chip" id="s2-ix-chip-finsvc" onclick="s2IxToggleTip('finsvc')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-finsvc"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-finsvc-ylbl"></div>
+        <svg id="s2-finsvc-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-finsvc-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-finsvc-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY MEDIA</span><span class="s2-ix-chip" id="s2-ix-chip-media" onclick="s2IxToggleTip('media')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-media"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-media-ylbl"></div>
+        <svg id="s2-media-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-media-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-media-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp" style="border-right:none;">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY SERV SECTOR</span><span class="s2-ix-chip" id="s2-ix-chip-servsec" onclick="s2IxToggleTip('servsec')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-servsec"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-servsec-ylbl"></div>
+        <svg id="s2-servsec-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-servsec-tip"></div>
+      </div>
+      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-note s2-idx-note" id="s2-servsec-cap">—</div>
+    </div>
+  </div>
 </div>
 <!-- END SECTION 2 -->
 
@@ -2364,7 +2423,13 @@ var S2_IX_PANELS = [
   ['health',  'NIFTY HEALTHCARE'],
   ['metal',   'NIFTY METAL'],
   ['oilgas',  'NIFTY OIL AND GAS'],
-  ['psubank', 'NIFTY PSU BANK']
+  ['psubank', 'NIFTY PSU BANK'],
+  // Row 5 — added 2026-04-27
+  ['cons',    'NIFTY CONSUMPTION'],
+  ['energy',  'NIFTY ENERGY'],
+  ['finsvc',  'NIFTY FIN SERVICE'],
+  ['media',   'NIFTY MEDIA'],
+  ['servsec', 'NIFTY SERV SECTOR']
 ];
 
 // Map structure → arrow glyph + color class
@@ -2675,6 +2740,12 @@ function s2Render() {
     { sym:'NIFTY METAL',       svg:'s2-metal-svg',  ylbl:'s2-metal-ylbl',  tip:'s2-metal-tip',   cap:'s2-metal-cap'   },
     { sym:'NIFTY OIL AND GAS', svg:'s2-oilgas-svg', ylbl:'s2-oilgas-ylbl', tip:'s2-oilgas-tip',  cap:'s2-oilgas-cap'  },
     { sym:'NIFTY PSU BANK',    svg:'s2-psubank-svg',ylbl:'s2-psubank-ylbl',tip:'s2-psubank-tip', cap:'s2-psubank-cap' },
+    // Row 5 — added 2026-04-27
+    { sym:'NIFTY CONSUMPTION', svg:'s2-cons-svg',   ylbl:'s2-cons-ylbl',   tip:'s2-cons-tip',    cap:'s2-cons-cap'    },
+    { sym:'NIFTY ENERGY',      svg:'s2-energy-svg', ylbl:'s2-energy-ylbl', tip:'s2-energy-tip',  cap:'s2-energy-cap'  },
+    { sym:'NIFTY FIN SERVICE', svg:'s2-finsvc-svg', ylbl:'s2-finsvc-ylbl', tip:'s2-finsvc-tip',  cap:'s2-finsvc-cap'  },
+    { sym:'NIFTY MEDIA',       svg:'s2-media-svg',  ylbl:'s2-media-ylbl',  tip:'s2-media-tip',   cap:'s2-media-cap'   },
+    { sym:'NIFTY SERV SECTOR', svg:'s2-servsec-svg',ylbl:'s2-servsec-ylbl',tip:'s2-servsec-tip', cap:'s2-servsec-cap' },
   ];
   idxMap.forEach(function(cfg) {
     var rows = idxByName[cfg.sym] || [];
@@ -4537,6 +4608,12 @@ function s2AddHovers(prof, niftyData) {
     { svg:'s2-metal-svg',  tip:'s2-metal-tip',  label:'METAL'      },
     { svg:'s2-oilgas-svg', tip:'s2-oilgas-tip', label:'OIL & GAS'  },
     { svg:'s2-psubank-svg',tip:'s2-psubank-tip',label:'PSU BANK'   },
+    // Row 5 — added 2026-04-27
+    { svg:'s2-cons-svg',   tip:'s2-cons-tip',   label:'CONSUMPTION'},
+    { svg:'s2-energy-svg', tip:'s2-energy-tip', label:'ENERGY'     },
+    { svg:'s2-finsvc-svg', tip:'s2-finsvc-tip', label:'FIN SERVICE'},
+    { svg:'s2-media-svg',  tip:'s2-media-tip',  label:'MEDIA'      },
+    { svg:'s2-servsec-svg',tip:'s2-servsec-tip',label:'SERV SECTOR'},
   ];
   idxHoverMap.forEach(function(cfg) {
     var svgEl = document.getElementById(cfg.svg);
