@@ -635,14 +635,14 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   text-transform:uppercase;
 }
 .sp-grid-hd{
-  display:grid;grid-template-columns:1fr 100px 80px 100px 90px;gap:10px;
+  display:grid;grid-template-columns:1fr 100px 110px 90px 90px;gap:10px;
   padding:6px 18px;font-size:0.6rem;color:var(--dim);
   letter-spacing:0.08em;border-bottom:1px solid var(--border);
   text-transform:uppercase;
 }
 .sp-grid-hd > span:not(:first-child){text-align:right;}
 .sp-row{
-  display:grid;grid-template-columns:1fr 100px 80px 100px 90px;gap:10px;
+  display:grid;grid-template-columns:1fr 100px 110px 90px 90px;gap:10px;
   padding:7px 18px;font-size:0.72rem;align-items:center;
   cursor:pointer;
 }
@@ -658,6 +658,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sp-side-pill{
   display:inline-block;padding:1px 8px;border-radius:3px;
   font-size:0.6rem;letter-spacing:0.05em;font-weight:500;
+  white-space:nowrap;
 }
 .sp-side-pill.long{background:rgba(34,197,94,0.12);color:var(--green);}
 .sp-side-pill.short{background:rgba(239,68,68,0.12);color:var(--red);}
@@ -681,6 +682,21 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sp-head-stat-val.green{color:var(--green);}
 .sp-head-stat-val.red{color:var(--red);}
 .sp-head-stat-val.amber{color:var(--amber);}
+
+/* Trade summary KPIs (Round 2b — 2026-04-27) */
+.sp-trade-kpis{
+  display:flex;gap:18px;padding:8px 18px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+}
+.sp-trade-kpi{display:flex;flex-direction:column;gap:1px;}
+.sp-trade-kpi-lbl{
+  color:var(--dim);font-size:0.55rem;letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.sp-trade-kpi-val{font-size:0.78rem;font-weight:500;color:var(--text);}
+.sp-trade-kpi-val.green{color:var(--green);}
+.sp-trade-kpi-val.red{color:var(--red);}
+.sp-trade-kpi-val.dim{color:var(--dim);}
 
 /* ============================================================
    SECTION 2 INDEX PANEL CHIPS (added 2026-04-26, Phase 2)
@@ -4494,6 +4510,11 @@ function s4CloseDrill() {
   document.getElementById('s4-overlay').classList.remove('show');
   document.getElementById('s4-drill').classList.remove('open');
   s4RenderTable();
+  // If the drill was opened from the stocks popup, restore the popup.
+  // No-op if popup wasn't hidden — normal Section 4 drill behavior unchanged.
+  if (typeof s3StocksPopupShow === 'function') {
+    s3StocksPopupShow();
+  }
 }
 
 function s4DrawChart(vals, entry, trail, peak) {
@@ -5727,22 +5748,25 @@ function startCountdown() {
 }
 
 // ============================================================
-// STOCKS POPUP — Round 2 (added 2026-04-27)
+// STOCKS POPUP — Round 2b (added 2026-04-27)
 // Reusable popup that lists all constituent stocks of an industry
 // or index, with trade overlay and clickable rows.
 //
-// Round 2 (this version):
-//   - Trade overlay: side/pnl/pnl% pulled from STATE.data.positions
-//   - "Your trades" section at top (open positions then closed/exited)
-//   - "All stocks" section below (positives → negatives)
-//   - Header shows summary stats (rank, structure, median, breadth) for industries
-//   - Row click → opens existing s4 side drill panel for that stock
+// Round 2b changes from Round 2:
+//   - "All stocks" now includes the FULL list (traded stocks appear
+//     in both "Your trades" section AND "All stocks" section)
+//   - Traded stocks sorted by pnl_pct descending (single key for
+//     both open + closed, so winners are at top, losers at bottom)
+//   - "Your trades" section now has KPI summary strip (counts, net
+//     pnl, win rate) at the top
+//   - Row click HIDES the popup (not closes); side panel slides over.
+//     When side panel closes, popup is restored automatically.
 //
 // Round 3 will add: index chip hookup, ESC key.
 // ============================================================
 function s3StocksPopupOpen(source, value, displayTitle) {
   // Source = 'industry' or 'index'
-  // Value  = the industry name or theme index name (e.g. "Capital Goods" or "NIFTY IT")
+  // Value  = the industry name or theme index name
   // displayTitle = human-readable label for header
   var ctx = (STATE.data && STATE.data.context) || [];
   if (!Array.isArray(ctx) || ctx.length === 0) return;
@@ -5757,7 +5781,7 @@ function s3StocksPopupOpen(source, value, displayTitle) {
     return v === target;
   });
 
-  // Build a positions-by-symbol map for quick lookup (trade overlay)
+  // Build a positions-by-symbol map for trade overlay
   var positions = (STATE.data && STATE.data.positions) || [];
   var posMap = Object.create(null);
   positions.forEach(function(p) {
@@ -5765,19 +5789,17 @@ function s3StocksPopupOpen(source, value, displayTitle) {
     if (s) posMap[s] = p;
   });
 
-  // Annotate each row with its trade state for sorting + rendering
+  // Annotate each row with its trade state
   matches.forEach(function(r) {
     var s = String(r.tradingsymbol || '').trim().toUpperCase();
     var p = posMap[s];
-    r._trade = null;  // 'open' | 'closed' | null
+    r._trade = null;
     r._tradeData = null;
     if (p) {
       var qty = parseFloat(p.quantity);
       var pnl = parseFloat(p.pnl);
       var pnlPct = parseFloat(p.pnl_pct);
       var side = String(p.side || '').toUpperCase();
-      // OPEN: qty != 0 (position currently held)
-      // CLOSED: qty == 0 with both buy and sell happened (exited)
       var isOpen = isFinite(qty) && qty !== 0;
       var isClosed = (qty === 0) && (
         parseFloat(p.buy_quantity) > 0 && parseFloat(p.sell_quantity) > 0
@@ -5790,25 +5812,26 @@ function s3StocksPopupOpen(source, value, displayTitle) {
     }
   });
 
-  // Split into your-trades vs other
+  // Your trades = subset of stocks you've traded
   var yourTrades = matches.filter(function(r){ return r._trade !== null; });
-  var others     = matches.filter(function(r){ return r._trade === null; });
 
-  // Sort yourTrades: open first (by abs % desc), then closed (by abs pnl desc)
+  // Sort yourTrades by pnl_pct desc (highest gain first, biggest loser last)
+  // Stocks without pnl_pct (NaN) drop to the bottom.
   yourTrades.sort(function(a, b){
-    if (a._trade !== b._trade) return a._trade === 'open' ? -1 : 1;
-    if (a._trade === 'open') {
-      var pa = Math.abs(parseFloat(a.pct_from_open) || 0);
-      var pb = Math.abs(parseFloat(b.pct_from_open) || 0);
-      return pb - pa;
-    }
-    var ea = Math.abs((a._tradeData && a._tradeData.pnl) || 0);
-    var eb = Math.abs((b._tradeData && b._tradeData.pnl) || 0);
-    return eb - ea;
+    var pa = (a._tradeData && parseFloat(a._tradeData.pnl_pct));
+    var pb = (b._tradeData && parseFloat(b._tradeData.pnl_pct));
+    var va = isFinite(pa);
+    var vb = isFinite(pb);
+    if (!va && !vb) return 0;
+    if (!va) return 1;
+    if (!vb) return -1;
+    return pb - pa;
   });
 
-  // Sort others: positives first (by pct desc), then negatives (by pct asc), nulls last
-  others.sort(function(a, b) {
+  // All stocks = the FULL match list (traded + untraded together)
+  // Sort: positives first by pct desc, then negatives by pct asc, nulls last
+  var allStocks = matches.slice();
+  allStocks.sort(function(a, b) {
     var pa = parseFloat(a.pct_from_open);
     var pb = parseFloat(b.pct_from_open);
     var va = isFinite(pa);
@@ -5822,30 +5845,44 @@ function s3StocksPopupOpen(source, value, displayTitle) {
     return sa === 0 ? (pb - pa) : (pa - pb);
   });
 
-  // Set header label + name + stock count
+  // Set header
   var headLbl = document.getElementById('sp-head-lbl');
   var headName = document.getElementById('sp-head-name');
   headLbl.textContent = (source === 'industry') ? 'Industry' : 'Index';
   headName.innerHTML = s3SafeText(displayTitle || '—') +
     ' <span class="sp-head-sub">' + matches.length + ' stocks</span>';
-
-  // Set summary stats pills (rank/structure/median/breadth from industryctx)
   document.getElementById('sp-head-stats').innerHTML =
     s3StocksPopupHeadStats(source, target);
 
-  // Render body — your-trades section + all-stocks section
+  // Render body — your-trades section (with KPIs) + all-stocks section
   var body = document.getElementById('sp-body');
   if (matches.length === 0) {
     body.innerHTML = '<div class="sp-empty">No stocks found in this ' + source + '.</div>';
   } else {
-    body.innerHTML = s3StocksPopupRenderBody(yourTrades, others);
+    body.innerHTML = s3StocksPopupRenderBody(yourTrades, allStocks);
   }
 
+  // Reset hidden state — fresh open
+  STATE._popupHiddenByDrill = false;
   document.getElementById('sp-backdrop').classList.add('open');
 }
 
 function s3StocksPopupClose() {
   document.getElementById('sp-backdrop').classList.remove('open');
+  STATE._popupHiddenByDrill = false;
+}
+
+// Hide popup temporarily (when stock row is clicked → side panel opens).
+// Restore via s3StocksPopupShow when side panel closes.
+function s3StocksPopupHide() {
+  document.getElementById('sp-backdrop').classList.remove('open');
+  STATE._popupHiddenByDrill = true;
+}
+function s3StocksPopupShow() {
+  if (STATE._popupHiddenByDrill) {
+    document.getElementById('sp-backdrop').classList.add('open');
+    STATE._popupHiddenByDrill = false;
+  }
 }
 
 // ── Header summary stats — pull from industryctx (or indexctx in Round 3) ──
@@ -5896,20 +5933,60 @@ function s3StocksPopupHeadStats(source, target) {
   }).join('');
 }
 
-// ── Body renderer — two sections (your trades + all stocks) ──
-function s3StocksPopupRenderBody(yourTrades, others) {
+// ── Trade KPI strip — counts + net PnL + win rate (Round 2b) ──
+function s3StocksPopupTradeKpis(yourTrades) {
+  var openCount = 0, closedCount = 0;
+  var netPnl = 0;
+  var wins = 0, losses = 0;
+  yourTrades.forEach(function(r) {
+    if (r._trade === 'open') openCount++;
+    else if (r._trade === 'closed') closedCount++;
+    var pnl = r._tradeData ? parseFloat(r._tradeData.pnl) : NaN;
+    if (isFinite(pnl)) {
+      netPnl += pnl;
+      if (pnl > 0) wins++;
+      else if (pnl < 0) losses++;
+    }
+  });
+
+  var netCls = netPnl > 0 ? 'green' : netPnl < 0 ? 'red' : 'dim';
+  var netSign = netPnl >= 0 ? '+' : '';
+  var netTxt = netSign + '₹' + Math.round(netPnl);
+
+  var totalDecided = wins + losses;
+  var winRate = totalDecided > 0 ? Math.round((wins / totalDecided) * 100) : null;
+  var winRateTxt = winRate === null ? '—' : winRate + '%';
+  var winRateCls = winRate === null ? 'dim' : winRate >= 50 ? 'green' : 'red';
+
+  var kpis = [
+    {lbl:'Open',     val:String(openCount),    cls:''},
+    {lbl:'Closed',   val:String(closedCount),  cls:''},
+    {lbl:'Net P&L',  val:netTxt,               cls:netCls},
+    {lbl:'Win rate', val:winRateTxt,           cls:winRateCls}
+  ];
+  return '<div class="sp-trade-kpis">' +
+    kpis.map(function(k){
+      return '<div class="sp-trade-kpi">' +
+        '<div class="sp-trade-kpi-lbl">' + k.lbl + '</div>' +
+        '<div class="sp-trade-kpi-val ' + k.cls + '">' + k.val + '</div>' +
+        '</div>';
+    }).join('') + '</div>';
+}
+
+// ── Body renderer — your trades (with KPIs) + ALL stocks ──
+function s3StocksPopupRenderBody(yourTrades, allStocks) {
   var html = '';
   if (yourTrades.length > 0) {
     html += '<div class="sp-section-hd">Your trades · ' + yourTrades.length + '</div>';
+    html += s3StocksPopupTradeKpis(yourTrades);
     html += s3StocksPopupGridHeader();
     html += yourTrades.map(s3StocksPopupRowHtml).join('');
   }
-  if (others.length > 0) {
-    html += '<div class="sp-section-hd">All stocks · ' + others.length +
-            (yourTrades.length > 0 ? '' : ' · sorted by |% from open|') +
-            '</div>';
+  if (allStocks.length > 0) {
+    html += '<div class="sp-section-hd">All stocks · ' + allStocks.length +
+            ' · sorted by |% from open|</div>';
     html += s3StocksPopupGridHeader();
-    html += others.map(s3StocksPopupRowHtml).join('');
+    html += allStocks.map(s3StocksPopupRowHtml).join('');
   }
   return html;
 }
@@ -5937,7 +6014,7 @@ function s3StocksPopupRowHtml(r) {
     pfoCls = 'empty';
   }
 
-  // Trade overlay — side pill, pnl, pnl%
+  // Trade overlay
   var sideHtml = '<span class="sp-side dim">—</span>';
   var pnlHtml = '<span class="sp-pnl dim">—</span>';
   var pnlPctHtml = '<span class="sp-pnl dim">—</span>';
@@ -5961,10 +6038,9 @@ function s3StocksPopupRowHtml(r) {
       var ppSign = td.pnl_pct >= 0 ? '+' : '';
       pnlPctHtml = '<span class="sp-pnl ' + ppCls + '">' + ppSign + td.pnl_pct.toFixed(2) + '%</span>';
     }
-    rowExtra = ' your';  // CSS class for the blue left border
+    rowExtra = ' your';
   }
 
-  // Escape symbol for safe inclusion in onclick attribute
   var safeSym = sym.replace(/['"\\]/g, '');
 
   return '<div class="sp-row' + rowExtra + '" onclick="s3StocksPopupRowClick(\'' + safeSym + '\')">' +
@@ -5976,15 +6052,15 @@ function s3StocksPopupRowHtml(r) {
     '</div>';
 }
 
-// ── Row click → close popup, open s4 side drill panel for the stock ──
+// ── Row click → HIDE popup, open s4 side drill panel ──
+// Round 2b: do NOT close popup. Hide it, then restore when drill closes.
 function s3StocksPopupRowClick(symbol) {
   var ctx = (STATE.data && STATE.data.context) || [];
   var row = ctx.find(function(r){
     return String(r.tradingsymbol || '').trim() === symbol;
   });
   if (!row) return;
-  s3StocksPopupClose();
-  // s4OpenDrill expects a LiveContext-shaped row — that's exactly what we have
+  s3StocksPopupHide();  // not Close — keeps state for restore
   if (typeof s4OpenDrill === 'function') {
     s4OpenDrill(row);
   }
