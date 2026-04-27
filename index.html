@@ -591,6 +591,84 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   font-size:0.65rem;font-style:italic;}
 
 /* ============================================================
+   STOCKS POPUP — Round 1 (added 2026-04-27)
+   Reusable popup that shows the constituent stocks of an industry
+   or index, with trade overlay. Triggered by clicking an industry
+   tile (Section 2 industry strip) or — later, in Round 3 — an
+   index panel chip (Section 2 sector panels).
+   ============================================================ */
+.sp-backdrop{
+  display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;
+  background:rgba(0,0,0,0.55);z-index:300;align-items:flex-start;
+  justify-content:center;padding-top:80px;
+}
+.sp-backdrop.open{display:flex;}
+.sp-card{
+  background:var(--bg);border:1px solid var(--border2);border-radius:6px;
+  width:760px;max-width:calc(100vw - 40px);max-height:calc(100vh - 120px);
+  display:flex;flex-direction:column;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+.sp-head{
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;gap:14px;
+}
+.sp-head-title{flex:1;min-width:0;}
+.sp-head-lbl{
+  color:var(--dim);font-size:0.6rem;letter-spacing:0.1em;
+  margin-bottom:3px;text-transform:uppercase;
+}
+.sp-head-name{font-size:0.85rem;font-weight:500;color:var(--text);}
+.sp-head-sub{
+  color:var(--dim);font-size:0.65rem;margin-left:8px;font-weight:400;
+}
+.sp-close{
+  color:var(--dim);font-size:1.1rem;cursor:pointer;padding:0 4px;
+  user-select:none;
+}
+.sp-close:hover{color:var(--text);}
+.sp-body{flex:1;overflow-y:auto;}
+.sp-section-hd{
+  padding:10px 18px 6px;border-bottom:1px solid var(--border);
+  background:var(--surface);
+  font-size:0.6rem;color:var(--dim);letter-spacing:0.12em;
+  text-transform:uppercase;
+}
+.sp-grid-hd{
+  display:grid;grid-template-columns:1fr 100px 80px 100px 90px;gap:10px;
+  padding:6px 18px;font-size:0.6rem;color:var(--dim);
+  letter-spacing:0.08em;border-bottom:1px solid var(--border);
+  text-transform:uppercase;
+}
+.sp-grid-hd > span:not(:first-child){text-align:right;}
+.sp-row{
+  display:grid;grid-template-columns:1fr 100px 80px 100px 90px;gap:10px;
+  padding:7px 18px;font-size:0.72rem;align-items:center;
+}
+.sp-row:nth-child(even){background:var(--surface);}
+.sp-row:hover{background:var(--card);}
+.sp-row > span:not(:first-child){text-align:right;}
+.sp-sym{color:var(--text);font-weight:500;}
+.sp-pct{font-weight:500;}
+.sp-pct.green{color:var(--green);}
+.sp-pct.red{color:var(--red);}
+.sp-pct.dim{color:var(--dim);}
+.sp-side-pill{
+  display:inline-block;padding:1px 8px;border-radius:3px;
+  font-size:0.6rem;letter-spacing:0.05em;font-weight:500;
+}
+.sp-side-pill.long{background:rgba(34,197,94,0.12);color:var(--green);}
+.sp-side-pill.short{background:rgba(239,68,68,0.12);color:var(--red);}
+.sp-side-pill.exited{opacity:0.55;}
+.sp-pnl.green{color:var(--green);}
+.sp-pnl.red{color:var(--red);}
+.sp-pnl.dim,.sp-side.dim,.sp-pct.empty{color:var(--dim);opacity:0.45;}
+.sp-empty{
+  padding:30px 18px;text-align:center;color:var(--dim);
+  font-size:0.7rem;font-style:italic;
+}
+
+/* ============================================================
    SECTION 2 INDEX PANEL CHIPS (added 2026-04-26, Phase 2)
    Sheet: IndexContext (latest cycle from Apps Script v6)
    Each of the 15 sector panels gets a small chip showing:
@@ -2269,10 +2347,16 @@ function ibEscape(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// Click handler — toggle expanded view on a tile (using event delegation)
+// Click handler — opens stocks popup with all stocks in this industry.
+// Replaces the old inline expand behavior (top1/bot1) — the new popup
+// shows the full constituent list with trade overlay.
 function ibToggleTile(idx) {
-  var tile = document.getElementById('ib-tile-' + idx);
-  if (tile) tile.classList.toggle('expanded');
+  var sorted = STATE._ib_sorted || [];
+  var row = sorted[idx];
+  if (!row) return;
+  var industryName = String(row.industry || '').trim();
+  if (!industryName) return;
+  s3StocksPopupOpen('industry', industryName, industryName);
 }
 
 function ibRender() {
@@ -2294,6 +2378,7 @@ function ibRender() {
     if (!isFinite(rb)) rb = 999;
     return ra - rb;
   });
+  STATE._ib_sorted = sorted;  // stash for click handler lookup
 
   // Header counts
   var counts = { bull:0, bear:0, chop:0, flat:0 };
@@ -5628,6 +5713,115 @@ function startCountdown() {
 }
 
 // ============================================================
+// STOCKS POPUP — Round 1 (added 2026-04-27)
+// Reusable popup that lists all constituent stocks of an industry
+// or index. Filters STATE.data.context by `industry` or
+// `theme_index_primary` field, sorts by abs(pct_from_open).
+//
+// Round 1 (this version):
+//   - Scaffold + basic table render
+//   - 5 columns: Symbol, % From Open, Side, PnL ₹, PnL %
+//   - Side/PnL show "—" for non-traded stocks (R2 will add overlay)
+//   - Industry tile click → opens popup
+//
+// Round 2 will add: trade overlay from positions, hybrid sort
+//   (your trades on top), header summary stats.
+// Round 3 will add: index chip hookup, ESC key.
+// ============================================================
+function s3StocksPopupOpen(source, value, displayTitle) {
+  // Source = 'industry' or 'index'
+  // Value = the industry name (e.g. "Capital Goods") or theme index (e.g. "NIFTY IT")
+  // displayTitle = human-readable label for header
+  var ctx = (STATE.data && STATE.data.context) || [];
+  if (!Array.isArray(ctx) || ctx.length === 0) {
+    return; // no data — silently no-op
+  }
+
+  // Field to match against in LiveContext rows
+  var field = (source === 'industry') ? 'industry' : 'theme_index_primary';
+  var target = String(value || '').trim().toUpperCase();
+  if (!target) return;
+
+  // Filter LiveContext to stocks matching this industry/index
+  var matches = ctx.filter(function(r) {
+    var v = String(r[field] || '').trim().toUpperCase();
+    return v === target;
+  });
+
+  // Sort by abs(pct_from_open) descending (biggest movers first)
+  matches.sort(function(a, b) {
+    var pa = Math.abs(parseFloat(a.pct_from_open) || 0);
+    var pb = Math.abs(parseFloat(b.pct_from_open) || 0);
+    return pb - pa;
+  });
+
+  // Set header
+  var headLbl = document.getElementById('sp-head-lbl');
+  var headName = document.getElementById('sp-head-name');
+  headLbl.textContent = (source === 'industry') ? 'Industry' : 'Index';
+  headName.innerHTML = (displayTitle || '—') +
+    ' <span class="sp-head-sub">' + matches.length + ' stocks</span>';
+
+  // Render body
+  var body = document.getElementById('sp-body');
+  if (matches.length === 0) {
+    body.innerHTML = '<div class="sp-empty">No stocks found in this ' + source + '.</div>';
+  } else {
+    body.innerHTML = s3StocksPopupRenderTable(matches);
+  }
+
+  // Show backdrop
+  document.getElementById('sp-backdrop').classList.add('open');
+}
+
+function s3StocksPopupClose() {
+  document.getElementById('sp-backdrop').classList.remove('open');
+}
+
+function s3StocksPopupRenderTable(rows) {
+  // Render the full table — header row + all stock rows
+  // Round 1: no trade overlay yet, side/pnl columns are dim placeholders
+  var html = '';
+  html += '<div class="sp-section-hd">All stocks · sorted by |% from open|</div>';
+  html += '<div class="sp-grid-hd">' +
+    '<span>Symbol</span>' +
+    '<span>% From Open</span>' +
+    '<span>Side</span>' +
+    '<span>PnL ₹</span>' +
+    '<span>PnL %</span>' +
+    '</div>';
+  html += rows.map(s3StocksPopupRowHtml).join('');
+  return html;
+}
+
+function s3StocksPopupRowHtml(r) {
+  var sym = String(r.tradingsymbol || '—');
+  var pfo = parseFloat(r.pct_from_open);
+  var pfoTxt, pfoCls;
+  if (isFinite(pfo)) {
+    pfoTxt = (pfo >= 0 ? '+' : '') + pfo.toFixed(2) + '%';
+    pfoCls = pfo > 0 ? 'green' : (pfo < 0 ? 'red' : 'dim');
+  } else {
+    pfoTxt = '—';
+    pfoCls = 'empty';
+  }
+  // Round 1: side and pnl columns are placeholders (R2 fills them)
+  return '<div class="sp-row">' +
+    '<span class="sp-sym">' + s3SafeText(sym) + '</span>' +
+    '<span class="sp-pct ' + pfoCls + '">' + pfoTxt + '</span>' +
+    '<span class="sp-side dim">—</span>' +
+    '<span class="sp-pnl dim">—</span>' +
+    '<span class="sp-pnl dim">—</span>' +
+    '</div>';
+}
+
+function s3SafeText(s) {
+  return String(s).replace(/[<>&"']/g, function(c){
+    return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+// ============================================================
 // INIT
 // ============================================================
 function init() {
@@ -5643,6 +5837,23 @@ window.onload = function() {
 };
 </script>
 <!-- END JAVASCRIPT -->
+
+<!-- ============================================================
+     STOCKS POPUP — single global instance
+     Populated dynamically by s3StocksPopup() on each open.
+     ============================================================ -->
+<div id="sp-backdrop" class="sp-backdrop" onclick="s3StocksPopupClose()">
+  <div class="sp-card" id="sp-card" onclick="event.stopPropagation()">
+    <div class="sp-head">
+      <div class="sp-head-title">
+        <div class="sp-head-lbl" id="sp-head-lbl">—</div>
+        <div class="sp-head-name" id="sp-head-name">—</div>
+      </div>
+      <div class="sp-close" onclick="s3StocksPopupClose()">×</div>
+    </div>
+    <div class="sp-body" id="sp-body"></div>
+  </div>
+</div>
 
 </body>
 </html>
