@@ -3176,6 +3176,21 @@ function s3RenderCards(positions, trades) {
   // Choose the authoritative closed-trades source:
   //   - Past dates or EOD arrived: DailyTrades
   //   - Live OR eodPending: PositionLog CLOSED rows, merged with any DailyTrades rows
+  //
+  // CRITICAL (2026-04-27 fix): In live mode, DailyTrades may contain "partial
+  // round-trip" rows for symbols that are still OPEN. Example: BUY 2 → SELL 2
+  // → BUY 2 more. DailyTrades records the first 2-share round-trip but the
+  // position is still open with 2 unmatched shares. Without filtering, the
+  // dashboard would count this symbol as both OPEN and CLOSED (double-count
+  // in the TRADES card and CLOSED TRADES table).
+  // Fix: exclude any DailyTrades row whose symbol is currently in openRows.
+  // For past dates / post-EOD, DailyTrades is authoritative — no filter applied.
+  var openSymbolSet = {};
+  openRows.forEach(function(c){
+    var sym = c.sym || (c._raw && c._raw.tradingsymbol) || '';
+    if (sym) openSymbolSet[String(sym).trim().toUpperCase()] = true;
+  });
+
   var effectiveTrades;
   if (isEodAuthoritative) {
     effectiveTrades = trades || [];
@@ -3188,6 +3203,13 @@ function s3RenderCards(positions, trades) {
     } else {
       effectiveTrades = trades || [];
     }
+    // Drop any DailyTrades partial round-trips for symbols still actively open.
+    // Live-only — past-date views skip this filter (positions are flat after EOD).
+    effectiveTrades = effectiveTrades.filter(function(t){
+      var sym = String(t.tradingsymbol || '').trim().toUpperCase();
+      if (!sym) return false;  // skip unnamed rows defensively
+      return !openSymbolSet[sym];
+    });
   }
 
   // Apply the ALL / LONG / SHORT / EXITED filter
