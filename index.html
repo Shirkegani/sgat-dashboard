@@ -590,6 +590,14 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .ib-norows{padding:30px 14px;text-align:center;color:var(--dim);
   font-size:0.65rem;font-style:italic;}
 
+/* Inline trade summary — appended to meta row when trades exist */
+.ib-trade-inline{margin-left:5px;padding-left:6px;
+  border-left:1px solid var(--border);color:var(--dim);}
+.ib-trade-inline .ib-trade-pnl{font-weight:500;margin-left:3px;}
+.ib-trade-inline .ib-trade-pnl.green{color:var(--green);}
+.ib-trade-inline .ib-trade-pnl.red{color:var(--red);}
+.ib-trade-inline .ib-trade-pnl.flat{color:var(--dim);}
+
 /* ============================================================
    STOCKS POPUP — Round 1 (added 2026-04-27)
    Reusable popup that shows the constituent stocks of an industry
@@ -2378,6 +2386,50 @@ function ibEscape(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// Per-industry trade stats from STATE.data.positions.
+// Returns null when no positions exist for this industry; otherwise:
+//   { wins:N, losses:N, winPct:N|null, netPnl:N }
+// HYBRID win counting:
+//   - Closed positions:  realized pnl > 0 → win, < 0 → loss
+//   - Open positions:    current unrealized pnl > 0 → win, < 0 → loss
+// Same rule as the popup's Win Rate KPI.
+function ibComputeTradeStats(industryName) {
+  if (!industryName) return null;
+  var positions = (STATE.data && STATE.data.positions) || [];
+  if (!Array.isArray(positions) || positions.length === 0) return null;
+  var target = String(industryName).trim().toUpperCase();
+
+  var total = 0, wins = 0, losses = 0, netPnl = 0;
+  for (var i = 0; i < positions.length; i++) {
+    var p = positions[i];
+    var ind = String(p.industry || '').trim().toUpperCase();
+    if (ind !== target) continue;
+
+    var qty = parseFloat(p.quantity);
+    var pnl = parseFloat(p.pnl);
+    var buyQ = parseFloat(p.buy_quantity);
+    var sellQ = parseFloat(p.sell_quantity);
+
+    var isOpen = isFinite(qty) && qty !== 0;
+    var isClosed = (qty === 0) && (
+      isFinite(buyQ) && buyQ > 0 && isFinite(sellQ) && sellQ > 0
+    );
+    if (!isOpen && !isClosed) continue;
+
+    total++;
+    if (isFinite(pnl)) {
+      netPnl += pnl;
+      if (pnl > 0) wins++;
+      else if (pnl < 0) losses++;
+    }
+  }
+  if (total === 0) return null;
+
+  var decided = wins + losses;
+  var winPct = decided > 0 ? Math.round((wins / decided) * 100) : null;
+  return { wins: wins, losses: losses, winPct: winPct, netPnl: netPnl };
+}
+
 // Click handler — opens stocks popup with all stocks in this industry.
 // Replaces the old inline expand behavior (top1/bot1) — the new popup
 // shows the full constituent list with trade overlay.
@@ -2448,6 +2500,26 @@ function ibRender() {
 
     var rankTxt = isFinite(rank) ? '#' + Math.round(rank) : '#—';
 
+    // Inline trade summary appended to meta-row (only when trades exist).
+    // Format: "| 3W 1L 75% +₹52"  (W L %winrate +/-pnl)
+    // When no trades, this segment is empty — original tile look preserved.
+    var ts = ibComputeTradeStats(r.industry);
+    var tradeInline = '';
+    if (ts) {
+      var pnlSign = ts.netPnl > 0 ? '+' : ts.netPnl < 0 ? '-' : '';
+      var pnlCls  = ts.netPnl > 0 ? 'green' : ts.netPnl < 0 ? 'red' : 'flat';
+      var pnlTxt  = pnlSign + '₹' + Math.abs(Math.round(ts.netPnl));
+      var winTxt;
+      if (ts.winPct === null) {
+        // No decided positions yet — show count only
+        winTxt = (ts.wins + ts.losses + 1) + ' open';
+      } else {
+        winTxt = ts.wins + 'W ' + ts.losses + 'L ' + ts.winPct + '%';
+      }
+      tradeInline = '<span class="ib-trade-inline">' + winTxt +
+        ' <span class="ib-trade-pnl ' + pnlCls + '">' + pnlTxt + '</span></span>';
+    }
+
     return '<div class="ib-tile ' + struct + '" id="ib-tile-' + i +
       '" onclick="ibToggleTile(' + i + ')">' +
       '<div class="ib-trow">' +
@@ -2458,6 +2530,7 @@ function ibRender() {
       '<div class="ib-meta-row">' +
         '<span class="ib-br-pct">' + brTxt + '</span> · ' +
         '<span class="ib-n">' + nstkTxt + '</span>' +
+        tradeInline +
       '</div>' +
       '<div class="ib-expand">' +
         '<div class="ib-er"><span class="ib-esym">▲ ' + top1Sym + '</span>' +
