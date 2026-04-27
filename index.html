@@ -644,9 +644,11 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sp-row{
   display:grid;grid-template-columns:1fr 100px 80px 100px 90px;gap:10px;
   padding:7px 18px;font-size:0.72rem;align-items:center;
+  cursor:pointer;
 }
 .sp-row:nth-child(even){background:var(--surface);}
 .sp-row:hover{background:var(--card);}
+.sp-row.your{border-left:2px solid var(--blue);}
 .sp-row > span:not(:first-child){text-align:right;}
 .sp-sym{color:var(--text);font-weight:500;}
 .sp-pct{font-weight:500;}
@@ -667,6 +669,18 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   padding:30px 18px;text-align:center;color:var(--dim);
   font-size:0.7rem;font-style:italic;
 }
+
+/* Header summary chips (Round 2) */
+.sp-head-stats{display:flex;gap:14px;align-items:center;flex-shrink:0;}
+.sp-head-stat{display:flex;flex-direction:column;align-items:flex-end;}
+.sp-head-stat-lbl{
+  color:var(--dim);font-size:0.55rem;letter-spacing:0.1em;
+  text-transform:uppercase;
+}
+.sp-head-stat-val{font-size:0.72rem;font-weight:500;color:var(--text);}
+.sp-head-stat-val.green{color:var(--green);}
+.sp-head-stat-val.red{color:var(--red);}
+.sp-head-stat-val.amber{color:var(--amber);}
 
 /* ============================================================
    SECTION 2 INDEX PANEL CHIPS (added 2026-04-26, Phase 2)
@@ -5713,31 +5727,26 @@ function startCountdown() {
 }
 
 // ============================================================
-// STOCKS POPUP — Round 1 (added 2026-04-27)
+// STOCKS POPUP — Round 2 (added 2026-04-27)
 // Reusable popup that lists all constituent stocks of an industry
-// or index. Filters STATE.data.context by `industry` or
-// `theme_index_primary` field, sorts by abs(pct_from_open).
+// or index, with trade overlay and clickable rows.
 //
-// Round 1 (this version):
-//   - Scaffold + basic table render
-//   - 5 columns: Symbol, % From Open, Side, PnL ₹, PnL %
-//   - Side/PnL show "—" for non-traded stocks (R2 will add overlay)
-//   - Industry tile click → opens popup
+// Round 2 (this version):
+//   - Trade overlay: side/pnl/pnl% pulled from STATE.data.positions
+//   - "Your trades" section at top (open positions then closed/exited)
+//   - "All stocks" section below (positives → negatives)
+//   - Header shows summary stats (rank, structure, median, breadth) for industries
+//   - Row click → opens existing s4 side drill panel for that stock
 //
-// Round 2 will add: trade overlay from positions, hybrid sort
-//   (your trades on top), header summary stats.
 // Round 3 will add: index chip hookup, ESC key.
 // ============================================================
 function s3StocksPopupOpen(source, value, displayTitle) {
   // Source = 'industry' or 'index'
-  // Value = the industry name (e.g. "Capital Goods") or theme index (e.g. "NIFTY IT")
+  // Value  = the industry name or theme index name (e.g. "Capital Goods" or "NIFTY IT")
   // displayTitle = human-readable label for header
   var ctx = (STATE.data && STATE.data.context) || [];
-  if (!Array.isArray(ctx) || ctx.length === 0) {
-    return; // no data — silently no-op
-  }
+  if (!Array.isArray(ctx) || ctx.length === 0) return;
 
-  // Field to match against in LiveContext rows
   var field = (source === 'industry') ? 'industry' : 'theme_index_primary';
   var target = String(value || '').trim().toUpperCase();
   if (!target) return;
@@ -5748,42 +5757,90 @@ function s3StocksPopupOpen(source, value, displayTitle) {
     return v === target;
   });
 
-  // Sort: positives first (by pct desc), then negatives (by pct asc — biggest
-  // loser first), then stocks with no pct data. This gives a clean
-  // green-block then red-block visual grouping.
-  matches.sort(function(a, b) {
+  // Build a positions-by-symbol map for quick lookup (trade overlay)
+  var positions = (STATE.data && STATE.data.positions) || [];
+  var posMap = Object.create(null);
+  positions.forEach(function(p) {
+    var s = String(p.tradingsymbol || '').trim().toUpperCase();
+    if (s) posMap[s] = p;
+  });
+
+  // Annotate each row with its trade state for sorting + rendering
+  matches.forEach(function(r) {
+    var s = String(r.tradingsymbol || '').trim().toUpperCase();
+    var p = posMap[s];
+    r._trade = null;  // 'open' | 'closed' | null
+    r._tradeData = null;
+    if (p) {
+      var qty = parseFloat(p.quantity);
+      var pnl = parseFloat(p.pnl);
+      var pnlPct = parseFloat(p.pnl_pct);
+      var side = String(p.side || '').toUpperCase();
+      // OPEN: qty != 0 (position currently held)
+      // CLOSED: qty == 0 with both buy and sell happened (exited)
+      var isOpen = isFinite(qty) && qty !== 0;
+      var isClosed = (qty === 0) && (
+        parseFloat(p.buy_quantity) > 0 && parseFloat(p.sell_quantity) > 0
+      );
+      if (isOpen)        r._trade = 'open';
+      else if (isClosed) r._trade = 'closed';
+      if (r._trade) {
+        r._tradeData = { side: side, pnl: pnl, pnl_pct: pnlPct };
+      }
+    }
+  });
+
+  // Split into your-trades vs other
+  var yourTrades = matches.filter(function(r){ return r._trade !== null; });
+  var others     = matches.filter(function(r){ return r._trade === null; });
+
+  // Sort yourTrades: open first (by abs % desc), then closed (by abs pnl desc)
+  yourTrades.sort(function(a, b){
+    if (a._trade !== b._trade) return a._trade === 'open' ? -1 : 1;
+    if (a._trade === 'open') {
+      var pa = Math.abs(parseFloat(a.pct_from_open) || 0);
+      var pb = Math.abs(parseFloat(b.pct_from_open) || 0);
+      return pb - pa;
+    }
+    var ea = Math.abs((a._tradeData && a._tradeData.pnl) || 0);
+    var eb = Math.abs((b._tradeData && b._tradeData.pnl) || 0);
+    return eb - ea;
+  });
+
+  // Sort others: positives first (by pct desc), then negatives (by pct asc), nulls last
+  others.sort(function(a, b) {
     var pa = parseFloat(a.pct_from_open);
     var pb = parseFloat(b.pct_from_open);
     var va = isFinite(pa);
     var vb = isFinite(pb);
-    // No-data rows go to the bottom
     if (!va && !vb) return 0;
     if (!va) return 1;
     if (!vb) return -1;
-    // Positive vs negative grouping
-    var sa = pa >= 0 ? 0 : 1;  // 0 = positive group, 1 = negative group
+    var sa = pa >= 0 ? 0 : 1;
     var sb = pb >= 0 ? 0 : 1;
     if (sa !== sb) return sa - sb;
-    // Within positive group: bigger first; within negative group: more-negative first
     return sa === 0 ? (pb - pa) : (pa - pb);
   });
 
-  // Set header
+  // Set header label + name + stock count
   var headLbl = document.getElementById('sp-head-lbl');
   var headName = document.getElementById('sp-head-name');
   headLbl.textContent = (source === 'industry') ? 'Industry' : 'Index';
-  headName.innerHTML = (displayTitle || '—') +
+  headName.innerHTML = s3SafeText(displayTitle || '—') +
     ' <span class="sp-head-sub">' + matches.length + ' stocks</span>';
 
-  // Render body
+  // Set summary stats pills (rank/structure/median/breadth from industryctx)
+  document.getElementById('sp-head-stats').innerHTML =
+    s3StocksPopupHeadStats(source, target);
+
+  // Render body — your-trades section + all-stocks section
   var body = document.getElementById('sp-body');
   if (matches.length === 0) {
     body.innerHTML = '<div class="sp-empty">No stocks found in this ' + source + '.</div>';
   } else {
-    body.innerHTML = s3StocksPopupRenderTable(matches);
+    body.innerHTML = s3StocksPopupRenderBody(yourTrades, others);
   }
 
-  // Show backdrop
   document.getElementById('sp-backdrop').classList.add('open');
 }
 
@@ -5791,22 +5848,83 @@ function s3StocksPopupClose() {
   document.getElementById('sp-backdrop').classList.remove('open');
 }
 
-function s3StocksPopupRenderTable(rows) {
-  // Render the full table — header row + all stock rows
-  // Round 1: no trade overlay yet, side/pnl columns are dim placeholders
+// ── Header summary stats — pull from industryctx (or indexctx in Round 3) ──
+function s3StocksPopupHeadStats(source, target) {
+  if (source !== 'industry') return '';  // index stats added in Round 3
+  var ictx = (STATE.data && STATE.data.industryctx) || [];
+  var match = null;
+  for (var i = 0; i < ictx.length; i++) {
+    var v = String(ictx[i].industry || '').trim().toUpperCase();
+    if (v === target) { match = ictx[i]; break; }
+  }
+  if (!match) return '';
+
+  var rank = parseFloat(match.strength_rank);
+  var rankCls = (isFinite(rank) && rank <= 3) ? 'amber' : '';
+  var rankTxt = isFinite(rank) ? '#' + Math.round(rank) : '—';
+
+  var struct = String(match.industry_structure || '').toUpperCase();
+  var structCls = struct === 'BULL' ? 'green' :
+                  struct === 'BEAR' ? 'red' :
+                  struct === 'CHOP' ? 'amber' : '';
+  var structArrow = struct === 'BULL' ? ' ↑' :
+                    struct === 'BEAR' ? ' ↓' :
+                    struct === 'CHOP' ? ' →' : '';
+
+  var med = parseFloat(match.median_pfo);
+  var medTxt, medCls;
+  if (isFinite(med)) {
+    medTxt = (med >= 0 ? '+' : '') + med.toFixed(2) + '%';
+    medCls = med > 0 ? 'green' : med < 0 ? 'red' : '';
+  } else {
+    medTxt = '—'; medCls = '';
+  }
+
+  var br = parseFloat(match.pct_above_open);
+  var brTxt = isFinite(br) ? Math.round(br) + '%' : '—';
+
+  return [
+    {lbl:'Rank',      val:rankTxt,           cls:rankCls},
+    {lbl:'Structure', val:struct + structArrow, cls:structCls},
+    {lbl:'Median',    val:medTxt,            cls:medCls},
+    {lbl:'Breadth',   val:brTxt,             cls:''}
+  ].map(function(s){
+    return '<div class="sp-head-stat">' +
+      '<div class="sp-head-stat-lbl">' + s.lbl + '</div>' +
+      '<div class="sp-head-stat-val ' + s.cls + '">' + s.val + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+// ── Body renderer — two sections (your trades + all stocks) ──
+function s3StocksPopupRenderBody(yourTrades, others) {
   var html = '';
-  html += '<div class="sp-section-hd">All stocks · sorted by |% from open|</div>';
-  html += '<div class="sp-grid-hd">' +
+  if (yourTrades.length > 0) {
+    html += '<div class="sp-section-hd">Your trades · ' + yourTrades.length + '</div>';
+    html += s3StocksPopupGridHeader();
+    html += yourTrades.map(s3StocksPopupRowHtml).join('');
+  }
+  if (others.length > 0) {
+    html += '<div class="sp-section-hd">All stocks · ' + others.length +
+            (yourTrades.length > 0 ? '' : ' · sorted by |% from open|') +
+            '</div>';
+    html += s3StocksPopupGridHeader();
+    html += others.map(s3StocksPopupRowHtml).join('');
+  }
+  return html;
+}
+
+function s3StocksPopupGridHeader() {
+  return '<div class="sp-grid-hd">' +
     '<span>Symbol</span>' +
     '<span>% From Open</span>' +
     '<span>Side</span>' +
     '<span>PnL ₹</span>' +
     '<span>PnL %</span>' +
     '</div>';
-  html += rows.map(s3StocksPopupRowHtml).join('');
-  return html;
 }
 
+// ── Single row HTML — with trade overlay + click-to-drill ──
 function s3StocksPopupRowHtml(r) {
   var sym = String(r.tradingsymbol || '—');
   var pfo = parseFloat(r.pct_from_open);
@@ -5818,14 +5936,58 @@ function s3StocksPopupRowHtml(r) {
     pfoTxt = '—';
     pfoCls = 'empty';
   }
-  // Round 1: side and pnl columns are placeholders (R2 fills them)
-  return '<div class="sp-row">' +
+
+  // Trade overlay — side pill, pnl, pnl%
+  var sideHtml = '<span class="sp-side dim">—</span>';
+  var pnlHtml = '<span class="sp-pnl dim">—</span>';
+  var pnlPctHtml = '<span class="sp-pnl dim">—</span>';
+  var rowExtra = '';
+
+  if (r._trade) {
+    var td = r._tradeData;
+    var sideCls = td.side === 'LONG' ? 'long' : td.side === 'SHORT' ? 'short' : '';
+    var exitedCls = r._trade === 'closed' ? ' exited' : '';
+    var sideLbl = td.side + (r._trade === 'closed' ? ' · EXITED' : '');
+    sideHtml = '<span class="sp-side"><span class="sp-side-pill ' + sideCls + exitedCls + '">' +
+               sideLbl + '</span></span>';
+
+    if (isFinite(td.pnl)) {
+      var pCls = td.pnl > 0 ? 'green' : td.pnl < 0 ? 'red' : 'dim';
+      var sign = td.pnl >= 0 ? '+' : '';
+      pnlHtml = '<span class="sp-pnl ' + pCls + '">' + sign + '₹' + Math.round(td.pnl) + '</span>';
+    }
+    if (isFinite(td.pnl_pct)) {
+      var ppCls = td.pnl_pct > 0 ? 'green' : td.pnl_pct < 0 ? 'red' : 'dim';
+      var ppSign = td.pnl_pct >= 0 ? '+' : '';
+      pnlPctHtml = '<span class="sp-pnl ' + ppCls + '">' + ppSign + td.pnl_pct.toFixed(2) + '%</span>';
+    }
+    rowExtra = ' your';  // CSS class for the blue left border
+  }
+
+  // Escape symbol for safe inclusion in onclick attribute
+  var safeSym = sym.replace(/['"\\]/g, '');
+
+  return '<div class="sp-row' + rowExtra + '" onclick="s3StocksPopupRowClick(\'' + safeSym + '\')">' +
     '<span class="sp-sym">' + s3SafeText(sym) + '</span>' +
     '<span class="sp-pct ' + pfoCls + '">' + pfoTxt + '</span>' +
-    '<span class="sp-side dim">—</span>' +
-    '<span class="sp-pnl dim">—</span>' +
-    '<span class="sp-pnl dim">—</span>' +
+    sideHtml +
+    pnlHtml +
+    pnlPctHtml +
     '</div>';
+}
+
+// ── Row click → close popup, open s4 side drill panel for the stock ──
+function s3StocksPopupRowClick(symbol) {
+  var ctx = (STATE.data && STATE.data.context) || [];
+  var row = ctx.find(function(r){
+    return String(r.tradingsymbol || '').trim() === symbol;
+  });
+  if (!row) return;
+  s3StocksPopupClose();
+  // s4OpenDrill expects a LiveContext-shaped row — that's exactly what we have
+  if (typeof s4OpenDrill === 'function') {
+    s4OpenDrill(row);
+  }
 }
 
 function s3SafeText(s) {
@@ -5862,6 +6024,7 @@ window.onload = function() {
         <div class="sp-head-lbl" id="sp-head-lbl">—</div>
         <div class="sp-head-name" id="sp-head-name">—</div>
       </div>
+      <div class="sp-head-stats" id="sp-head-stats"></div>
     </div>
     <div class="sp-body" id="sp-body"></div>
   </div>
