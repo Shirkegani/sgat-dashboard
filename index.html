@@ -598,12 +598,6 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .ib-trade-inline .ib-trade-pnl.red{color:var(--red);}
 .ib-trade-inline .ib-trade-pnl.flat{color:var(--dim);}
 
-/* Total Universe tile — visually anchored with a blue accent so it stands
-   apart from the 22 industry tiles. Same size and layout otherwise. */
-.ib-tile.universe{border-left-color:var(--blue) !important;}
-.ib-tile.universe .ib-rank.all{color:var(--blue);font-weight:500;
-  letter-spacing:0.05em;font-size:0.55rem;}
-
 /* ============================================================
    STOCKS POPUP — Round 1 (added 2026-04-27)
    Reusable popup that shows the constituent stocks of an industry
@@ -2403,17 +2397,13 @@ function ibComputeTradeStats(industryName) {
   if (!industryName) return null;
   var positions = (STATE.data && STATE.data.positions) || [];
   if (!Array.isArray(positions) || positions.length === 0) return null;
-  // '__ALL__' sentinel = no filter (aggregate across the whole book — used by Total Universe tile)
-  var matchAll = (industryName === '__ALL__');
-  var target = matchAll ? '' : String(industryName).trim().toUpperCase();
+  var target = String(industryName).trim().toUpperCase();
 
   var total = 0, wins = 0, losses = 0, netPnl = 0;
   for (var i = 0; i < positions.length; i++) {
     var p = positions[i];
-    if (!matchAll) {
-      var ind = String(p.industry || '').trim().toUpperCase();
-      if (ind !== target) continue;
-    }
+    var ind = String(p.industry || '').trim().toUpperCase();
+    if (ind !== target) continue;
 
     var qty = parseFloat(p.quantity);
     var pnl = parseFloat(p.pnl);
@@ -2440,54 +2430,6 @@ function ibComputeTradeStats(industryName) {
   return { wins: wins, losses: losses, winPct: winPct, netPnl: netPnl };
 }
 
-// Build a synthetic "Total Universe" row from LiveContext to render as the
-// last tile in the strip. Aggregates pct_from_open across all stocks:
-//   median_pfo:      median of all pct_from_open values
-//   pct_above_open:  (count where pfo > 0) / total * 100
-//   n_stocks:        total stock count
-//   industry_structure: derived from the median + breadth pattern, mirroring
-//                    the same logic the supervisor uses for individual industries
-//   _isUniverse:     flag picked up by ibToggleTile to open popup with no filter
-// Returns null when LiveContext is empty (e.g. before first data fetch).
-function ibBuildUniverseRow() {
-  var ctx = (STATE.data && STATE.data.context) || [];
-  if (!Array.isArray(ctx) || ctx.length === 0) return null;
-  var pfos = [];
-  var n = 0, nAbove = 0;
-  for (var i = 0; i < ctx.length; i++) {
-    var p = parseFloat(ctx[i].pct_from_open);
-    if (isFinite(p)) {
-      pfos.push(p);
-      n++;
-      if (p > 0) nAbove++;
-    }
-  }
-  if (n === 0) return null;
-  pfos.sort(function(a, b){ return a - b; });
-  var mid = Math.floor(n / 2);
-  var median = (n % 2 === 0) ? (pfos[mid - 1] + pfos[mid]) / 2 : pfos[mid];
-  var pctAbove = (nAbove / n) * 100;
-
-  // Derive structure with thresholds matching the supervisor's industry logic
-  var structure;
-  if (median >= 0.3 && pctAbove >= 60)      structure = 'BULL';
-  else if (median <= -0.3 && pctAbove <= 40) structure = 'BEAR';
-  else if (Math.abs(median) >= 0.15)         structure = 'CHOP';
-  else                                        structure = 'FLAT';
-
-  return {
-    industry: 'Total Universe',
-    strength_rank: null,
-    industry_structure: structure,
-    median_pfo: median,
-    pct_above_open: pctAbove,
-    n_stocks: n,
-    top1_symbol: '', bot1_symbol: '',
-    top1_pfo: null, bot1_pfo: null,
-    _isUniverse: true
-  };
-}
-
 // Click handler — opens stocks popup with all stocks in this industry.
 // Replaces the old inline expand behavior (top1/bot1) — the new popup
 // shows the full constituent list with trade overlay.
@@ -2495,10 +2437,6 @@ function ibToggleTile(idx) {
   var sorted = STATE._ib_sorted || [];
   var row = sorted[idx];
   if (!row) return;
-  if (row._isUniverse) {
-    s3StocksPopupOpen('universe', '', 'Total Universe');
-    return;
-  }
   var industryName = String(row.industry || '').trim();
   if (!industryName) return;
   s3StocksPopupOpen('industry', industryName, industryName);
@@ -2523,24 +2461,15 @@ function ibRender() {
     if (!isFinite(rb)) rb = 999;
     return ra - rb;
   });
-
-  // Append the Total Universe tile at the end (computed from LiveContext).
-  // It's not an industry — it's the aggregate of everything — so it sits
-  // last in the strip as a "summary" tile.
-  var universeRow = ibBuildUniverseRow();
-  if (universeRow) sorted.push(universeRow);
-
   STATE._ib_sorted = sorted;  // stash for click handler lookup
 
-  // Header counts (only count actual industries, not the universe row)
+  // Header counts
   var counts = { bull:0, bear:0, chop:0, flat:0 };
   sorted.forEach(function(r){
-    if (r._isUniverse) return;
     var k = ibStructClass(r.industry_structure);
     counts[k] = (counts[k] || 0) + 1;
   });
-  var industryCount = sorted.length - (universeRow ? 1 : 0);
-  meta.innerHTML = industryCount + ' industries · ' +
+  meta.innerHTML = sorted.length + ' industries · ' +
     '<span class="bull-cnt">' + counts.bull + ' bull</span> · ' +
     '<span class="chop-cnt">' + counts.chop + ' chop</span> · ' +
     '<span class="bear-cnt">' + counts.bear + ' bear</span>' +
@@ -2569,22 +2498,12 @@ function ibRender() {
     var top1ValCls = (parseFloat(r.top1_pfo) >= 0) ? 'green' : 'red';
     var bot1ValCls = (parseFloat(r.bot1_pfo) >= 0) ? 'green' : 'red';
 
-    var rankTxt;
-    var rankExtraCls = '';
-    if (r._isUniverse) {
-      rankTxt = 'ALL';
-      rankExtraCls = 'all';
-    } else {
-      rankTxt = isFinite(rank) ? '#' + Math.round(rank) : '#—';
-    }
+    var rankTxt = isFinite(rank) ? '#' + Math.round(rank) : '#—';
 
     // Inline trade summary appended to meta-row (only when trades exist).
     // Format: "| 3W 1L 75% +₹52"  (W L %winrate +/-pnl)
     // When no trades, this segment is empty — original tile look preserved.
-    // For the universe row, aggregate ALL trades; for industry rows, filter by industry.
-    var ts = r._isUniverse
-      ? ibComputeTradeStats('__ALL__')
-      : ibComputeTradeStats(r.industry);
+    var ts = ibComputeTradeStats(r.industry);
     var tradeInline = '';
     if (ts) {
       var pnlSign = ts.netPnl > 0 ? '+' : ts.netPnl < 0 ? '-' : '';
@@ -2601,12 +2520,11 @@ function ibRender() {
         ' <span class="ib-trade-pnl ' + pnlCls + '">' + pnlTxt + '</span></span>';
     }
 
-    var tileExtraCls = r._isUniverse ? ' universe' : '';
-    return '<div class="ib-tile ' + struct + tileExtraCls + '" id="ib-tile-' + i +
+    return '<div class="ib-tile ' + struct + '" id="ib-tile-' + i +
       '" onclick="ibToggleTile(' + i + ')">' +
       '<div class="ib-trow">' +
         '<div class="ib-tname">' + name + '</div>' +
-        '<div class="ib-rank ' + rankCls + ' ' + rankExtraCls + '">' + rankTxt + '</div>' +
+        '<div class="ib-rank ' + rankCls + '">' + rankTxt + '</div>' +
       '</div>' +
       '<div class="ib-pfo ' + pfoCls + '">' + pfoTxt + '</div>' +
       '<div class="ib-meta-row">' +
@@ -5943,21 +5861,15 @@ function s3StocksPopupOpen(source, value, displayTitle) {
   var ctx = (STATE.data && STATE.data.context) || [];
   if (!Array.isArray(ctx) || ctx.length === 0) return;
 
-  // For 'universe' source, skip filtering — all of LiveContext is the match set.
-  // For industry/index sources, filter to the specific industry/theme_index.
-  var matches;
-  var target = '';
-  if (source === 'universe') {
-    matches = ctx.slice();
-  } else {
-    var field = (source === 'industry') ? 'industry' : 'theme_index_primary';
-    target = String(value || '').trim().toUpperCase();
-    if (!target) return;
-    matches = ctx.filter(function(r) {
-      var v = String(r[field] || '').trim().toUpperCase();
-      return v === target;
-    });
-  }
+  var field = (source === 'industry') ? 'industry' : 'theme_index_primary';
+  var target = String(value || '').trim().toUpperCase();
+  if (!target) return;
+
+  // Filter LiveContext to stocks matching this industry/index
+  var matches = ctx.filter(function(r) {
+    var v = String(r[field] || '').trim().toUpperCase();
+    return v === target;
+  });
 
   // Build a positions-by-symbol map for trade overlay
   var positions = (STATE.data && STATE.data.positions) || [];
@@ -6026,13 +5938,11 @@ function s3StocksPopupOpen(source, value, displayTitle) {
   // Set header
   var headLbl = document.getElementById('sp-head-lbl');
   var headName = document.getElementById('sp-head-name');
-  headLbl.textContent = source === 'industry' ? 'Industry' :
-                        source === 'index'    ? 'Index'    :
-                        source === 'universe' ? 'Universe' : '—';
+  headLbl.textContent = (source === 'industry') ? 'Industry' : 'Index';
   headName.innerHTML = s3SafeText(displayTitle || '—') +
     ' <span class="sp-head-sub">' + matches.length + ' stocks</span>';
   document.getElementById('sp-head-stats').innerHTML =
-    s3StocksPopupHeadStats(source, source === 'universe' ? matches : target);
+    s3StocksPopupHeadStats(source, target);
 
   // Render body — your-trades section (with KPIs) + all-stocks section
   var body = document.getElementById('sp-body');
@@ -6069,45 +5979,7 @@ function s3StocksPopupShow() {
 function s3StocksPopupHeadStats(source, target) {
   if (source === 'industry') return s3StocksPopupHeadStatsIndustry(target);
   if (source === 'index')    return s3StocksPopupHeadStatsIndex(target);
-  if (source === 'universe') return s3StocksPopupHeadStatsUniverse(target);
   return '';
-}
-
-// Universe stats — computed live from the matches array (same source the
-// tile uses for the inline summary, so the popup header is consistent with
-// the tile). target here is the matches array, not a string.
-function s3StocksPopupHeadStatsUniverse(matches) {
-  if (!Array.isArray(matches) || matches.length === 0) return '';
-  var pfos = [];
-  var nUp = 0, nDn = 0;
-  for (var i = 0; i < matches.length; i++) {
-    var p = parseFloat(matches[i].pct_from_open);
-    if (isFinite(p)) {
-      pfos.push(p);
-      if (p > 0)      nUp++;
-      else if (p < 0) nDn++;
-    }
-  }
-  if (pfos.length === 0) return '';
-  pfos.sort(function(a, b){ return a - b; });
-  var mid = Math.floor(pfos.length / 2);
-  var median = (pfos.length % 2 === 0)
-    ? (pfos[mid - 1] + pfos[mid]) / 2
-    : pfos[mid];
-  var pctAbove = (nUp / pfos.length) * 100;
-
-  var medTxt = (median >= 0 ? '+' : '') + median.toFixed(2) + '%';
-  var medCls = median > 0 ? 'green' : median < 0 ? 'red' : '';
-  var brTxt = Math.round(pctAbove) + '%';
-  var splitTxt = nUp + ' / ' + nDn;
-  var splitCls = nUp > nDn ? 'green' : nUp < nDn ? 'red' : '';
-
-  return s3StocksPopupHeadStatsRender([
-    {lbl:'Total',   val:String(pfos.length),  cls:''},
-    {lbl:'Median',  val:medTxt,                cls:medCls},
-    {lbl:'Breadth', val:brTxt,                 cls:''},
-    {lbl:'Up / Dn', val:splitTxt,              cls:splitCls}
-  ]);
 }
 
 function s3StocksPopupHeadStatsIndustry(target) {
