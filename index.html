@@ -633,6 +633,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   background:var(--surface);
   font-size:0.6rem;color:var(--dim);letter-spacing:0.12em;
   text-transform:uppercase;
+  display:flex;justify-content:space-between;align-items:center;gap:18px;
 }
 .sp-grid-hd{
   display:grid;grid-template-columns:1fr 100px 110px 90px 90px;gap:10px;
@@ -683,17 +684,17 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sp-head-stat-val.red{color:var(--red);}
 .sp-head-stat-val.amber{color:var(--amber);}
 
-/* Trade summary KPIs (Round 2b — 2026-04-27) */
+/* Trade summary KPIs (inline in section header — right-aligned) */
 .sp-trade-kpis{
-  display:flex;gap:18px;padding:8px 18px;
-  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;gap:14px;align-items:center;
+  letter-spacing:0;text-transform:none;
 }
-.sp-trade-kpi{display:flex;flex-direction:column;gap:1px;}
+.sp-trade-kpi{display:flex;gap:5px;align-items:baseline;}
 .sp-trade-kpi-lbl{
-  color:var(--dim);font-size:0.55rem;letter-spacing:0.08em;
+  color:var(--dim);font-size:0.6rem;letter-spacing:0.08em;
   text-transform:uppercase;
 }
-.sp-trade-kpi-val{font-size:0.78rem;font-weight:500;color:var(--text);}
+.sp-trade-kpi-val{font-size:0.72rem;font-weight:500;color:var(--text);}
 .sp-trade-kpi-val.green{color:var(--green);}
 .sp-trade-kpi-val.red{color:var(--red);}
 .sp-trade-kpi-val.dim{color:var(--dim);}
@@ -5973,18 +5974,21 @@ function s3StocksPopupTradeKpis(yourTrades) {
     }).join('') + '</div>';
 }
 
-// ── Body renderer — your trades (with KPIs) + ALL stocks ──
+// ── Body renderer — your trades (with KPIs in header) + ALL stocks ──
 function s3StocksPopupRenderBody(yourTrades, allStocks) {
   var html = '';
   if (yourTrades.length > 0) {
-    html += '<div class="sp-section-hd">Your trades · ' + yourTrades.length + '</div>';
-    html += s3StocksPopupTradeKpis(yourTrades);
+    html += '<div class="sp-section-hd">' +
+      '<span>Your trades · ' + yourTrades.length + '</span>' +
+      s3StocksPopupTradeKpis(yourTrades) +
+      '</div>';
     html += s3StocksPopupGridHeader();
     html += yourTrades.map(s3StocksPopupRowHtml).join('');
   }
   if (allStocks.length > 0) {
-    html += '<div class="sp-section-hd">All stocks · ' + allStocks.length +
-            ' · sorted by |% from open|</div>';
+    html += '<div class="sp-section-hd">' +
+      '<span>All stocks · ' + allStocks.length + ' · sorted by |% from open|</span>' +
+      '</div>';
     html += s3StocksPopupGridHeader();
     html += allStocks.map(s3StocksPopupRowHtml).join('');
   }
