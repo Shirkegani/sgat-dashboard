@@ -590,6 +590,40 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .ib-norows{padding:30px 14px;text-align:center;color:var(--dim);
   font-size:0.65rem;font-style:italic;}
 
+/* === IB Tile enrichment (Round 1 — 2026-04-27) =============
+   Trade-overview row added below the breadth/meta info.
+   - 4px full-width breadth bar above meta
+   - 2px 42%-width win bar below the trade pills/pnl line
+   - Empty state ("no trades") shows two faint "—" + a dim bar
+   - Always reserves space (uniform tile height across all tiles)
+   ============================================================ */
+.ib-bar{display:flex;border-radius:1.5px;overflow:hidden;
+  background:rgba(30,42,53,0.6);}
+.ib-bar.breadth{height:4px;margin:4px 0 3px;}
+.ib-bar.win{height:2px;border-radius:1px;background:rgba(30,42,53,0.4);}
+.ib-bar-up{background:var(--green);}
+.ib-bar-dn{background:var(--red);}
+.ib-bar-flat{background:#3a5060;}
+.ib-trade{margin-top:6px;padding-top:5px;
+  border-top:1px solid var(--border);}
+.ib-trade.empty{border-top-color:rgba(30,42,53,0.5);}
+.ib-trade-row{display:flex;justify-content:space-between;
+  align-items:center;font-size:0.58rem;}
+.ib-trade-empty-row{display:flex;justify-content:space-between;
+  align-items:center;font-size:0.58rem;color:#3a5060;}
+.ib-trade-pill{display:inline-block;padding:1px 4px;border-radius:2px;
+  font-weight:500;letter-spacing:0.04em;font-size:0.55rem;margin-right:3px;}
+.ib-trade-pill.l{background:rgba(0,229,160,0.15);color:var(--green);}
+.ib-trade-pill.s{background:rgba(255,77,106,0.15);color:var(--red);}
+.ib-trade-pnl{font-weight:500;}
+.ib-trade-pnl.green{color:var(--green);}
+.ib-trade-pnl.red{color:var(--red);}
+.ib-trade-pnl.flat{color:var(--dim);}
+.ib-win-row{display:flex;align-items:center;gap:8px;margin-top:4px;}
+.ib-win-bar-wrap{flex:0 0 42%;}
+.ib-win-label{font-size:0.55rem;color:var(--dim);flex:1;}
+.ib-win-label.empty{color:#3a5060;}
+
 /* ============================================================
    STOCKS POPUP — Round 1 (added 2026-04-27)
    Reusable popup that shows the constituent stocks of an industry
@@ -2378,6 +2412,65 @@ function ibEscape(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// Compute per-industry trade stats from STATE.data.positions.
+// Returns null if no positions exist for this industry; otherwise returns:
+//   { longs:N, shorts:N, closed:N, total:N, netPnl:N, wins:N, losses:N, winPct:N }
+// Wins/losses use HYBRID counting:
+//   - Closed positions:  pnl > 0 → win, pnl < 0 → loss
+//   - Open positions:    same — current unrealized pnl decides
+// This aligns with the popup's Win Rate KPI we already built.
+function ibComputeTradeStats(industryName) {
+  if (!industryName) return null;
+  var positions = (STATE.data && STATE.data.positions) || [];
+  if (!Array.isArray(positions) || positions.length === 0) return null;
+  var target = String(industryName).trim().toUpperCase();
+
+  var longs = 0, shorts = 0, closed = 0;
+  var netPnl = 0, wins = 0, losses = 0;
+
+  for (var i = 0; i < positions.length; i++) {
+    var p = positions[i];
+    var ind = String(p.industry || '').trim().toUpperCase();
+    if (ind !== target) continue;
+
+    var qty = parseFloat(p.quantity);
+    var pnl = parseFloat(p.pnl);
+    var side = String(p.side || '').toUpperCase();
+    var buyQ = parseFloat(p.buy_quantity);
+    var sellQ = parseFloat(p.sell_quantity);
+
+    var isOpen = isFinite(qty) && qty !== 0;
+    var isClosed = (qty === 0) && (
+      isFinite(buyQ) && buyQ > 0 && isFinite(sellQ) && sellQ > 0
+    );
+    if (!isOpen && !isClosed) continue;
+
+    if (isOpen) {
+      if (side === 'LONG') longs++;
+      else if (side === 'SHORT') shorts++;
+    } else {
+      closed++;
+    }
+
+    if (isFinite(pnl)) {
+      netPnl += pnl;
+      if (pnl > 0) wins++;
+      else if (pnl < 0) losses++;
+    }
+  }
+
+  var total = longs + shorts + closed;
+  if (total === 0) return null;
+
+  var decided = wins + losses;
+  var winPct = decided > 0 ? Math.round((wins / decided) * 100) : null;
+
+  return {
+    longs: longs, shorts: shorts, closed: closed, total: total,
+    netPnl: netPnl, wins: wins, losses: losses, winPct: winPct
+  };
+}
+
 // Click handler — opens stocks popup with all stocks in this industry.
 // Replaces the old inline expand behavior (top1/bot1) — the new popup
 // shows the full constituent list with trade overlay.
@@ -2448,6 +2541,89 @@ function ibRender() {
 
     var rankTxt = isFinite(rank) ? '#' + Math.round(rank) : '#—';
 
+    // Breadth bar — green/red split based on pct_above_open
+    var pctAbove = parseFloat(r.pct_above_open);
+    var breadthBarHtml = '';
+    var nUp = '', nDn = '';
+    if (isFinite(pctAbove) && isFinite(nstk) && nstk > 0) {
+      // Compute up/down counts. Treat the small "flat" sliver as part of the
+      // breadth bar visualization but keep the meta line simple (n up · n dn).
+      var above = Math.round(nstk * (pctAbove / 100));
+      var below = Math.max(0, Math.round(nstk - above));
+      nUp = above; nDn = below;
+      var upW = pctAbove;
+      var dnW = 100 - pctAbove;
+      breadthBarHtml = '<div class="ib-bar breadth">' +
+        '<div class="ib-bar-up" style="width:' + upW + '%"></div>' +
+        '<div class="ib-bar-dn" style="width:' + dnW + '%"></div>' +
+      '</div>';
+    } else {
+      breadthBarHtml = '<div class="ib-bar breadth"></div>';
+    }
+    // Updated meta line — n up · n dn · n stk (replaces "%>op" text)
+    var metaTxt;
+    if (nUp !== '' && nDn !== '') {
+      metaTxt = nUp + ' up · ' + nDn + ' dn · ' + (nstkTxt);
+    } else {
+      // Fallback to old text if breadth data is incomplete
+      metaTxt = brTxt + ' · ' + nstkTxt;
+    }
+
+    // Trade overview — compute stats for this industry from positions
+    var ts = ibComputeTradeStats(r.industry);
+    var tradeHtml;
+    if (ts) {
+      // Trade row: pills + net PnL
+      var pillsHtml = '';
+      if (ts.longs > 0)  pillsHtml += '<span class="ib-trade-pill l">' + ts.longs + 'L</span>';
+      if (ts.shorts > 0) pillsHtml += '<span class="ib-trade-pill s">' + ts.shorts + 'S</span>';
+      if (ts.closed > 0) pillsHtml += '<span class="ib-trade-pill l" style="opacity:0.55">' +
+                                      ts.closed + 'X</span>';
+      var pnlSign = ts.netPnl > 0 ? '+' : ts.netPnl < 0 ? '-' : '';
+      var pnlCls = ts.netPnl > 0 ? 'green' : ts.netPnl < 0 ? 'red' : 'flat';
+      var pnlTxt = pnlSign + '₹' + Math.abs(Math.round(ts.netPnl));
+
+      // Win bar: green for wins, red for losses
+      var winBarHtml;
+      if (ts.wins + ts.losses > 0) {
+        var winW = (ts.wins / (ts.wins + ts.losses)) * 100;
+        var lossW = 100 - winW;
+        winBarHtml = '<div class="ib-bar win">' +
+          (winW > 0 ? '<div class="ib-bar-up" style="width:' + winW + '%"></div>' : '') +
+          (lossW > 0 ? '<div class="ib-bar-dn" style="width:' + lossW + '%"></div>' : '') +
+        '</div>';
+      } else {
+        // No decided positions yet (everything at break-even right now)
+        winBarHtml = '<div class="ib-bar win"></div>';
+      }
+      var winLabel;
+      if (ts.winPct === null) {
+        winLabel = ts.total + ' open · —';
+      } else {
+        winLabel = ts.wins + 'W ' + ts.losses + 'L · ' + ts.winPct + '% win';
+      }
+
+      tradeHtml = '<div class="ib-trade">' +
+        '<div class="ib-trade-row">' +
+          '<span>' + pillsHtml + '</span>' +
+          '<span class="ib-trade-pnl ' + pnlCls + '">' + pnlTxt + '</span>' +
+        '</div>' +
+        '<div class="ib-win-row">' +
+          '<div class="ib-win-bar-wrap">' + winBarHtml + '</div>' +
+          '<div class="ib-win-label">' + winLabel + '</div>' +
+        '</div>' +
+      '</div>';
+    } else {
+      // Empty state — preserves height for visual uniformity
+      tradeHtml = '<div class="ib-trade empty">' +
+        '<div class="ib-trade-empty-row"><span>—</span><span>—</span></div>' +
+        '<div class="ib-win-row">' +
+          '<div class="ib-win-bar-wrap"><div class="ib-bar win"></div></div>' +
+          '<div class="ib-win-label empty">no trades</div>' +
+        '</div>' +
+      '</div>';
+    }
+
     return '<div class="ib-tile ' + struct + '" id="ib-tile-' + i +
       '" onclick="ibToggleTile(' + i + ')">' +
       '<div class="ib-trow">' +
@@ -2455,16 +2631,9 @@ function ibRender() {
         '<div class="ib-rank ' + rankCls + '">' + rankTxt + '</div>' +
       '</div>' +
       '<div class="ib-pfo ' + pfoCls + '">' + pfoTxt + '</div>' +
-      '<div class="ib-meta-row">' +
-        '<span class="ib-br-pct">' + brTxt + '</span> · ' +
-        '<span class="ib-n">' + nstkTxt + '</span>' +
-      '</div>' +
-      '<div class="ib-expand">' +
-        '<div class="ib-er"><span class="ib-esym">▲ ' + top1Sym + '</span>' +
-          '<span class="ib-eval ' + top1ValCls + '">' + top1Pfo + '</span></div>' +
-        '<div class="ib-er"><span class="ib-esym">▼ ' + bot1Sym + '</span>' +
-          '<span class="ib-eval ' + bot1ValCls + '">' + bot1Pfo + '</span></div>' +
-      '</div>' +
+      breadthBarHtml +
+      '<div class="ib-meta-row">' + metaTxt + '</div>' +
+      tradeHtml +
     '</div>';
   }).join('');
 
