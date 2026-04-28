@@ -3172,6 +3172,29 @@ function s2DrawIndexLine(svgId, ylblId, candles) {
 
   var W=260, H=130, n=data.length;
 
+  // ── TIME-BASED X (NEW 2026-04-28) ───────────────────────────────
+  // NSE intraday session: 09:15 → 15:30 = 375 minutes.
+  // X position = (minutes since 09:15 / 375) * W, clamped to [0,W].
+  // This means at 09:35 with 5 candles, points fill only the leftmost
+  // ~5% of the chart instead of being stretched edge-to-edge.
+  var SESSION_MINS = 375;
+  function minsSince915(ts) {
+    // ts looks like "2026-04-28 09:35:00" — extract HH:MM and convert.
+    var raw = String(ts || '');
+    if (raw.length < 16) return null;
+    var hh = parseInt(raw.slice(11,13), 10);
+    var mm = parseInt(raw.slice(14,16), 10);
+    if (isNaN(hh) || isNaN(mm)) return null;
+    return (hh * 60 + mm) - (9 * 60 + 15);
+  }
+  function px(i) {
+    var m = minsSince915(candles[i].ts);
+    if (m === null) return 0;
+    if (m < 0) m = 0;
+    if (m > SESSION_MINS) m = SESSION_MINS;
+    return (m / SESSION_MINS) * W;
+  }
+
   // Adaptive Y-scale — same rules as median chart
   var dMin = Math.min.apply(null, data);
   var dMax = Math.max.apply(null, data);
@@ -3190,7 +3213,20 @@ function s2DrawIndexLine(svgId, ylblId, candles) {
   var range = fMax - fMin;
 
   function py(v){return H-((v-fMin)/range*H);}
-  function px(i){return (i/(n-1))*W;}
+
+  // ── HOURLY VERTICAL GRIDLINES (NEW 2026-04-28) ──────────────────
+  // Subtle dashed verticals at 10:00, 11:00, 12:00, 13:00, 14:00, 15:00
+  // so empty right-side space has temporal context.
+  [60, 120, 180, 240, 300, 360].forEach(function(mins) {
+    var x = (mins / SESSION_MINS) * W;
+    var v = document.createElementNS('http://www.w3.org/2000/svg','line');
+    v.setAttribute('x1', x); v.setAttribute('x2', x);
+    v.setAttribute('y1', 0); v.setAttribute('y2', H);
+    v.setAttribute('stroke', 'rgba(40,65,80,0.45)');
+    v.setAttribute('stroke-width', '0.4');
+    v.setAttribute('stroke-dasharray', '2,4');
+    svg.appendChild(v);
+  });
 
   // Nice-step for gridlines (~5 ticks)
   function niceStep(totalRange) {
@@ -3259,6 +3295,8 @@ function s2DrawIndexLine(svgId, ylblId, candles) {
   // Stash the pct series on the SVG element so s2AddHovers can find it
   svg.__pctSeries = data;
   svg.__candles   = candles;
+  // NEW 2026-04-28: stash X-coords so the time-aware hover can mirror them
+  svg.__xCoords = candles.map(function(_, i){ return px(i); });
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -4830,16 +4868,57 @@ function s2AddHovers(prof, niftyData) {
     if (!svgEl || !svgEl.__pctSeries || !svgEl.__pctSeries.length) return;
     var pctSeries = svgEl.__pctSeries;
     var candles   = svgEl.__candles || [];
+    var xCoords   = svgEl.__xCoords || [];
     var openPct   = pctSeries[0];
-    var tsArr = candles.map(function(r){return String(r.ts || '');});
-    addChartHover(cfg.svg, cfg.tip, pctSeries, tsArr, function(v,ts,idx) {
-      var col = v>=0?'#00e5a0':'#ff4d6a';
+    var tipEl     = document.getElementById(cfg.tip);
+    if (!tipEl || !xCoords.length) return;
+
+    // Time-aware hover (NEW 2026-04-28): snap to nearest data point by
+    // pixel-X distance. The old addChartHover() assumed evenly-spaced points,
+    // which is no longer true after switching s2DrawIndexLine to time-based X.
+    var W = parseFloat(svgEl.getAttribute('viewBox').split(' ')[2]) || 260;
+
+    svgEl.addEventListener('mousemove', function(e) {
+      var rect = svgEl.getBoundingClientRect();
+      var xPct = (e.clientX - rect.left) / rect.width;
+      var xSvg = xPct * W;
+      // Find nearest stored xCoord
+      var bestIdx = 0, bestDist = Infinity;
+      for (var k = 0; k < xCoords.length; k++) {
+        var d = Math.abs(xCoords[k] - xSvg);
+        if (d < bestDist) { bestDist = d; bestIdx = k; }
+      }
+      var v = pctSeries[bestIdx];
+      var rawTs = candles[bestIdx] ? String(candles[bestIdx].ts || '') : '';
+      var ts = rawTs.length >= 16 ? rawTs.slice(11,16) : rawTs;
+      var col = v>=0 ? '#00e5a0' : '#ff4d6a';
       var deltaOpen = v - openPct;
-      var openCol = deltaOpen>=0?'#00e5a0':'#ff4d6a';
+      var openCol = deltaOpen>=0 ? '#00e5a0' : '#ff4d6a';
       var openStr = (deltaOpen>=0?'+':'')+deltaOpen.toFixed(2)+'%';
-      return '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
+      tipEl.style.display = 'block';
+      tipEl.style.left = Math.min(e.clientX - rect.left, rect.width - 140) + 'px';
+      tipEl.style.top = '4px';
+      tipEl.innerHTML = '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
         + cfg.label+': <b style="color:'+col+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</b>'
         + ' <span style="color:'+openCol+';font-size:0.62rem">('+openStr+' vs open)</span>';
+      // Crosshair line — drawn at the snapped data point's actual X,
+      // so it stays glued to the curve even when the cursor is past
+      // the last data point.
+      var existing = svgEl.querySelector('.hover-line');
+      if (existing) existing.remove();
+      var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('class','hover-line');
+      line.setAttribute('x1', xCoords[bestIdx]); line.setAttribute('x2', xCoords[bestIdx]);
+      line.setAttribute('y1', 0); line.setAttribute('y2', '100%');
+      line.setAttribute('stroke','rgba(56,182,255,0.4)');
+      line.setAttribute('stroke-width','0.8');
+      svgEl.appendChild(line);
+    });
+
+    svgEl.addEventListener('mouseleave', function() {
+      tipEl.style.display = 'none';
+      var existing = svgEl.querySelector('.hover-line');
+      if (existing) existing.remove();
     });
   });
 }
