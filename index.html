@@ -3888,6 +3888,33 @@ function s3RenderCards(positions, trades) {
   }
 }
 
+// ── Timestamp helper (FIX 2026-04-28) ────────────────────────────
+// Backend stores `ts` and `last_exit_ts` as naive UTC strings like
+//   "2026-04-28 04:15:00" or "2026-04-28T04:15:00".
+// Old code did .slice(11,16) which gave us UTC clock time ("04:15"),
+// which is 5h30m behind IST and broke the time-based X-axis.
+// This helper detects a date-prefixed string, treats it as UTC, and
+// converts to IST. Already-formatted "HH:MM" strings pass through.
+// Used by s3DrawCurveFromState and s3DrawCurve.
+function tsToIstHHMM(raw) {
+  var s = String(raw || '');
+  if (!s) return '';
+  // Already "HH:MM"
+  if (s.length === 5 && s.charAt(2) === ':') return s;
+  // Date-prefixed string: parse as UTC and shift to IST (+5:30).
+  if (s.length >= 16) {
+    var hh = parseInt(s.slice(11,13), 10);
+    var mm = parseInt(s.slice(14,16), 10);
+    if (isNaN(hh) || isNaN(mm)) return '';
+    mm += 30;
+    if (mm >= 60) { mm -= 60; hh += 1; }
+    hh += 5;
+    if (hh >= 24) hh -= 24;
+    return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+  }
+  return '';
+}
+
 function s3DrawCurveFromState() {
   var trades = STATE.data.trades || [];
   var curveRaw = STATE.curveData || [];
@@ -3912,13 +3939,14 @@ function s3DrawCurveFromState() {
     return parseFloat(item.pnl) || 0;
   }
 
+  // ── Timestamps converted via module-level tsToIstHHMM helper.
+  // Backend ts is UTC; helper shifts to IST. See helper above for details.
+
   if (curveRaw.length >= 2) {
     // Use dedicated curve data — one point per minute, from positions_curve endpoint
     curveRaw.forEach(function(item) {
       points.push(pickPnl(item));
-      // Format timestamp to HH:MM for display
-      var ts = String(item.ts||'').slice(11,16);
-      timestamps.push(ts);
+      timestamps.push(tsToIstHHMM(item.ts));
     });
   } else {
     // Fallback: cumulative closed trades (used when curve data not yet loaded).
@@ -3934,7 +3962,7 @@ function s3DrawCurveFromState() {
     sorted.forEach(function(t){
       cum += parseFloat(t.pnl_inr)||0;
       points.push(cum);
-      timestamps.push((t.last_exit_ts||'').slice(11,16));
+      timestamps.push(tsToIstHHMM(t.last_exit_ts));
     });
   }
 
@@ -4025,22 +4053,6 @@ function s3RenderCurve(points, timestamps) {
 
   // Pre-compute xCoords once (used by curve + dot + hover)
   var xCoords = points.map(function(_, i){ return px(i); });
-
-  // ── DIAGNOSTIC (TEMP 2026-04-28) ────────────────────────────────
-  // Helps debug the "stacked at one point" issue. Remove once fixed.
-  try {
-    var sample = [];
-    for (var di = 0; di < Math.min(5, n); di++) {
-      sample.push({ i: di, ts: timestamps[di], px: xCoords[di], pnl: points[di] });
-    }
-    console.log('[PnL DIAG] n=' + n
-      + ' first_ts="' + timestamps[0] + '"'
-      + ' last_ts="' + timestamps[n-1] + '"'
-      + ' first_px=' + xCoords[0]
-      + ' last_px=' + xCoords[n-1]
-      + ' all_same_x=' + (xCoords[0] === xCoords[n-1])
-      + ' sample=' + JSON.stringify(sample));
-  } catch(e){}
 
   // Coloured segments green/red split at zero
   for(var i=0;i<n-1;i++){
@@ -4479,7 +4491,7 @@ function s3DrawCurve(positions, trades) {
   sorted.forEach(function(t){
     cum += parseFloat(t.pnl_inr)||0;
     points.push(cum);
-    timestamps.push((t.last_exit_ts||'').slice(11,16));
+    timestamps.push(tsToIstHHMM(t.last_exit_ts));
   });
   s3RenderCurve(points, timestamps);
 }
