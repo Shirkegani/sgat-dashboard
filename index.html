@@ -2918,8 +2918,14 @@ function s2Render() {
   // Chart-1: the existing NIFTY 50 context chart (row 1)
   var n50 = idxByName['NIFTY 50'] || [];
   if (n50.length) {
-    var n50Vals = n50.map(function(r){return parseFloat(r.c)||0;}).filter(function(v){return v>0;});
-    if (n50Vals.length) s2DrawNiftyLine(n50Vals);
+    // Keep close-prices and timestamps in lockstep — filter zero-close rows
+    // out of BOTH arrays so n50Vals[i] still pairs with n50Ts[i].
+    var n50Vals = [], n50Ts = [];
+    n50.forEach(function(r) {
+      var c = parseFloat(r.c) || 0;
+      if (c > 0) { n50Vals.push(c); n50Ts.push(String(r.ts || '')); }
+    });
+    if (n50Vals.length) s2DrawNiftyLine(n50Vals, n50Ts);
   } else {
     // no NIFTY 50 data — blank the SVG so stale data doesn't persist
     var nfSvg = document.getElementById('s2-nf-svg'); if (nfSvg) nfSvg.innerHTML = '';
@@ -3169,26 +3175,81 @@ function s2DrawMedianLine(data, hhmmArr) {
   svg.__xCoords = data.map(function(_, i){ return px(i); });
 }
 
-function s2DrawNiftyLine(data) {
+function s2DrawNiftyLine(data, tsArr) {
   var svg = document.getElementById('s2-nf-svg'); svg.innerHTML = '';
   var W=260, H=130, n=data.length;
   if (!n) return;
+
+  // ── TIME-BASED X (NEW 2026-04-28) ───────────────────────────────
+  // NIFTY 50 candles arrive as ISO strings in tsArr like
+  //   "2026-04-28 09:35:00" or "2026-04-28T09:35:00+0530".
+  // Map each to minutes since 09:15, then place at (mins/375)*W.
+  var SESSION_MINS = 375;
+  function minsSince915(ts) {
+    var raw = String(ts || '');
+    if (raw.length < 16) return null;
+    var hh = parseInt(raw.slice(11,13), 10);
+    var mm = parseInt(raw.slice(14,16), 10);
+    if (isNaN(hh) || isNaN(mm)) return null;
+    return (hh*60 + mm) - (9*60 + 15);
+  }
+  function px(i) {
+    var t = tsArr && tsArr[i];
+    var m = minsSince915(t);
+    if (m === null) return (i/(n-1||1))*W;  // safe fallback
+    if (m < 0) m = 0;
+    if (m > SESSION_MINS) m = SESSION_MINS;
+    return (m / SESSION_MINS) * W;
+  }
+
   var mn=Math.min.apply(null,data)-0.05, mx=Math.max.apply(null,data)+0.05, range=mx-mn||1;
   function py(v){return H-((v-mn)/range*H);}
-  function px(i){return (i/(n-1))*W;}
+
+  // ── HOURLY VERTICAL GRIDLINES (NEW 2026-04-28) ──────────────────
+  // Subtle dashed verticals at 10:00–15:00 so empty right-side has context.
+  // Drawn FIRST so the area fill and line render on top.
+  [60, 120, 180, 240, 300, 360].forEach(function(mins) {
+    var x = (mins / SESSION_MINS) * W;
+    var v = document.createElementNS('http://www.w3.org/2000/svg','line');
+    v.setAttribute('x1', x); v.setAttribute('x2', x);
+    v.setAttribute('y1', 0); v.setAttribute('y2', H);
+    v.setAttribute('stroke', 'rgba(40,65,80,0.45)');
+    v.setAttribute('stroke-width', '0.4');
+    v.setAttribute('stroke-dasharray', '2,4');
+    svg.appendChild(v);
+  });
+
+  // Open-price reference line (horizontal)
   var zy=py(data[0]);
   var zl=document.createElementNS('http://www.w3.org/2000/svg','line');
   zl.setAttribute('x1',0); zl.setAttribute('x2',W); zl.setAttribute('y1',zy); zl.setAttribute('y2',zy);
   zl.setAttribute('stroke','rgba(90,112,128,0.4)'); zl.setAttribute('stroke-width','0.5'); zl.setAttribute('stroke-dasharray','3,3');
   svg.appendChild(zl);
-  var pts=data.map(function(v,i){return px(i)+','+py(v);}).join(' ');
+
+  // Build point pairs
+  var xCoords = data.map(function(_, i){ return px(i); });
+  var pts=data.map(function(v,i){return xCoords[i]+','+py(v);}).join(' ');
+
+  // Area fill — anchor to FIRST and LAST data point's actual X (not 0..W).
+  // Otherwise empty right-side space would be filled blue.
+  var firstX = xCoords[0];
+  var lastX  = xCoords[n-1];
   var area=document.createElementNS('http://www.w3.org/2000/svg','polygon');
-  area.setAttribute('points','0,'+zy+' '+pts+' '+px(n-1)+','+zy); area.setAttribute('fill','rgba(56,182,255,0.07)'); svg.appendChild(area);
+  area.setAttribute('points', firstX+','+zy+' '+pts+' '+lastX+','+zy);
+  area.setAttribute('fill','rgba(56,182,255,0.07)');
+  svg.appendChild(area);
+
+  // Line
   var pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
   pl.setAttribute('points',pts); pl.setAttribute('fill','none'); pl.setAttribute('stroke','#38b6ff'); pl.setAttribute('stroke-width','1.8'); pl.setAttribute('stroke-linejoin','round');
   svg.appendChild(pl);
+
+  // End-of-line dot
   var dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
-  dot.setAttribute('cx',px(n-1)); dot.setAttribute('cy',py(data[n-1])); dot.setAttribute('r','2.5'); dot.setAttribute('fill','#38b6ff'); svg.appendChild(dot);
+  dot.setAttribute('cx',lastX); dot.setAttribute('cy',py(data[n-1])); dot.setAttribute('r','2.5'); dot.setAttribute('fill','#38b6ff'); svg.appendChild(dot);
+
+  // NEW 2026-04-28: stash X-coords so the time-aware hover can mirror them
+  svg.__xCoords = xCoords;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -4890,28 +4951,69 @@ function s2AddHovers(prof, niftyData) {
   })();
 
   // ── NIFTY 50 ── show HH:MM, price, %/points vs open
+  // Time-aware hover (NEW 2026-04-28): snap to nearest data point by
+  // pixel-X distance to mirror the new time-based curve.
   // Now that niftyData contains multiple indices, filter to NIFTY 50 here.
   var n50rows = (niftyData || []).filter(function(r){return String(r.tradingsymbol||'').trim()==='NIFTY 50';});
   n50rows.sort(function(a,b){return String(a.ts||'').localeCompare(String(b.ts||''));});
   if (n50rows.length) {
-    var nVals = n50rows.map(function(r){return parseFloat(r.c)||0;});
+    // Match the filtering done by the draw caller (skip zero-close rows)
+    var nVals = [], nTimes = [];
+    n50rows.forEach(function(r) {
+      var c = parseFloat(r.c) || 0;
+      if (c > 0) { nVals.push(c); nTimes.push(String(r.ts || '')); }
+    });
     var nOpen = nVals[0] || 1;
-    // Each candle has ts in "YYYY-MM-DDTHH:MM:SS+0530" — slice(11,16) is safe here
-    var niftyTimeArr = n50rows.map(function(r){
-      var raw = String(r.ts || r.t || r.time || r.date || r.timestamp || '');
-      return raw;  // addChartHover auto-detects format
-    });
-    addChartHover('s2-nf-svg','s2-nf-tip', nVals, niftyTimeArr, function(v,ts,idx){
-      var pfo   = (v-nOpen)/nOpen*100;
-      var pts   = v - nOpen;
-      var col   = pfo>=0?'#00e5a0':'#ff4d6a';
-      var pfoStr = (pfo>=0?'+':'')+pfo.toFixed(2)+'%';
-      var ptsStr = (pts>=0?'+':'')+pts.toFixed(1)+'pt';
-      return '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
-        + 'NIFTY: <b style="color:#38b6ff">'+v.toFixed(2)+'</b> '
-        + '<span style="color:'+col+'">'+pfoStr+'</span>'
-        + ' <span style="color:'+col+';font-size:0.62rem">('+ptsStr+')</span>';
-    });
+
+    (function setupNiftyHover() {
+      var svgEl = document.getElementById('s2-nf-svg');
+      var tipEl = document.getElementById('s2-nf-tip');
+      if (!svgEl || !tipEl) return;
+      var xCoords = svgEl.__xCoords || [];
+      if (!xCoords.length || !nVals.length) return;
+      var W = parseFloat(svgEl.getAttribute('viewBox').split(' ')[2]) || 260;
+
+      svgEl.addEventListener('mousemove', function(e) {
+        var rect = svgEl.getBoundingClientRect();
+        var xPct = (e.clientX - rect.left) / rect.width;
+        var xSvg = xPct * W;
+        var bestIdx = 0, bestDist = Infinity;
+        for (var k = 0; k < xCoords.length; k++) {
+          var d = Math.abs(xCoords[k] - xSvg);
+          if (d < bestDist) { bestDist = d; bestIdx = k; }
+        }
+        var v = nVals[bestIdx];
+        var rawTs = nTimes[bestIdx] || '';
+        var ts = rawTs.length >= 16 ? rawTs.slice(11,16) : rawTs;
+        var pfo = (v-nOpen)/nOpen*100;
+        var pts = v - nOpen;
+        var col = pfo>=0?'#00e5a0':'#ff4d6a';
+        var pfoStr = (pfo>=0?'+':'')+pfo.toFixed(2)+'%';
+        var ptsStr = (pts>=0?'+':'')+pts.toFixed(1)+'pt';
+        tipEl.style.display = 'block';
+        tipEl.style.left = Math.min(e.clientX - rect.left, rect.width - 140) + 'px';
+        tipEl.style.top = '4px';
+        tipEl.innerHTML = '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
+          + 'NIFTY: <b style="color:#38b6ff">'+v.toFixed(2)+'</b> '
+          + '<span style="color:'+col+'">'+pfoStr+'</span>'
+          + ' <span style="color:'+col+';font-size:0.62rem">('+ptsStr+')</span>';
+        var existing = svgEl.querySelector('.hover-line');
+        if (existing) existing.remove();
+        var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('class','hover-line');
+        line.setAttribute('x1', xCoords[bestIdx]); line.setAttribute('x2', xCoords[bestIdx]);
+        line.setAttribute('y1', 0); line.setAttribute('y2', '100%');
+        line.setAttribute('stroke','rgba(56,182,255,0.4)');
+        line.setAttribute('stroke-width','0.8');
+        svgEl.appendChild(line);
+      });
+
+      svgEl.addEventListener('mouseleave', function() {
+        tipEl.style.display = 'none';
+        var existing = svgEl.querySelector('.hover-line');
+        if (existing) existing.remove();
+      });
+    })();
   }
 
   // ── Row-2 + Row-3 indices — all 10 mid/small cap + sector charts ──
