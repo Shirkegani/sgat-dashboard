@@ -162,8 +162,10 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s3-curve-lbl{font-size:0.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;}
 .s3-chart{width:100%;height:110px;position:relative;}
 .s3-chart svg{width:100%;height:100%;}
-.s3-xaxis{display:flex;justify-content:space-between;margin-top:3px;}
-.s3-xaxis span{font-size:0.5rem;color:#3a5060;}
+.s3-xaxis{position:relative;height:10px;margin-top:3px;}
+.s3-xaxis span{font-size:0.5rem;color:#3a5060;position:absolute;transform:translateX(-50%);white-space:nowrap;}
+.s3-xaxis span.edge-l{transform:translateX(0);}
+.s3-xaxis span.edge-r{transform:translateX(-100%);}
 /* Tables */
 .s3-tables{display:grid;grid-template-columns:1fr 1fr;}
 .s3-tbl{padding:10px 12px;border-right:1px solid var(--border);}
@@ -249,8 +251,13 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s2-cp-title{font-size:0.59rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
 .s2-chart{width:100%;height:130px;position:relative;}
 .s2-chart svg{width:100%;height:100%;}
-.s2-xaxis{display:flex;justify-content:space-between;margin-top:3px;}
-.s2-xaxis span{font-size:0.5rem;color:#3a5060;}
+.s2-xaxis{position:relative;height:10px;margin-top:3px;}
+.s2-xaxis span{font-size:0.5rem;color:#3a5060;position:absolute;transform:translateX(-50%);white-space:nowrap;}
+.s2-xaxis span.edge-l{transform:translateX(0);}
+.s2-xaxis span.edge-r{transform:translateX(-100%);}
+/* Legacy flex layout — used only by breadth bars (still even-spaced for now). */
+.s2-xaxis-flex{display:flex;justify-content:space-between;height:auto;}
+.s2-xaxis-flex span{position:static;transform:none;}
 .s2-note{font-size:0.57rem;color:var(--dim);margin-top:5px;font-style:italic;line-height:1.5;}
 .chart-tooltip{position:absolute;background:#0d1318;border:1px solid var(--border2);border-radius:4px;padding:4px 8px;font-size:0.6rem;color:var(--text);pointer-events:none;white-space:nowrap;z-index:100;display:none;font-family:var(--font-mono);}
 .s2-br-cards{display:flex;gap:6px;margin-top:8px;}
@@ -947,7 +954,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <div class="pos" id="s3-curve-val" style="font-size:0.8rem;font-weight:600;">—</div>
       </div>
       <div class="s3-chart"><svg id="s3-pnl-svg" viewBox="0 0 600 110" preserveAspectRatio="none" style="width:100%;height:110px;"></svg></div>
-      <div class="s3-xaxis"><span>09:30</span><span>10:30</span><span>11:30</span><span>12:30</span><span>13:30</span><span>14:30</span><span>15:30</span></div>
+      <div class="s3-xaxis" id="s3-pnl-xaxis"></div>
     </div>
 
     <!-- RIGHT: 5 mini-curves + unified hover -->
@@ -1109,7 +1116,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-cp-title">Breadth — % stocks above open</div>
       <div class="s2-chart"><svg id="s2-br-svg" viewBox="0 0 260 130" preserveAspectRatio="none"></svg>
       <div class="chart-tooltip" id="s2-br-tip"></div></div>
-      <div class="s2-xaxis"><span>09:19</span><span>10:30</span><span>12:00</span><span>14:00</span><span>15:30</span></div>
+      <div class="s2-xaxis s2-xaxis-flex" id="s2-br-xaxis"><span>09:19</span><span>10:30</span><span>12:00</span><span>14:00</span><span>15:30</span></div>
       <div class="s2-note" id="s2-br-note">—</div>
       <div class="s2-br-cards">
         <div class="s2-br-card"><div class="s2-br-lbl">Open</div><div class="s2-br-val inf" id="s2-br-open">—</div></div>
@@ -1125,7 +1132,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-med-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
       <div class="chart-tooltip" id="s2-med-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:19</span><span>10:30</span><span>12:00</span><span>14:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-med-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note">0 line centre · Green above · Red below</div>
       <div class="s2-br-cards">
         <div class="s2-br-card"><div class="s2-br-lbl">Open</div><div class="s2-br-val inf" id="s2-med-open">—</div></div>
@@ -1138,7 +1145,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-cp-title">NIFTY context</div>
       <div class="s2-chart"><svg id="s2-nf-svg" viewBox="0 0 260 130" preserveAspectRatio="none"></svg>
       <div class="chart-tooltip" id="s2-nf-tip"></div></div>
-      <div class="s2-xaxis"><span>09:15</span><span>10:30</span><span>12:00</span><span>14:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-nf-xaxis"></div>
       <div class="s2-nifty-rows" id="s2-nifty-rows">
         <div class="s2-nr"><span class="s2-nr-lbl">% from open</span><span class="s2-nr-val" id="s2-nf-pfo">—</span></div>
         <div class="s2-nr"><span class="s2-nr-lbl">Structure</span><span class="s2-nr-val" id="s2-nf-str">—</span></div>
@@ -1160,7 +1167,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-mc150-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-mc150-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-mc150-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-mc150-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1171,7 +1178,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-ms400-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-ms400-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-ms400-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-ms400-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1182,7 +1189,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-sc250-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-sc250-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-sc250-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-sc250-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1193,7 +1200,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-bank-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-bank-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-bank-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-bank-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp" style="border-right:none;">
@@ -1204,7 +1211,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-it-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-it-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-it-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-it-cap">—</div>
     </div>
   </div>
@@ -1219,7 +1226,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-auto-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-auto-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-auto-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-auto-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1230,7 +1237,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-fmcg-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-fmcg-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-fmcg-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-fmcg-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1241,7 +1248,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-pharma-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-pharma-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-pharma-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-pharma-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1252,7 +1259,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-infra-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-infra-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-infra-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-infra-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp" style="border-right:none;">
@@ -1263,7 +1270,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-realty-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-realty-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-realty-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-realty-cap">—</div>
     </div>
   </div>
@@ -1278,7 +1285,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-consdur-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-consdur-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-consdur-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-consdur-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1289,7 +1296,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-health-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-health-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-health-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-health-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1300,7 +1307,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-metal-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-metal-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-metal-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-metal-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1311,7 +1318,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-oilgas-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-oilgas-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-oilgas-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-oilgas-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp" style="border-right:none;">
@@ -1322,7 +1329,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-psubank-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-psubank-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-psubank-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-psubank-cap">—</div>
     </div>
   </div>
@@ -1337,7 +1344,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-cons-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-cons-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-cons-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-cons-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1348,7 +1355,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-energy-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-energy-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-energy-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-energy-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1359,7 +1366,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-finsvc-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-finsvc-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-finsvc-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-finsvc-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
@@ -1370,7 +1377,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-media-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-media-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-media-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-media-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp" style="border-right:none;">
@@ -1381,7 +1388,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
         <svg id="s2-servsec-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
         <div class="chart-tooltip" id="s2-servsec-tip"></div>
       </div>
-      <div class="s2-xaxis" style="padding-left:14px;"><span>09:15</span><span>12:00</span><span>15:30</span></div>
+      <div class="s2-xaxis" id="s2-servsec-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-servsec-cap">—</div>
     </div>
   </div>
@@ -3016,6 +3023,36 @@ function s2SetFlag(id, label, val, type) {
   if (dot) dot.className = 's2-fdot s2-fd' + type;
 }
 
+// ────────────────────────────────────────────────────────────────
+// populateTimeAxis (NEW 2026-04-28)
+// Renders time labels into a `<div class="s?-xaxis">` so labels sit at
+// exact time positions matching the chart's time-based X-axis.
+//   axisDivId : id of the xaxis div to populate (its parent's child)
+//   labelMins : array of {mins, txt} — minutes since 09:15 + label text
+//   leftPadPct: optional extra %-based left offset (for charts that have
+//               padding-left on the SVG, e.g. Y-label gutter)
+//   widthPct  : usable width as %, default 100 (use <100 if there's
+//               horizontal SVG padding eating chart width)
+// ────────────────────────────────────────────────────────────────
+function populateTimeAxis(axisDivId, labelMins, leftPadPct, widthPct) {
+  var el = document.getElementById(axisDivId);
+  if (!el) return;
+  el.innerHTML = '';
+  var SESSION_MINS = 375;
+  var lp = leftPadPct || 0;
+  var ww = widthPct || 100;
+  labelMins.forEach(function(lbl, i) {
+    var pct = lp + (lbl.mins / SESSION_MINS) * ww;
+    var sp = document.createElement('span');
+    sp.textContent = lbl.txt;
+    sp.style.left = pct.toFixed(2) + '%';
+    if (i === 0) sp.className = 'edge-l';
+    else if (i === labelMins.length - 1) sp.className = 'edge-r';
+    el.appendChild(sp);
+  });
+}
+
+
 function s2DrawBreadthBars(data) {
   var svg = document.getElementById('s2-br-svg'); svg.innerHTML = '';
   var W=260, H=130, n=data.length, bw=Math.max(1,(W/n)-0.8);
@@ -3098,6 +3135,16 @@ function s2DrawMedianLine(data, hhmmArr) {
     v.setAttribute('stroke-dasharray', '2,4');
     svg.appendChild(v);
   });
+
+  // ── X-AXIS TIME LABELS (NEW 2026-04-28) ─────────────────────────
+  // Narrow chart — only 5 labels to avoid crowding.
+  populateTimeAxis('s2-med-xaxis', [
+    { mins:   0, txt: '09:15' },
+    { mins: 105, txt: '11:00' },
+    { mins: 225, txt: '13:00' },
+    { mins: 345, txt: '15:00' },
+    { mins: 375, txt: '15:30' }
+  ]);
 
   // ── Dynamic gridlines at round values ────────────────────────────
   // Pick a step size that yields ~5 gridlines in the current range.
@@ -3219,6 +3266,15 @@ function s2DrawNiftyLine(data, tsArr) {
     svg.appendChild(v);
   });
 
+  // ── X-AXIS TIME LABELS (NEW 2026-04-28) ─────────────────────────
+  populateTimeAxis('s2-nf-xaxis', [
+    { mins:   0, txt: '09:15' },
+    { mins: 105, txt: '11:00' },
+    { mins: 225, txt: '13:00' },
+    { mins: 345, txt: '15:00' },
+    { mins: 375, txt: '15:30' }
+  ]);
+
   // Open-price reference line (horizontal)
   var zy=py(data[0]);
   var zl=document.createElementNS('http://www.w3.org/2000/svg','line');
@@ -3329,6 +3385,16 @@ function s2DrawIndexLine(svgId, ylblId, candles) {
     v.setAttribute('stroke-dasharray', '2,4');
     svg.appendChild(v);
   });
+
+  // ── X-AXIS TIME LABELS (NEW 2026-04-28) ─────────────────────────
+  // Each sparkline's xaxis div id is derived from svgId by replacing '-svg' with '-xaxis'.
+  populateTimeAxis(svgId.replace('-svg','-xaxis'), [
+    { mins:   0, txt: '09:15' },
+    { mins: 105, txt: '11:00' },
+    { mins: 225, txt: '13:00' },
+    { mins: 345, txt: '15:00' },
+    { mins: 375, txt: '15:30' }
+  ]);
 
   // Nice-step for gridlines (~5 ticks)
   function niceStep(totalRange) {
@@ -3940,7 +4006,18 @@ function s3RenderCurve(points, timestamps) {
     svg.appendChild(v);
   });
 
-  // Zero line
+  // ── X-AXIS TIME LABELS (NEW 2026-04-28) ─────────────────────────
+  // 8 marks: session start + every hour + session end. Aligned to time-based X.
+  populateTimeAxis('s3-pnl-xaxis', [
+    { mins:   0, txt: '09:15' },
+    { mins:  45, txt: '10:00' },
+    { mins: 105, txt: '11:00' },
+    { mins: 165, txt: '12:00' },
+    { mins: 225, txt: '13:00' },
+    { mins: 285, txt: '14:00' },
+    { mins: 345, txt: '15:00' },
+    { mins: 375, txt: '15:30' }
+  ]);
   var zl=document.createElementNS('http://www.w3.org/2000/svg','line');
   zl.setAttribute('x1',0); zl.setAttribute('x2',W); zl.setAttribute('y1',zy); zl.setAttribute('y2',zy);
   zl.setAttribute('stroke','rgba(90,112,128,0.45)'); zl.setAttribute('stroke-width','0.8'); zl.setAttribute('stroke-dasharray','4,3');
