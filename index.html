@@ -4026,6 +4026,22 @@ function s3RenderCurve(points, timestamps) {
   // Pre-compute xCoords once (used by curve + dot + hover)
   var xCoords = points.map(function(_, i){ return px(i); });
 
+  // ── DIAGNOSTIC (TEMP 2026-04-28) ────────────────────────────────
+  // Helps debug the "stacked at one point" issue. Remove once fixed.
+  try {
+    var sample = [];
+    for (var di = 0; di < Math.min(5, n); di++) {
+      sample.push({ i: di, ts: timestamps[di], px: xCoords[di], pnl: points[di] });
+    }
+    console.log('[PnL DIAG] n=' + n
+      + ' first_ts="' + timestamps[0] + '"'
+      + ' last_ts="' + timestamps[n-1] + '"'
+      + ' first_px=' + xCoords[0]
+      + ' last_px=' + xCoords[n-1]
+      + ' all_same_x=' + (xCoords[0] === xCoords[n-1])
+      + ' sample=' + JSON.stringify(sample));
+  } catch(e){}
+
   // Coloured segments green/red split at zero
   for(var i=0;i<n-1;i++){
     var v1=points[i], v2=points[i+1];
