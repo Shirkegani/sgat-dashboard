@@ -2848,8 +2848,9 @@ function s2Render() {
   // Curves
   var breadthArr = prof.map(function(r){return parseFloat(r.pct_above_open)||0;});
   var medArr = prof.map(function(r){return parseFloat(r.median_pct_from_open)||0;});
+  var hhmmArr = prof.map(function(r){return String(r.hhmm||'');});
   s2DrawBreadthBars(breadthArr);
-  s2DrawMedianLine(medArr);
+  s2DrawMedianLine(medArr, hhmmArr);
 
   // Breadth cards
   document.getElementById('s2-br-open').textContent = breadthArr[0].toFixed(1)+'%';
@@ -3022,10 +3023,35 @@ function s2DrawBreadthBars(data) {
   });
 }
 
-function s2DrawMedianLine(data) {
+function s2DrawMedianLine(data, hhmmArr) {
   var svg = document.getElementById('s2-med-svg'); svg.innerHTML = '';
   var W=260, H=130, n=data.length;
   if (!n) return;
+
+  // ── TIME-BASED X (NEW 2026-04-28) ───────────────────────────────
+  // NSE intraday session: 09:15 → 15:30 = 375 minutes.
+  // Each profile row carries an `hhmm` field like "935" (09:35) or "1430".
+  // X position = (minutes since 09:15 / 375) * W, clamped to [0,W].
+  var SESSION_MINS = 375;
+  function minsSince915FromHhmm(hhmm) {
+    var s = String(hhmm || '');
+    if (s.length < 3) return null;
+    var hh = parseInt(s.slice(0, s.length-2), 10);
+    var mm = parseInt(s.slice(-2), 10);
+    if (isNaN(hh) || isNaN(mm)) return null;
+    return (hh*60 + mm) - (9*60 + 15);
+  }
+  function px(i) {
+    var t = hhmmArr && hhmmArr[i];
+    var m = minsSince915FromHhmm(t);
+    if (m === null) {
+      // fallback to even spacing if hhmm missing — keeps chart safe
+      return (i/(n-1||1))*W;
+    }
+    if (m < 0) m = 0;
+    if (m > SESSION_MINS) m = SESSION_MINS;
+    return (m / SESSION_MINS) * W;
+  }
 
   // ── Adaptive Y-scale (hybrid) ────────────────────────────────────
   // Median % from open across ~1,300 stocks rarely exceeds ±1%, so a fixed
@@ -3053,7 +3079,19 @@ function s2DrawMedianLine(data) {
   var range = fMax - fMin;
 
   function py(v){return H-((v-fMin)/range*H);}
-  function px(i){return (i/(n-1))*W;}
+
+  // ── HOURLY VERTICAL GRIDLINES (NEW 2026-04-28) ──────────────────
+  // Subtle dashed verticals at 10:00–15:00 so empty right-side has context.
+  [60, 120, 180, 240, 300, 360].forEach(function(mins) {
+    var x = (mins / SESSION_MINS) * W;
+    var v = document.createElementNS('http://www.w3.org/2000/svg','line');
+    v.setAttribute('x1', x); v.setAttribute('x2', x);
+    v.setAttribute('y1', 0); v.setAttribute('y2', H);
+    v.setAttribute('stroke', 'rgba(40,65,80,0.45)');
+    v.setAttribute('stroke-width', '0.4');
+    v.setAttribute('stroke-dasharray', '2,4');
+    svg.appendChild(v);
+  });
 
   // ── Dynamic gridlines at round values ────────────────────────────
   // Pick a step size that yields ~5 gridlines in the current range.
@@ -3126,6 +3164,9 @@ function s2DrawMedianLine(data) {
   var lv=data[n-1], dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
   dot.setAttribute('cx',px(n-1)); dot.setAttribute('cy',py(lv)); dot.setAttribute('r','2.5');
   dot.setAttribute('fill',lv>=0?'#00e5a0':'#ff4d6a'); svg.appendChild(dot);
+
+  // NEW 2026-04-28: stash X-coords so the time-aware hover can mirror them
+  svg.__xCoords = data.map(function(_, i){ return px(i); });
 }
 
 function s2DrawNiftyLine(data) {
@@ -4789,25 +4830,64 @@ function s2AddHovers(prof, niftyData) {
   });
 
   // ── Median ── show HH:MM, current %, Δ vs open, and Δ vs previous cycle
-  addChartHover('s2-med-svg','s2-med-tip', medArr, timeArr, function(v,ts,idx){
-    var col = v>=0?'#00e5a0':'#ff4d6a';
-    var deltaOpen = v - medOpen;
-    var openStr = (deltaOpen>=0?'+':'')+deltaOpen.toFixed(2)+'%';
-    var openCol = deltaOpen>=0?'#00e5a0':'#ff4d6a';
-    var tickStr = '';
-    if (idx > 0) {
-      var prev = medArr[idx-1];
-      var d = v - prev;
-      if (Math.abs(d) > 0.001) {
-        var dCol = d>=0?'#00e5a0':'#ff4d6a';
-        tickStr = ' <span style="color:'+dCol+';font-size:0.62rem">('+(d>=0?'+':'')+d.toFixed(2)+'% tick)</span>';
+  // Time-aware hover (NEW 2026-04-28): snap to nearest data point by
+  // pixel-X distance to mirror the new time-based curve.
+  (function setupMedianHover() {
+    var svgEl = document.getElementById('s2-med-svg');
+    var tipEl = document.getElementById('s2-med-tip');
+    if (!svgEl || !tipEl) return;
+    var xCoords = svgEl.__xCoords || [];
+    if (!xCoords.length || !medArr.length) return;
+    var W = parseFloat(svgEl.getAttribute('viewBox').split(' ')[2]) || 260;
+
+    svgEl.addEventListener('mousemove', function(e) {
+      var rect = svgEl.getBoundingClientRect();
+      var xPct = (e.clientX - rect.left) / rect.width;
+      var xSvg = xPct * W;
+      var bestIdx = 0, bestDist = Infinity;
+      for (var k = 0; k < xCoords.length; k++) {
+        var d = Math.abs(xCoords[k] - xSvg);
+        if (d < bestDist) { bestDist = d; bestIdx = k; }
       }
-    }
-    return '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
-      + 'Median: <b style="color:'+col+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</b>'
-      + ' <span style="color:'+openCol+';font-size:0.62rem">('+openStr+' vs open)</span>'
-      + tickStr;
-  });
+      var v = medArr[bestIdx];
+      var ts = timeArr[bestIdx] || '';
+      var col = v>=0?'#00e5a0':'#ff4d6a';
+      var deltaOpen = v - medOpen;
+      var openStr = (deltaOpen>=0?'+':'')+deltaOpen.toFixed(2)+'%';
+      var openCol = deltaOpen>=0?'#00e5a0':'#ff4d6a';
+      var tickStr = '';
+      if (bestIdx > 0) {
+        var prev = medArr[bestIdx-1];
+        var dt = v - prev;
+        if (Math.abs(dt) > 0.001) {
+          var dCol = dt>=0?'#00e5a0':'#ff4d6a';
+          tickStr = ' <span style="color:'+dCol+';font-size:0.62rem">('+(dt>=0?'+':'')+dt.toFixed(2)+'% tick)</span>';
+        }
+      }
+      tipEl.style.display = 'block';
+      tipEl.style.left = Math.min(e.clientX - rect.left, rect.width - 140) + 'px';
+      tipEl.style.top = '4px';
+      tipEl.innerHTML = '<b style="color:#38b6ff">'+(ts||'—')+'</b> &nbsp; '
+        + 'Median: <b style="color:'+col+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</b>'
+        + ' <span style="color:'+openCol+';font-size:0.62rem">('+openStr+' vs open)</span>'
+        + tickStr;
+      var existing = svgEl.querySelector('.hover-line');
+      if (existing) existing.remove();
+      var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('class','hover-line');
+      line.setAttribute('x1', xCoords[bestIdx]); line.setAttribute('x2', xCoords[bestIdx]);
+      line.setAttribute('y1', 0); line.setAttribute('y2', '100%');
+      line.setAttribute('stroke','rgba(56,182,255,0.4)');
+      line.setAttribute('stroke-width','0.8');
+      svgEl.appendChild(line);
+    });
+
+    svgEl.addEventListener('mouseleave', function() {
+      tipEl.style.display = 'none';
+      var existing = svgEl.querySelector('.hover-line');
+      if (existing) existing.remove();
+    });
+  })();
 
   // ── NIFTY 50 ── show HH:MM, price, %/points vs open
   // Now that niftyData contains multiple indices, filter to NIFTY 50 here.
