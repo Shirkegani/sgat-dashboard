@@ -5703,11 +5703,11 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
       var html = '<div style="line-height:1.5">'
         + '<div><b style="color:#38b6ff">'+ts+'</b></div>'
         + '<div>Stock: <b style="color:'+sCol+'">'+(sv>=0?'+':'')+sv.toFixed(2)+'%</b></div>';
-      if (isFinite(iv)) {
+      if (iv !== null && isFinite(iv)) {
         var iCol = iv >= 0 ? '#00e5a0' : '#ff4d6a';
         html += '<div>Industry: <b style="color:'+iCol+'">'+(iv>=0?'+':'')+iv.toFixed(2)+'%</b></div>';
       }
-      if (isFinite(xv)) {
+      if (xv !== null && isFinite(xv)) {
         var xCol = xv >= 0 ? '#00e5a0' : '#ff4d6a';
         html += '<div>Index: <b style="color:'+xCol+'">'+(xv>=0?'+':'')+xv.toFixed(2)+'%</b></div>';
       }
