@@ -456,6 +456,42 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s4-xaxis span.edge-l{transform:translateX(0);}
 .s4-xaxis span.edge-r{transform:translateX(-100%);}
 .s4-drill-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+/* Phase 3 (NEW 2026-05-06) — At-entry / At-exit context blocks */
+.s4-ctxblock{
+  background:rgba(15,25,38,0.55);border:1px solid rgba(40,65,80,0.45);
+  border-radius:5px;padding:10px 12px;
+}
+.s4-ctxblock-hd{
+  font-family:var(--font-mono);font-size:0.55rem;color:#7a8a99;
+  letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;
+  display:flex;align-items:baseline;gap:6px;
+}
+.s4-ctxblock-hd .ctxb-time{color:var(--text);font-size:0.62rem;
+  letter-spacing:0.04em;text-transform:none;font-weight:500;}
+.s4-ctxblock-grid{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;
+  font-family:var(--font-mono);font-size:0.6rem;
+}
+.s4-ctxcol-hd{
+  font-size:0.5rem;color:#5a6975;letter-spacing:0.1em;
+  text-transform:uppercase;margin-bottom:5px;font-weight:500;
+}
+.s4-ctxrow{display:grid;grid-template-columns:46px 1fr;gap:6px;
+  line-height:1.4;align-items:baseline;}
+.s4-ctxrow .ctxr-lbl{color:#7a8a99;}
+.s4-ctxrow .ctxr-val{color:var(--text);font-weight:500;}
+.s4-ctxrow .ctxr-val.pos{color:var(--green);}
+.s4-ctxrow .ctxr-val.neg{color:var(--red);}
+.s4-ctxrow .ctxr-val.amb{color:var(--amber);}
+.s4-ctxrow .ctxr-val.dim{color:#5a6975;}
+.s4-ctxrow .ctxr-loading{color:#5a6975;font-style:italic;}
+.s4-ctxblock-reason{
+  margin-top:9px;padding-top:7px;border-top:1px dashed rgba(80,100,115,0.3);
+  font-family:var(--font-mono);font-size:0.6rem;color:var(--dim);
+}
+.s4-ctxblock-reason .rl-tag{color:#7a8a99;letter-spacing:0.1em;
+  text-transform:uppercase;font-size:0.5rem;margin-right:6px;}
+.s4-ctxblock-reason .rl-text{color:var(--text);}
 .s4-ds-card{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:7px 10px;}
 .s4-ds-lbl{font-size:0.53rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;}
 .s4-ds-val{font-size:0.88rem;font-weight:500;}
@@ -1994,6 +2030,15 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <span><span style="color:#38b6ff">╌╌</span> Index</span>
       <span style="color:rgba(90,112,128,0.85)">─ ─ 0 ref</span>
     </div>
+  </div>
+  <!-- Phase 3 (NEW 2026-05-06): At-entry / At-exit context blocks.
+       Hidden by default; shown only when this stock was traded today
+       (either a closed trade in DailyTrades, or an open position).
+       Populated by s4PopulateContextBlocks. -->
+  <div class="s4-drill-sec" id="s4-d-ctxblocks-sec" style="display:none;">
+    <div class="s4-drill-sec-title">Trade context</div>
+    <div class="s4-ctxblock" id="s4-d-ctxblock-entry"></div>
+    <div class="s4-ctxblock" id="s4-d-ctxblock-exit" style="margin-top:10px;"></div>
   </div>
   <div class="s4-drill-sec">
     <div class="s4-drill-sec-title">Session stats</div>
@@ -5404,6 +5449,16 @@ async function s4OpenDrill(r) {
     s4PopulateHeaderChips(r, resolvedIndexName);
     s4PopulateHeaderStatus(r, tradeRow, vals, tradeDirection);
 
+    // ── Phase 3 (NEW 2026-05-06): at-entry / at-exit context blocks ──
+    // Stash args on STATE so fetchTMHistory() can re-call this when
+    // the async TM cycle data arrives (stock column then fills in).
+    STATE.s4ContextBlockArgs = {
+      r: r, tradeRow: tradeRow,
+      entryHhmm: entryHhmm, exitHhmm: exitHhmm,
+      tradeDirection: tradeDirection
+    };
+    s4PopulateContextBlocks(STATE.s4ContextBlockArgs);
+
     // Stats
     var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
     document.getElementById('s4-d-sh').textContent = '+'+((mx/vals[0]-1)*100).toFixed(2)+'%';
@@ -5817,6 +5872,302 @@ function s4PopulateHeaderStatus(r, tradeRow, vals, tradeDirection) {
     + (line2parts.length
       ? '<br><span style="margin-left:43px">'+line2parts.join(' <span class="st-meta">·</span> ')+captureTxt+'</span>'
       : captureTxt);
+}
+
+// ────────────────────────────────────────────────────────────────
+// s4PopulateContextBlocks (NEW 2026-05-06 — Phase 3)
+// Renders the "At entry / At exit" 3-column context blocks below
+// the chart. Each block shows what conditions were like at that
+// moment — stock, industry, market.
+//
+// Data sources (already in browser memory):
+//   - Stock state    : STATE.s4TmHistory.rows  (per-stock TM cycles)
+//   - Industry state : STATE.data.industryctx_history[industry]
+//   - Market state   : STATE.data.profile (per-cycle DayProfile)
+//   - NIFTY 50       : STATE.idxByName['NIFTY 50']
+//
+// The TM history fetch is async — when the data isn't available yet,
+// the stock column shows "Loading...". Industry + market populate
+// immediately. fetchTMHistory re-calls this function when the data
+// arrives so the stock column fills in.
+// ────────────────────────────────────────────────────────────────
+function s4PopulateContextBlocks(args) {
+  if (!args) return;
+  var sec = document.getElementById('s4-d-ctxblocks-sec');
+  if (!sec) return;
+
+  var r              = args.r;
+  var tradeRow       = args.tradeRow;
+  var entryHhmm      = args.entryHhmm;
+  var exitHhmm       = args.exitHhmm;
+  var tradeDirection = args.tradeDirection || 'LONG';
+  var isOpen         = String(r.position_status || '').toUpperCase() === 'OPEN';
+
+  // Hide block if stock wasn't traded (no DailyTrades record + not open)
+  if (!tradeRow && !isOpen) {
+    sec.style.display = 'none';
+    return;
+  }
+  sec.style.display = 'block';
+
+  // ── Helpers ─────────────────────────────────────────────────────
+  function fmtPct(v, dp) {
+    if (!isFinite(parseFloat(v))) return '—';
+    var n = parseFloat(v);
+    return (n >= 0 ? '+' : '') + n.toFixed(dp == null ? 2 : dp) + '%';
+  }
+  function pctCls(v) {
+    var n = parseFloat(v);
+    if (!isFinite(n)) return 'dim';
+    return n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+  }
+  function hhmmStr(h) {
+    var v = parseFloat(h); if (!isFinite(v) || v <= 0) return '';
+    var hh = Math.floor(v / 100), mm = Math.round(v - hh * 100);
+    return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+  }
+  function row(lbl, valHTML) {
+    return '<div class="s4-ctxrow">'
+         + '<span class="ctxr-lbl">' + lbl + '</span>'
+         + '<span>' + valHTML + '</span>'
+         + '</div>';
+  }
+  function val(html, cls) {
+    return '<span class="ctxr-val' + (cls ? ' ' + cls : '') + '">' + html + '</span>';
+  }
+  function loading() { return '<span class="ctxr-loading">loading…</span>'; }
+  function dash()    { return '<span class="ctxr-val dim">—</span>'; }
+
+  // Find nearest row in array by hhmm field
+  function nearestByHhmm(arr, target, hhmmField) {
+    if (!arr || !arr.length || !isFinite(target)) return null;
+    var best = null, bd = Infinity;
+    for (var i = 0; i < arr.length; i++) {
+      var h = parseFloat(arr[i][hhmmField || 'hhmm']);
+      if (!isFinite(h)) continue;
+      var d = Math.abs(h - target);
+      if (d < bd) { bd = d; best = arr[i]; }
+    }
+    return best;
+  }
+  // For DayProfile rows, hhmm comes from cycle_ts (UTC ISO or naive)
+  function cycleTsToHhmm(ts) {
+    var s = String(ts || '');
+    if (s.length < 16) return null;
+    var hh = parseInt(s.slice(11,13), 10);
+    var mm = parseInt(s.slice(14,16), 10);
+    if (isNaN(hh) || isNaN(mm)) return null;
+    var hasZ = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+    var isUTC;
+    if (hasZ) {
+      var carry = (mm + 30) >= 60 ? 1 : 0;
+      var istHH = (hh + 5 + carry) % 24;
+      var lyingZ = (istHH > 16 || istHH < 4) && (hh >= 9 && hh <= 15);
+      isUTC = !lyingZ;
+    } else {
+      isUTC = (hh < 4);
+    }
+    if (isUTC) {
+      mm += 30; if (mm >= 60) { mm -= 60; hh += 1; }
+      hh += 5;  if (hh >= 24) hh -= 24;
+    }
+    return hh * 100 + mm;
+  }
+  // For TM log rows, the time field is `at_hhmm` or numeric
+  function tmRowHhmm(tmRow) {
+    var v = parseFloat(tmRow.at_hhmm || tmRow.hhmm || tmRow.cycle_hhmm);
+    if (isFinite(v)) return v;
+    // Fallback: derive from `wf_run_ts` or any other timestamp field
+    if (tmRow.wf_run_ts) return cycleTsToHhmm(tmRow.wf_run_ts);
+    if (tmRow.cycle_ts)  return cycleTsToHhmm(tmRow.cycle_ts);
+    return null;
+  }
+
+  // ── Build one context block (entry or exit) ─────────────────────
+  function buildBlock(label, hhmm, isExit) {
+    if (!hhmm) {
+      return '<div class="s4-ctxblock-hd">'+label+' <span class="ctxb-time">— still holding</span></div>'
+           + '<div class="s4-ctxblock-grid">'
+           + '<div></div><div></div><div></div>'
+           + '</div>';
+    }
+
+    // ── Stock column ────────────────────────────────────────────
+    var stockCol;
+    if (!STATE.s4TmHistory || STATE.s4TmHistory.symbol !== r.tradingsymbol) {
+      stockCol = '<div class="s4-ctxcol-hd">Stock</div>'
+        + row('PFO', loading())
+        + row(isExit ? 'TM' : 'Score', loading())
+        + row(isExit ? '' : 'Rank', isExit ? '' : loading())
+        + row(isExit ? '' : 'RVOL', isExit ? '' : loading());
+    } else {
+      var tmRows = STATE.s4TmHistory.rows || [];
+      // Find TM row matching the entry/exit cycle (function hoisted above)
+      function nearestByHhmmTm(arr, target) {
+        if (!arr || !arr.length) return null;
+        var best = null, bd = Infinity;
+        for (var i = 0; i < arr.length; i++) {
+          var h = tmRowHhmm(arr[i]);
+          if (h === null) continue;
+          var d = Math.abs(h - target);
+          if (d < bd) { bd = d; best = arr[i]; }
+        }
+        return best;
+      }
+      var tmTarget = nearestByHhmmTm(tmRows, hhmm);
+      stockCol = '<div class="s4-ctxcol-hd">Stock</div>';
+      if (tmTarget) {
+        var pfo = parseFloat(tmTarget.pct_from_open);
+        stockCol += row('PFO', val(fmtPct(pfo), pctCls(pfo)));
+        if (isExit) {
+          var act = String(tmTarget.tm_action || tmTarget.last_action || '—').toUpperCase();
+          var actCls = (act === 'EXIT' || act.indexOf('SL') >= 0 || act.indexOf('STOP') >= 0)
+            ? 'neg' : 'dim';
+          stockCol += row('TM', val(act, actCls));
+          var pk = parseFloat(tmTarget.peak_pct_from_open || tmTarget.peak_pfo);
+          if (isFinite(pk)) stockCol += row('Peak', val(fmtPct(pk), pctCls(pk)));
+          var gb = parseFloat(tmTarget.giveback_from_peak);
+          if (isFinite(gb)) stockCol += row('Giveb', val(gb.toFixed(2)+'%', gb >= 1 ? 'amb' : 'dim'));
+        } else {
+          var sc = parseFloat(tmTarget.entry_score || tmTarget._enter_entry_score);
+          stockCol += row('Score', isFinite(sc) ? val(Math.round(sc)) : dash());
+          var rk = parseFloat(tmTarget.entry_rank || tmTarget._enter_entry_rank);
+          stockCol += row('Rank', isFinite(rk) ? val('#'+Math.round(rk)) : dash());
+          var rv = parseFloat(tmTarget.rvol);
+          var rvCls = isFinite(rv) ? (rv >= 1.5 ? 'pos' : rv >= 0.8 ? '' : 'neg') : '';
+          stockCol += row('RVOL', isFinite(rv) ? val(rv.toFixed(2)+'×', rvCls) : dash());
+        }
+      } else {
+        stockCol += row('—', dash());
+      }
+    }
+
+    // ── Industry column ─────────────────────────────────────────
+    var industryName = String(r.industry || '').trim();
+    var indCol = '<div class="s4-ctxcol-hd">Industry</div>';
+    if (industryName) {
+      var hist = (STATE.data && STATE.data.industryctx_history) || {};
+      var matched = null;
+      for (var k in hist) {
+        if (String(k).trim().toUpperCase() === industryName.toUpperCase()) {
+          matched = hist[k]; break;
+        }
+      }
+      var indTarget = nearestByHhmm(matched, hhmm, 'hhmm');
+      if (indTarget) {
+        var verdict = String(indTarget.verdict || '').toUpperCase();
+        var verdictCls = '';
+        if (verdict.indexOf('AVOID') >= 0) verdictCls = 'amb';
+        else if (verdict.indexOf('LONG') >= 0 || verdict.indexOf('BULL') >= 0) verdictCls = 'pos';
+        else if (verdict.indexOf('SHORT') >= 0 || verdict.indexOf('BEAR') >= 0) verdictCls = 'neg';
+        indCol += row('Verdict', verdict ? val(verdict, verdictCls) : dash());
+        var rk = parseFloat(indTarget.strength_rank);
+        indCol += row('Rank', isFinite(rk) ? val('#'+Math.round(rk)) : dash());
+        var med = parseFloat(indTarget.median_pfo);
+        indCol += row('Median', isFinite(med) ? val(fmtPct(med), pctCls(med)) : dash());
+        var br = parseFloat(indTarget.pct_above_open);
+        indCol += row('Breadth', isFinite(br) ? val(Math.round(br)+'%') : dash());
+      } else {
+        indCol += row('—', dash());
+      }
+    } else {
+      indCol += row('—', dash());
+    }
+
+    // ── Market column ───────────────────────────────────────────
+    var mktCol = '<div class="s4-ctxcol-hd">Market</div>';
+    var profile = (STATE.data && STATE.data.profile) || [];
+    if (profile.length) {
+      // Find nearest profile row by cycle_ts → hhmm
+      var best = null, bd = Infinity;
+      for (var i = 0; i < profile.length; i++) {
+        var h = cycleTsToHhmm(profile[i].cycle_ts);
+        if (h === null) continue;
+        var d = Math.abs(h - hhmm);
+        if (d < bd) { bd = d; best = profile[i]; }
+      }
+      if (best) {
+        var med = parseFloat(best.median_pct_from_open);
+        mktCol += row('Median', isFinite(med) ? val(fmtPct(med), pctCls(med)) : dash());
+        var br = parseFloat(best.pct_above_open);
+        mktCol += row('Breadth', isFinite(br) ? val(Math.round(br)+'%') : dash());
+      } else {
+        mktCol += row('—', dash());
+      }
+    } else {
+      mktCol += row('—', dash());
+    }
+    // NIFTY 50 PFO at the same cycle
+    var n50 = STATE.idxByName ? (STATE.idxByName['NIFTY 50'] || STATE.idxByName['NIFTY50']) : null;
+    if (n50 && n50.length) {
+      var firstOpen = null;
+      for (var j = 0; j < n50.length; j++) {
+        var o = parseFloat(n50[j].o) || parseFloat(n50[j].c) || 0;
+        if (o > 0) { firstOpen = o; break; }
+      }
+      if (firstOpen) {
+        var bestN = null, bdN = Infinity;
+        for (var j2 = 0; j2 < n50.length; j2++) {
+          var h2 = cycleTsToHhmm(n50[j2].ts);
+          if (h2 === null) continue;
+          var d2 = Math.abs(h2 - hhmm);
+          if (d2 < bdN) { bdN = d2; bestN = n50[j2]; }
+        }
+        if (bestN) {
+          var c = parseFloat(bestN.c);
+          if (isFinite(c)) {
+            var nPfo = ((c - firstOpen) / firstOpen) * 100;
+            mktCol += row('NIFTY', val(fmtPct(nPfo), pctCls(nPfo)));
+          }
+        }
+      }
+    }
+
+    // ── Reason line at bottom ───────────────────────────────────
+    var reasonHTML = '';
+    if (STATE.s4TmHistory && STATE.s4TmHistory.symbol === r.tradingsymbol) {
+      var tmRows2 = STATE.s4TmHistory.rows || [];
+      // Find the ENTER (or first) cycle for entry, EXIT for exit
+      var matchRow = null;
+      if (isExit) {
+        for (var i2 = tmRows2.length - 1; i2 >= 0; i2--) {
+          var act2 = String(tmRows2[i2].tm_action || '').toUpperCase();
+          if (act2 === 'EXIT' || act2.indexOf('SL') >= 0 || act2.indexOf('STOP') >= 0) {
+            matchRow = tmRows2[i2]; break;
+          }
+        }
+      } else {
+        for (var i3 = 0; i3 < tmRows2.length; i3++) {
+          var act3 = String(tmRows2[i3].tm_action || '').toUpperCase();
+          if (act3 === 'ENTER') { matchRow = tmRows2[i3]; break; }
+        }
+      }
+      if (matchRow) {
+        var rsn = String(matchRow.tm_reason || matchRow.last_action_reason || '').trim();
+        if (rsn) {
+          var tag = isExit ? 'EXIT' : 'ENTRY';
+          reasonHTML = '<div class="s4-ctxblock-reason">'
+            + '<span class="rl-tag">'+tag+'</span>'
+            + '<span class="rl-text">'+s4SafeText(rsn)+'</span>'
+            + '</div>';
+        }
+      }
+    }
+
+    return '<div class="s4-ctxblock-hd">'+label+' <span class="ctxb-time">'+hhmmStr(hhmm)+'</span></div>'
+         + '<div class="s4-ctxblock-grid">'
+         +   '<div>'+stockCol+'</div>'
+         +   '<div>'+indCol+'</div>'
+         +   '<div>'+mktCol+'</div>'
+         + '</div>'
+         + reasonHTML;
+  }
+
+  // Render
+  var entryEl = document.getElementById('s4-d-ctxblock-entry');
+  var exitEl  = document.getElementById('s4-d-ctxblock-exit');
+  if (entryEl) entryEl.innerHTML = buildBlock('At entry', entryHhmm, false);
+  if (exitEl)  exitEl.innerHTML  = buildBlock('At exit',  exitHhmm,  true);
 }
 
 function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exitHhmm, exitPnlPos) {
@@ -7595,9 +7946,20 @@ async function fetchTMHistory(symbol) {
     var json = await res.json();
     if (json.error || !json.data || !json.data.length) {
       wrap.innerHTML = '<div style="color:#3a5060;font-size:0.62rem;padding:6px 0">No TM log data for this stock</div>';
+      // Phase 3 needs to know the fetch resolved with no data
+      STATE.s4TmHistory = { symbol: symbol, rows: [] };
+      if (typeof s4PopulateContextBlocks === 'function' && STATE.s4ActiveRow === symbol) {
+        s4PopulateContextBlocks(STATE.s4ContextBlockArgs);
+      }
       return;
     }
+    // Cache for phase 3 (At-entry / At-exit context blocks)
+    STATE.s4TmHistory = { symbol: symbol, rows: json.data };
     renderTMHistory(json.data, wrap, cnt);
+    // Re-populate the context blocks now that stock column data is available
+    if (typeof s4PopulateContextBlocks === 'function' && STATE.s4ActiveRow === symbol) {
+      s4PopulateContextBlocks(STATE.s4ContextBlockArgs);
+    }
   } catch(e) {
     wrap.innerHTML = '<div style="color:var(--red);font-size:0.62rem;padding:6px 0">Failed to load: ' + e.message + '</div>';
   }
