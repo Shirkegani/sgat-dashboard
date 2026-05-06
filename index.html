@@ -4206,31 +4206,30 @@ function s3RenderCards(positions, trades) {
 function tsToIstHHMM(raw) {
   var s = String(raw || '');
   if (!s) return '';
-  // ── DIAGNOSTIC (TEMP 2026-05-06) ────────────────────────────
-  // Capture the first ts shape we see to identify UTC vs naive-IST.
-  // Logs once per page-load, then suppresses.
-  if (!window.__tsDiagDone) {
-    window.__tsDiagDone = true;
-    console.log('[ts DIAG] sample raw="' + s + '" len=' + s.length
-      + ' has_T=' + (s.indexOf('T') >= 0)
-      + ' has_Z=' + (s.indexOf('Z') >= 0)
-      + ' has_plus_offset=' + /\+\d{4}/.test(s)
-      + ' selectedDate=' + (window.STATE && STATE.selectedDate));
-  }
   // Already "HH:MM"
   if (s.length === 5 && s.charAt(2) === ':') return s;
-  // Date-prefixed string: parse as UTC and shift to IST (+5:30).
-  if (s.length >= 16) {
-    var hh = parseInt(s.slice(11,13), 10);
-    var mm = parseInt(s.slice(14,16), 10);
-    if (isNaN(hh) || isNaN(mm)) return '';
+  if (s.length < 16) return '';
+
+  var hh = parseInt(s.slice(11,13), 10);
+  var mm = parseInt(s.slice(14,16), 10);
+  if (isNaN(hh) || isNaN(mm)) return '';
+
+  // Autodetect UTC vs naive-IST.
+  //   - Strings with 'Z' or '+0000' marker → genuine UTC, must shift to IST.
+  //   - Naive strings (no offset) typically come from sheets/n8n writing
+  //     local IST already → no shift needed.
+  //   - Heuristic safety net: a naive string with hh<4 is impossible during
+  //     IST trading hours (09:15–15:30) → treat as legacy UTC and shift.
+  var isUTC = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+  if (!isUTC && hh < 4) isUTC = true;
+
+  if (isUTC) {
     mm += 30;
     if (mm >= 60) { mm -= 60; hh += 1; }
     hh += 5;
     if (hh >= 24) hh -= 24;
-    return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
   }
-  return '';
+  return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
 }
 
 function s3DrawCurveFromState() {
@@ -5140,10 +5139,15 @@ async function s4OpenDrill(r) {
             var hh = parseInt(s.slice(11,13), 10);
             var mm = parseInt(s.slice(14,16), 10);
             if (isNaN(hh) || isNaN(mm)) return null;
-            mm += 30;
-            if (mm >= 60) { mm -= 60; hh += 1; }
-            hh += 5;
-            if (hh >= 24) hh -= 24;
+            // Autodetect UTC vs naive-IST (see tsToIstHHMM helper for rationale)
+            var isUTC = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+            if (!isUTC && hh < 4) isUTC = true;
+            if (isUTC) {
+              mm += 30;
+              if (mm >= 60) { mm -= 60; hh += 1; }
+              hh += 5;
+              if (hh >= 24) hh -= 24;
+            }
             return hh * 100 + mm;
           }
           indexSeries = [];
@@ -5167,11 +5171,15 @@ async function s4OpenDrill(r) {
       var hh = parseInt(s.slice(11,13), 10);
       var mm = parseInt(s.slice(14,16), 10);
       if (isNaN(hh) || isNaN(mm)) return null;
-      // Same UTC→IST shift
-      mm += 30;
-      if (mm >= 60) { mm -= 60; hh += 1; }
-      hh += 5;
-      if (hh >= 24) hh -= 24;
+      // Autodetect UTC vs naive-IST (see tsToIstHHMM for rationale)
+      var isUTC = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+      if (!isUTC && hh < 4) isUTC = true;
+      if (isUTC) {
+        mm += 30;
+        if (mm >= 60) { mm -= 60; hh += 1; }
+        hh += 5;
+        if (hh >= 24) hh -= 24;
+      }
       return hh * 100 + mm;
     }
     var entryHhmm = null, exitHhmm = null, exitPnlPos = false;
@@ -5346,10 +5354,15 @@ function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exi
       var hh = parseInt(s.slice(11,13), 10);
       var mm = parseInt(s.slice(14,16), 10);
       if (isNaN(hh) || isNaN(mm)) return null;
-      mm += 30;
-      if (mm >= 60) { mm -= 60; hh += 1; }
-      hh += 5;
-      if (hh >= 24) hh -= 24;
+      // Autodetect UTC vs naive-IST (see tsToIstHHMM for rationale)
+      var isUTC = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+      if (!isUTC && hh < 4) isUTC = true;
+      if (isUTC) {
+        mm += 30;
+        if (mm >= 60) { mm -= 60; hh += 1; }
+        hh += 5;
+        if (hh >= 24) hh -= 24;
+      }
       return hh * 100 + mm;
     }
     var out = [];
@@ -5383,17 +5396,6 @@ function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exi
   // Fetch via existing helper
   fetchCandlesForDrill(sym).then(function(candles) {
     if (!candles || !Array.isArray(candles)) return;
-    // ── DIAGNOSTIC (TEMP 2026-05-06) ────────────────────────────
-    try {
-      var sample = [];
-      for (var di = 0; di < Math.min(5, candles.length); di++) {
-        sample.push({ ts: candles[di].ts, c: candles[di].c, o: candles[di].o });
-      }
-      console.log('[s4 candles DIAG] sym='+sym+' n='+candles.length
-        + ' first_ts="' + (candles[0]||{}).ts + '"'
-        + ' last_ts="'  + (candles[candles.length-1]||{}).ts + '"'
-        + ' sample=' + JSON.stringify(sample));
-    } catch(e){}
     STATE.candleCache[sym] = candles;
     applyAndRender(candles);
   }).catch(function(){ /* silent — first-paint chart still shows */ });
