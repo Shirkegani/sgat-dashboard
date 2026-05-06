@@ -385,7 +385,48 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s4-drill.open{right:0;}
 .s4-drill-hdr{background:var(--surface);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;z-index:2;}
 .s4-drill-sym{font-family:var(--font-disp);font-size:1.3rem;font-weight:800;color:var(--text);}
-.s4-drill-meta{font-size:0.63rem;color:var(--dim);margin-top:3px;line-height:1.5;}
+/* Header chips line — PFO + industry + rank + structure + index + MI + status pill */
+.s4-drill-chips{font-size:0.65rem;color:var(--dim);margin-top:5px;line-height:1.6;
+  font-family:var(--font-mono);letter-spacing:0.01em;
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.s4-drill-chips .ch-sep{color:#3a5060;}
+.s4-drill-chips .ch-pfo{font-weight:600;}
+.s4-drill-chips .ch-pfo.pos{color:var(--green);}
+.s4-drill-chips .ch-pfo.neg{color:var(--red);}
+.s4-drill-chips .ch-ind{color:var(--text);}
+.s4-drill-chips .ch-rank{color:#7a8a99;font-size:0.6rem;}
+.s4-drill-chips .ch-struct{font-weight:500;}
+.s4-drill-chips .ch-struct.bull{color:var(--green);}
+.s4-drill-chips .ch-struct.bear{color:var(--red);}
+.s4-drill-chips .ch-struct.chop{color:var(--amber);}
+.s4-drill-chips .ch-idx{color:#7a8a99;}
+.s4-drill-chips .ch-mi{color:#7a8a99;}
+.s4-drill-chips .ch-pill{padding:2px 7px;border-radius:3px;font-size:0.55rem;
+  font-weight:500;letter-spacing:0.06em;text-transform:uppercase;}
+.s4-drill-chips .ch-pill.elig{background:rgba(0,229,160,0.13);color:var(--green);}
+.s4-drill-chips .ch-pill.susp{background:rgba(255,77,106,0.13);color:var(--red);}
+.s4-drill-chips .ch-pill.watch{background:rgba(255,184,48,0.13);color:var(--amber);}
+.s4-drill-chips .ch-pill.neutral{background:rgba(122,138,153,0.13);color:#7a8a99;}
+/* Divider between chips and status */
+.s4-drill-status-divider{
+  height:1px;background:transparent;border-top:1px dashed rgba(80,100,115,0.35);
+  margin:8px 0 7px;}
+/* Status row — what SGAT did with the stock */
+.s4-drill-status{font-family:var(--font-mono);font-size:0.62rem;line-height:1.55;
+  letter-spacing:0.01em;color:var(--dim);}
+.s4-drill-status .st-label{color:#7a8a99;letter-spacing:0.1em;text-transform:uppercase;
+  font-size:0.5rem;margin-right:5px;}
+.s4-drill-status .st-dir{font-weight:600;}
+.s4-drill-status .st-dir.long{color:var(--green);}
+.s4-drill-status .st-dir.short{color:var(--red);}
+.s4-drill-status .st-val{color:var(--text);font-weight:500;}
+.s4-drill-status .st-pnl.pos{color:var(--green);font-weight:600;}
+.s4-drill-status .st-pnl.neg{color:var(--red);font-weight:600;}
+.s4-drill-status .st-cap.high{color:var(--green);}
+.s4-drill-status .st-cap.mid{color:var(--amber);}
+.s4-drill-status .st-cap.low{color:var(--red);}
+.s4-drill-status .st-meta{color:#7a8a99;}
+.s4-drill-status .st-empty{color:#5a6975;font-style:italic;}
 .s4-drill-x{background:none;border:1px solid var(--border);color:var(--dim);font-size:0.7rem;cursor:pointer;border-radius:3px;padding:3px 8px;font-family:var(--font-mono);}
 .s4-drill-x:hover{color:var(--red);border-color:rgba(255,77,106,0.4);}
 .s4-drill-sec{padding:12px 16px;border-bottom:1px solid var(--border);position:relative;}
@@ -1912,7 +1953,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   <div class="s4-drill-hdr">
     <div>
       <div class="s4-drill-sym" id="s4-d-sym">—</div>
-      <div class="s4-drill-meta" id="s4-d-meta">—</div>
+      <div class="s4-drill-chips" id="s4-d-chips">—</div>
+      <div class="s4-drill-status-divider"></div>
+      <div class="s4-drill-status" id="s4-d-status">—</div>
     </div>
     <button class="s4-drill-x" onclick="s4CloseDrill()">✕</button>
   </div>
@@ -5091,14 +5134,8 @@ async function s4OpenDrill(r) {
   s4RenderTable();
 
   document.getElementById('s4-d-sym').textContent = r.tradingsymbol;
-  var tag = r.eligibility_tag||'';
-  var tagCol = tag==='ELIGIBLE'?'var(--green)':tag==='SUSPEND'?'var(--red)':'var(--amber)';
-  document.getElementById('s4-d-meta').innerHTML =
-    '<span style="color:'+tagCol+'">'+tag.replace('KEEP_WATCHING','WATCHING')+'</span>'
-    +' · MI: '+(parseFloat(r.mi_score)||0).toFixed(1)
-    +' · <span style="color:'+(parseFloat(r.pct_from_open)>=0?'var(--green)':'var(--red)')+'">'+
-    (parseFloat(r.pct_from_open)>=0?'+':'')+parseFloat(r.pct_from_open||0).toFixed(2)+'%</span>'
-    +(r.position_status==='OPEN'?' · <span style="color:var(--blue)">OPEN</span>':'');
+  // The chip line and status line are populated later in this function
+  // once tradeRow / tradeDirection / resolved index are known.
 
   // Open instantly with m5_closes_csv (already in memory)
   var vals = [];
@@ -5361,6 +5398,12 @@ async function s4OpenDrill(r) {
     STATE.s4ResolvedIndexName = resolvedIndexName;
     STATE.s4TradeDirection = tradeDirection;
 
+    // ── Phase 2 (NEW 2026-05-06): populate the redesigned header ──
+    // The chip line (industry/index/MI/status) sits below the symbol;
+    // the status line synthesises what SGAT did with this stock.
+    s4PopulateHeaderChips(r, resolvedIndexName);
+    s4PopulateHeaderStatus(r, tradeRow, vals, tradeDirection);
+
     // Stats
     var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
     document.getElementById('s4-d-sh').textContent = '+'+((mx/vals[0]-1)*100).toFixed(2)+'%';
@@ -5501,6 +5544,281 @@ function s4CloseDrill() {
 // Race protection: only re-renders if STATE.s4ActiveRow is still the
 // same symbol (user might have closed/switched the drill).
 // ────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
+// s4PopulateHeaderChips (NEW 2026-05-06 — Phase 2)
+// Builds the chip-line below the symbol name. Format:
+//   +PFO%  ·  Industry #rank STRUCT↑  ·  Index name  ·  MI X.X  ·  [STATUS pill]
+// Industry rank + structure pulled from the LATEST IndustryContext
+// row for this stock's industry.
+// ────────────────────────────────────────────────────────────────
+function s4PopulateHeaderChips(r, resolvedIndexName) {
+  var el = document.getElementById('s4-d-chips');
+  if (!el) return;
+
+  var pfo = parseFloat(r.pct_from_open) || 0;
+  var pfoCls = pfo >= 0 ? 'pos' : 'neg';
+  var pfoStr = (pfo >= 0 ? '+' : '') + pfo.toFixed(2) + '%';
+
+  // Lookup latest IndustryContext for rank + structure
+  var industryName = String(r.industry || '').trim();
+  var indRank = null, indStructure = null;
+  if (industryName) {
+    var rows = (STATE.data && STATE.data.industryctx) || [];
+    var match = rows.find(function(row) {
+      return String(row.industry || '').trim().toUpperCase() === industryName.toUpperCase();
+    });
+    if (match) {
+      var rk = parseFloat(match.strength_rank);
+      if (isFinite(rk)) indRank = Math.round(rk);
+      indStructure = String(match.industry_structure || '').toUpperCase();
+    }
+  }
+
+  function structArrowAndCls(s) {
+    var x = String(s || '').toUpperCase();
+    if (x === 'BULL')  return { arrow: '↑', cls: 'bull' };
+    if (x === 'BEAR')  return { arrow: '↓', cls: 'bear' };
+    if (x === 'CHOP')  return { arrow: '→', cls: 'chop' };
+    if (x.indexOf('POS') >= 0) return { arrow: '↑', cls: 'bull' };
+    if (x.indexOf('NEG') >= 0) return { arrow: '↓', cls: 'bear' };
+    if (x === 'FLAT')  return { arrow: '→', cls: 'chop' };
+    return { arrow: '', cls: '' };
+  }
+
+  // Build pieces
+  var parts = [];
+
+  // PFO
+  parts.push('<span class="ch-pfo '+pfoCls+'">'+pfoStr+'</span>');
+
+  // Industry chip
+  if (industryName) {
+    var rankTxt = indRank !== null ? '<span class="ch-rank">#'+indRank+'</span>' : '';
+    var sa = structArrowAndCls(indStructure);
+    var structTxt = sa.arrow
+      ? '<span class="ch-struct '+sa.cls+'">'+(indStructure || '')+' '+sa.arrow+'</span>'
+      : (indStructure ? '<span class="ch-struct">'+indStructure+'</span>' : '');
+    parts.push('<span class="ch-ind">'+s4SafeText(industryName)+'</span> '+rankTxt+(structTxt?' '+structTxt:''));
+  }
+
+  // Index
+  if (resolvedIndexName) {
+    parts.push('<span class="ch-idx">'+s4SafeText(resolvedIndexName)+'</span>');
+  }
+
+  // MI
+  parts.push('<span class="ch-mi">MI '+(parseFloat(r.mi_score)||0).toFixed(1)+'</span>');
+
+  // Status pill (right end)
+  var tag = String(r.eligibility_tag || '').toUpperCase();
+  if (tag) {
+    var pillCls = 'neutral';
+    if (tag === 'ELIGIBLE') pillCls = 'elig';
+    else if (tag === 'SUSPEND') pillCls = 'susp';
+    else if (tag.indexOf('WATCH') >= 0) pillCls = 'watch';
+    var pillTxt = tag === 'KEEP_WATCHING' ? 'WATCHING' : tag;
+    parts.push('<span class="ch-pill '+pillCls+'">'+pillTxt+'</span>');
+  }
+
+  // Join with separator dots
+  el.innerHTML = parts.join('<span class="ch-sep"> · </span>');
+}
+
+// HTML-safe escaping for chip text
+function s4SafeText(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ────────────────────────────────────────────────────────────────
+// s4PopulateHeaderStatus (NEW 2026-05-06 — Phase 2)
+// Synthesises a one-block summary of what SGAT did with this stock.
+// Three lifecycle phases:
+//   - "not traded today"  (no trade record at all)
+//   - "holding LONG/SHORT" (open position, in flight)
+//   - "held LONG/SHORT"    (closed trade, history)
+//
+// Captures useful detail at each phase: entry/exit prices, holding
+// time, P&L, and capture efficiency (post-entry peak vs realised).
+// ────────────────────────────────────────────────────────────────
+function s4PopulateHeaderStatus(r, tradeRow, vals, tradeDirection) {
+  var el = document.getElementById('s4-d-status');
+  if (!el) return;
+
+  function fmtTime(ts) {
+    return (typeof tsToIstHHMM === 'function') ? tsToIstHHMM(ts) : '';
+  }
+  function fmtPx(v) {
+    if (!isFinite(parseFloat(v))) return '—';
+    return '₹' + parseFloat(v).toFixed(2);
+  }
+  function fmtPnl(inr) {
+    if (!isFinite(parseFloat(inr))) return '—';
+    var n = parseFloat(inr);
+    return (n >= 0 ? '+' : '') + '₹' + Math.round(n);
+  }
+  function fmtHold(min) {
+    if (!isFinite(parseFloat(min))) return '—';
+    var m = Math.round(parseFloat(min));
+    if (m < 60) return m + 'm';
+    var h = Math.floor(m / 60);
+    var rem = m % 60;
+    return h + 'h ' + (rem > 0 ? rem + 'm' : '');
+  }
+
+  var dirCls = tradeDirection === 'SHORT' ? 'short' : 'long';
+  var dirVerb = tradeDirection === 'SHORT' ? 'SHORT' : 'LONG';
+
+  // ── Case A: No trade record + not OPEN → not traded ───────────
+  var isOpen = String(r.position_status || '').toUpperCase() === 'OPEN';
+  if (!tradeRow && !isOpen) {
+    el.innerHTML = '<span class="st-label">STATUS</span>'
+      + '<span class="st-empty">not traded today</span>';
+    return;
+  }
+
+  // ── Case B: Open position (holding) ──────────────────────────
+  if (isOpen && !tradeRow) {
+    // We may have entry from TMLong via earlier resolution
+    var tmRow = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
+    var entryTs = tmRow ? tmRow.last_entry_time : null;
+    var entryPx = tmRow ? parseFloat(tmRow.entry_price) : null;
+    var curPnlPct = parseFloat(r.current_pnl_pct);
+    var peakPnlPct = parseFloat(r.peak_pnl_pct);
+    var curPx = vals.length ? vals[vals.length-1] : null;
+    var pnlPctCls = isFinite(curPnlPct) ? (curPnlPct >= 0 ? 'pos' : 'neg') : '';
+
+    var line1 = '<span class="st-label">STATUS</span>'
+      + 'SGAT holding <span class="st-dir '+dirCls+'">'+dirVerb+'</span>'
+      + (entryTs ? ' <span class="st-meta">·</span> entry <span class="st-val">'+fmtTime(entryTs)+'</span>' : '')
+      + (isFinite(entryPx) ? ' @ <span class="st-val">'+fmtPx(entryPx)+'</span>' : '')
+      + (isFinite(curPx) ? ' <span class="st-meta">·</span> current <span class="st-val">'+fmtPx(curPx)+'</span>' : '');
+
+    var line2parts = [];
+    if (isFinite(curPnlPct)) {
+      line2parts.push('current <span class="st-pnl '+pnlPctCls+'">'+(curPnlPct>=0?'+':'')+curPnlPct.toFixed(2)+'%</span>');
+    }
+    if (isFinite(peakPnlPct) && peakPnlPct > 0) {
+      line2parts.push('peak <span class="st-pnl pos">+'+peakPnlPct.toFixed(2)+'%</span>');
+      // Current is X% of peak
+      if (isFinite(curPnlPct) && peakPnlPct > 0) {
+        var pctOfPeak = Math.max(0, (curPnlPct / peakPnlPct) * 100);
+        var cls = pctOfPeak >= 70 ? 'high' : pctOfPeak >= 40 ? 'mid' : 'low';
+        line2parts.push('current is <span class="st-cap '+cls+'">'+pctOfPeak.toFixed(0)+'%</span> of peak');
+      }
+    }
+
+    el.innerHTML = line1 + (line2parts.length
+      ? '<br><span style="margin-left:43px">'+line2parts.join(' <span class="st-meta">·</span> ')+'</span>'
+      : '');
+    return;
+  }
+
+  // ── Case C: Closed trade (held) ──────────────────────────────
+  var entryTs = tradeRow.first_entry_ts;
+  var exitTs  = tradeRow.last_exit_ts;
+  var qty     = parseFloat(tradeRow.qty_closed) || 1;
+  var entryPx = tradeRow.buy_value && qty
+              ? parseFloat(tradeRow.buy_value) / qty
+              : (tradeRow.sell_value && qty
+                  ? parseFloat(tradeRow.sell_value) / qty  // for SHORT, entry is the sell
+                  : null);
+  // For SHORT: entry = sell_value, exit = buy_value (reversed)
+  if (tradeDirection === 'SHORT') {
+    entryPx = tradeRow.sell_value && qty ? parseFloat(tradeRow.sell_value) / qty : null;
+    var exitPx = tradeRow.buy_value && qty ? parseFloat(tradeRow.buy_value) / qty : null;
+  } else {
+    var exitPx = tradeRow.sell_value && qty ? parseFloat(tradeRow.sell_value) / qty : null;
+  }
+  var pnlInr = parseFloat(tradeRow.pnl_inr);
+  var pnlPct = parseFloat(tradeRow.pnl_pct);
+  var holdMin = parseFloat(tradeRow.avg_holding_min);
+  var pnlCls = isFinite(pnlInr) ? (pnlInr >= 0 ? 'pos' : 'neg') : '';
+
+  // Capture efficiency: of the post-entry move-toward-favour, how
+  // much did we realise? For LONG: peak PFO between entry and exit
+  // candle indices; capture = (exitPFO - entryPFO) / (peakPFO - entryPFO).
+  // For SHORT: trough PFO; capture = (entryPFO - exitPFO) / (entryPFO - troughPFO).
+  var captureTxt = '';
+  if (vals && vals.length > 1 && isFinite(parseFloat(entryPx))) {
+    function tsToCandleIdx(ts) {
+      // Compute candle index from naive/UTC ts → minutes since 09:15 → /5
+      var s = String(ts || '');
+      if (s.length < 16) return null;
+      var hh = parseInt(s.slice(11,13), 10);
+      var mm = parseInt(s.slice(14,16), 10);
+      if (isNaN(hh) || isNaN(mm)) return null;
+      // Same autodetect as tsToIstHHMM
+      var hasZ = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+      var isUTC;
+      if (hasZ) {
+        var carry = (mm + 30) >= 60 ? 1 : 0;
+        var istHH = (hh + 5 + carry) % 24;
+        var lyingZ = (istHH > 16 || istHH < 4) && (hh >= 9 && hh <= 15);
+        isUTC = !lyingZ;
+      } else {
+        isUTC = (hh < 4);
+      }
+      if (isUTC) {
+        mm += 30;
+        if (mm >= 60) { mm -= 60; hh += 1; }
+        hh += 5;
+        if (hh >= 24) hh -= 24;
+      }
+      var minsSince = (hh * 60 + mm) - (9 * 60 + 15);
+      if (minsSince < 0) return 0;
+      return Math.floor(minsSince / 5);
+    }
+    var ei = tsToCandleIdx(entryTs);
+    var xi = tsToCandleIdx(exitTs);
+    if (ei !== null && xi !== null && xi > ei && xi < vals.length) {
+      var openPx = vals[0];
+      var entryPFO = ((vals[ei] - openPx) / openPx) * 100;
+      var exitPFO  = ((vals[xi] - openPx) / openPx) * 100;
+      // Find favour-direction extreme in [ei, xi]
+      var extremePFO = entryPFO;
+      for (var i = ei; i <= xi; i++) {
+        var p = ((vals[i] - openPx) / openPx) * 100;
+        if (tradeDirection === 'SHORT') {
+          if (p < extremePFO) extremePFO = p;  // trough
+        } else {
+          if (p > extremePFO) extremePFO = p;  // peak
+        }
+      }
+      var available = (tradeDirection === 'SHORT')
+        ? (entryPFO - extremePFO)   // positive for short profit potential
+        : (extremePFO - entryPFO);
+      var realised = (tradeDirection === 'SHORT')
+        ? (entryPFO - exitPFO)
+        : (exitPFO - entryPFO);
+      if (available > 0.05) {  // skip if there was no real move to capture
+        var pct = Math.max(0, Math.min(100, (realised / available) * 100));
+        var cls = pct >= 70 ? 'high' : pct >= 40 ? 'mid' : 'low';
+        captureTxt = ' <span class="st-meta">·</span> captured '
+          + '<span class="st-cap '+cls+'">'+pct.toFixed(0)+'%</span>';
+      }
+    }
+  }
+
+  var line1 = '<span class="st-label">STATUS</span>'
+    + 'SGAT held <span class="st-dir '+dirCls+'">'+dirVerb+'</span>'
+    + (entryTs ? ' <span class="st-meta">·</span> entry <span class="st-val">'+fmtTime(entryTs)+'</span>' : '')
+    + (isFinite(entryPx) ? ' @ <span class="st-val">'+fmtPx(entryPx)+'</span>' : '')
+    + (exitTs ? ' <span class="st-meta">·</span> exit <span class="st-val">'+fmtTime(exitTs)+'</span>' : '')
+    + (isFinite(exitPx) ? ' @ <span class="st-val">'+fmtPx(exitPx)+'</span>' : '');
+
+  var line2parts = [];
+  if (isFinite(holdMin)) line2parts.push('held <span class="st-val">'+fmtHold(holdMin)+'</span>');
+  if (isFinite(pnlInr)) {
+    var pnlPctTxt = isFinite(pnlPct) ? ' (<span class="'+pnlCls+'">'+(pnlPct>=0?'+':'')+pnlPct.toFixed(2)+'%</span>)' : '';
+    line2parts.push('P&L <span class="st-pnl '+pnlCls+'">'+fmtPnl(pnlInr)+'</span>'+pnlPctTxt);
+  }
+
+  el.innerHTML = line1
+    + (line2parts.length
+      ? '<br><span style="margin-left:43px">'+line2parts.join(' <span class="st-meta">·</span> ')+captureTxt+'</span>'
+      : captureTxt);
+}
+
 function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exitHhmm, exitPnlPos) {
   var sym = r.tradingsymbol;
   if (!sym) return;
