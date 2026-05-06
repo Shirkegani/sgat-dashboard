@@ -710,6 +710,55 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sp-head-stat-val.red{color:var(--red);}
 .sp-head-stat-val.amber{color:var(--amber);}
 
+/* Industry trajectory panel (NEW 2026-05-06) */
+.sp-traj{
+  padding:12px 18px 14px;border-bottom:1px solid var(--border);
+  background:var(--bg);
+}
+.sp-traj-hd{
+  font-size:0.58rem;color:var(--dim);letter-spacing:0.12em;
+  text-transform:uppercase;margin-bottom:8px;
+}
+.sp-traj-chart{
+  position:relative;display:flex;gap:6px;align-items:stretch;
+}
+.sp-traj-ylbl-wrap{
+  display:flex;flex-direction:column;justify-content:space-between;
+  height:120px;font-size:0.52rem;color:var(--dim);
+  font-family:'JetBrains Mono',monospace;width:32px;text-align:right;
+}
+.sp-traj-svg-host{flex:1;position:relative;}
+.sp-traj-svg-host svg{width:100%;height:120px;display:block;}
+.sp-traj-tip{
+  position:absolute;background:rgba(8,18,28,0.95);
+  border:1px solid var(--border2);padding:4px 8px;border-radius:3px;
+  font-size:0.62rem;color:var(--text);pointer-events:none;
+  display:none;z-index:50;white-space:nowrap;top:4px;
+}
+.sp-traj-xaxis{
+  position:relative;height:10px;margin-top:4px;margin-left:38px;
+}
+.sp-traj-xaxis span{
+  font-size:0.5rem;color:var(--dim);position:absolute;
+  transform:translateX(-50%);white-space:nowrap;
+}
+.sp-traj-xaxis span.edge-l{transform:translateX(0);}
+.sp-traj-xaxis span.edge-r{transform:translateX(-100%);}
+.sp-traj-cap{
+  margin-top:10px;font-size:0.62rem;line-height:1.6;color:var(--muted);
+  font-family:'JetBrains Mono',monospace;letter-spacing:0.02em;
+}
+.sp-traj-cap .sp-traj-line{display:block;}
+.sp-traj-cap .sp-traj-lbl{color:var(--dim);}
+.sp-traj-cap .sp-traj-val{color:var(--text);font-weight:500;}
+.sp-traj-cap .sp-traj-val.green{color:var(--green);}
+.sp-traj-cap .sp-traj-val.red{color:var(--red);}
+.sp-traj-cap .sp-traj-val.amber{color:var(--amber);}
+.sp-traj-empty{
+  padding:14px 0;text-align:center;color:var(--dim);
+  font-size:0.65rem;font-style:italic;
+}
+
 /* Trade summary KPIs (inline in section header — right-aligned) */
 .sp-trade-kpis{
   display:flex;gap:14px;align-items:center;
@@ -6533,6 +6582,9 @@ function s3StocksPopupOpen(source, value, displayTitle) {
   document.getElementById('sp-head-stats').innerHTML =
     s3StocksPopupHeadStats(source, target);
 
+  // Render trajectory panel — industry popups only (NEW 2026-05-06)
+  s3StocksPopupRenderTrajectory(source, target);
+
   // Render body — your-trades section (with KPIs) + all-stocks section
   var body = document.getElementById('sp-body');
   if (matches.length === 0) {
@@ -6565,6 +6617,406 @@ function s3StocksPopupShow() {
 }
 
 // ── Header summary stats — pulls from industryctx OR indexctx ──
+// ─────────────────────────────────────────────────────────────
+// s3StocksPopupRenderTrajectory (NEW 2026-05-06)
+// Renders the industry-trajectory panel inside the stocks popup.
+//   - Bigger sparkline (W=520, H=120) of median_pfo through the day
+//     using STATE.data.industryctx_history (Apps Script v7).
+//   - Three caption lines surfacing rich IndustryContext fields:
+//     - Now / Peak / Low extremes derived from the history series
+//     - Breadth peak/decay/slope (latest cycle)
+//     - Verdict / Persistence / Δrank (latest cycle)
+//
+// The panel is hidden for index popups (no indexctx_history yet) and
+// when no data is available — graceful no-op preserving older behaviour.
+// ─────────────────────────────────────────────────────────────
+function s3StocksPopupRenderTrajectory(source, target) {
+  var panel = document.getElementById('sp-traj');
+  if (!panel) return;
+  // Index popups skip — only industry has history data wired up
+  if (source !== 'industry') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  var hist = (STATE.data && STATE.data.industryctx_history) || {};
+  // Case-insensitive key lookup matching the tile sparkline behaviour
+  var series = null;
+  for (var k in hist) {
+    if (String(k).trim().toUpperCase() === target) { series = hist[k]; break; }
+  }
+  // Find the latest IndustryContext row for the same target (for caption B/C)
+  var ictx = (STATE.data && STATE.data.industryctx) || [];
+  var latest = null;
+  for (var i = 0; i < ictx.length; i++) {
+    if (String(ictx[i].industry || '').trim().toUpperCase() === target) {
+      latest = ictx[i]; break;
+    }
+  }
+
+  // No data at all → hide
+  if ((!series || !series.length) && !latest) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+
+  // Build skeleton with all DOM hooks the draw function needs
+  panel.innerHTML =
+    '<div class="sp-traj-hd">Median % from open · today</div>' +
+    '<div class="sp-traj-chart">' +
+      '<div class="sp-traj-ylbl-wrap" id="sp-traj-ylbl"></div>' +
+      '<div class="sp-traj-svg-host">' +
+        '<svg id="sp-traj-svg" viewBox="0 0 520 120" preserveAspectRatio="none"></svg>' +
+        '<div class="sp-traj-tip" id="sp-traj-tip"></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sp-traj-xaxis" id="sp-traj-xaxis"></div>' +
+    '<div class="sp-traj-cap" id="sp-traj-cap"></div>';
+
+  // Draw the chart (no-op if series empty — caption block still renders)
+  if (series && series.length) {
+    s3StocksPopupDrawTrajChart(series);
+  } else {
+    // No history yet — show a placeholder line below the chart area
+    var svg = document.getElementById('sp-traj-svg');
+    if (svg) svg.innerHTML = '<text x="260" y="60" fill="#3a5060" text-anchor="middle" '
+      + 'font-size="11" font-family="JetBrains Mono">Trajectory data not available yet</text>';
+  }
+
+  // Caption lines — use both series (extremes) and latest (rich fields)
+  s3StocksPopupRenderTrajCaptions(series || [], latest);
+}
+
+// Draw the trajectory chart — same shape as s2DrawIndexLine, sized to W=520 H=120
+function s3StocksPopupDrawTrajChart(series) {
+  var svg = document.getElementById('sp-traj-svg');
+  var ylblEl = document.getElementById('sp-traj-ylbl');
+  if (!svg) return;
+  svg.innerHTML = '';
+  if (ylblEl) ylblEl.innerHTML = '';
+
+  var W = 520, H = 120, n = series.length;
+  var SESSION_MINS = 375;
+
+  function minsSince915FromHhmm(hhmm) {
+    var v = parseFloat(hhmm);
+    if (!isFinite(v) || v <= 0) return null;
+    var hh = Math.floor(v / 100);
+    var mm = Math.round(v - hh * 100);
+    return (hh * 60 + mm) - (9 * 60 + 15);
+  }
+  function px(i) {
+    var m = minsSince915FromHhmm(series[i].hhmm);
+    if (m === null) return (i / (n - 1 || 1)) * W;
+    if (m < 0) m = 0;
+    if (m > SESSION_MINS) m = SESSION_MINS;
+    return (m / SESSION_MINS) * W;
+  }
+
+  // Y-scale — same hybrid rules as the day-profile median chart
+  var data = series.map(function(p){ return parseFloat(p.median_pfo) || 0; });
+  var dMin = Math.min.apply(null, data);
+  var dMax = Math.max.apply(null, data);
+  var dRange = dMax - dMin;
+  var pad = dRange > 0 ? dRange * 0.15 : 0.1;
+  var fMin = dMin - pad;
+  var fMax = dMax + pad;
+  var MIN_TOTAL_RANGE = 1.0;
+  if ((fMax - fMin) < MIN_TOTAL_RANGE) {
+    var center = (fMin + fMax) / 2;
+    fMin = center - MIN_TOTAL_RANGE / 2;
+    fMax = center + MIN_TOTAL_RANGE / 2;
+  }
+  if (fMin > -0.1) fMin = -0.1;
+  if (fMax <  0.1) fMax =  0.1;
+  var range = fMax - fMin;
+  function py(v){ return H - ((v - fMin) / range * H); }
+
+  // Hourly verticals
+  [60, 120, 180, 240, 300, 360].forEach(function(mins) {
+    var x = (mins / SESSION_MINS) * W;
+    var v = document.createElementNS('http://www.w3.org/2000/svg','line');
+    v.setAttribute('x1', x); v.setAttribute('x2', x);
+    v.setAttribute('y1', 0); v.setAttribute('y2', H);
+    v.setAttribute('stroke', 'rgba(40,65,80,0.45)');
+    v.setAttribute('stroke-width', '0.4');
+    v.setAttribute('stroke-dasharray', '2,4');
+    svg.appendChild(v);
+  });
+
+  // X-axis labels (5 marks, narrow-chart spacing — same as Median/NIFTY/Idx)
+  (function populateXaxis() {
+    var el = document.getElementById('sp-traj-xaxis');
+    if (!el) return;
+    el.innerHTML = '';
+    var labels = [
+      { mins:   0, txt: '09:15' },
+      { mins: 105, txt: '11:00' },
+      { mins: 225, txt: '13:00' },
+      { mins: 345, txt: '15:00' },
+      { mins: 375, txt: '15:30' }
+    ];
+    labels.forEach(function(lbl, idx) {
+      var pct = (lbl.mins / SESSION_MINS) * 100;
+      var sp = document.createElement('span');
+      sp.textContent = lbl.txt;
+      sp.style.left = pct.toFixed(2) + '%';
+      if (idx === 0) sp.className = 'edge-l';
+      else if (idx === labels.length - 1) sp.className = 'edge-r';
+      el.appendChild(sp);
+    });
+  })();
+
+  // Y gridlines (~5 ticks, nice-step)
+  function niceStep(totalRange) {
+    var raw = totalRange / 5;
+    var mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var norm = raw / mag;
+    var nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+    return nice * mag;
+  }
+  var step = niceStep(range);
+  var gridStart = Math.ceil(fMin / step) * step;
+  var gridVals = [];
+  for (var g = gridStart; g <= fMax + 1e-9; g += step) {
+    gridVals.push(Math.round(g / step) * step);
+  }
+  if (gridVals.indexOf(0) === -1 && fMin < 0 && fMax > 0) gridVals.push(0);
+  gridVals.sort(function(a,b){return a-b;});
+
+  gridVals.forEach(function(v) {
+    var l = document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',0); l.setAttribute('x2',W); l.setAttribute('y1',py(v)); l.setAttribute('y2',py(v));
+    l.setAttribute('stroke', Math.abs(v) < 1e-9 ? 'rgba(90,112,128,0.55)' : 'rgba(40,65,80,0.7)');
+    l.setAttribute('stroke-width', Math.abs(v) < 1e-9 ? '0.8' : '0.5');
+    if (Math.abs(v) > 1e-9) l.setAttribute('stroke-dasharray','3,4');
+    svg.appendChild(l);
+  });
+
+  // Y-label sidebar
+  if (ylblEl) {
+    var decimals = step < 0.5 ? 2 : (step < 1 ? 1 : 0);
+    var labelsTop = gridVals.slice().sort(function(a,b){return b-a;});
+    labelsTop.forEach(function(v) {
+      var sp = document.createElement('span');
+      sp.textContent = Math.abs(v)<1e-9 ? '0' : ((v>=0?'+':'')+v.toFixed(decimals));
+      ylblEl.appendChild(sp);
+    });
+  }
+
+  // Pre-compute X coords for hover snapping
+  var xCoords = data.map(function(_, i){ return px(i); });
+
+  // Line — green/red split at zero
+  var zy = py(0);
+  for (var i = 0; i < n - 1; i++) {
+    var v1 = data[i], v2 = data[i+1];
+    var x1 = xCoords[i], x2 = xCoords[i+1];
+    var y1 = py(v1), y2 = py(v2);
+    if ((v1 >= 0) !== (v2 >= 0)) {
+      var t = v1 / (v1 - v2);
+      var xm = x1 + t * (x2 - x1);
+      [{x1:x1,y1:y1,x2:xm,y2:zy,v:v1},{x1:xm,y1:zy,x2:x2,y2:y2,v:v2}].forEach(function(seg){
+        var s = document.createElementNS('http://www.w3.org/2000/svg','line');
+        s.setAttribute('x1', seg.x1); s.setAttribute('y1', seg.y1);
+        s.setAttribute('x2', seg.x2); s.setAttribute('y2', seg.y2);
+        s.setAttribute('stroke', seg.v >= 0 ? '#00e5a0' : '#ff4d6a');
+        s.setAttribute('stroke-width', '1.5');
+        s.setAttribute('stroke-linecap', 'round');
+        svg.appendChild(s);
+      });
+    } else {
+      var s = document.createElementNS('http://www.w3.org/2000/svg','line');
+      s.setAttribute('x1', x1); s.setAttribute('y1', y1);
+      s.setAttribute('x2', x2); s.setAttribute('y2', y2);
+      s.setAttribute('stroke', v1 >= 0 ? '#00e5a0' : '#ff4d6a');
+      s.setAttribute('stroke-width', '1.5');
+      s.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(s);
+    }
+  }
+  var lv = data[n-1];
+  var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  dot.setAttribute('cx', xCoords[n-1]);
+  dot.setAttribute('cy', py(lv));
+  dot.setAttribute('r', '2.5');
+  dot.setAttribute('fill', lv >= 0 ? '#00e5a0' : '#ff4d6a');
+  svg.appendChild(dot);
+
+  // Hover — snap to nearest data point
+  var tip = document.getElementById('sp-traj-tip');
+  if (!tip) return;
+
+  function hhmmToStr(h) {
+    var v = parseFloat(h); if (!isFinite(v) || v <= 0) return '';
+    var hh = Math.floor(v / 100), mm = Math.round(v - hh * 100);
+    return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+  }
+
+  svg.addEventListener('mousemove', function(e) {
+    var rect = svg.getBoundingClientRect();
+    var xPct = (e.clientX - rect.left) / rect.width;
+    var xSvg = xPct * W;
+    var bestIdx = 0, bestDist = Infinity;
+    for (var k = 0; k < xCoords.length; k++) {
+      var d = Math.abs(xCoords[k] - xSvg);
+      if (d < bestDist) { bestDist = d; bestIdx = k; }
+    }
+    var v = data[bestIdx];
+    var ts = hhmmToStr(series[bestIdx].hhmm);
+    var col = v >= 0 ? '#00e5a0' : '#ff4d6a';
+    tip.style.display = 'block';
+    tip.style.left = Math.min(e.clientX - rect.left, rect.width - 160) + 'px';
+    tip.innerHTML = '<b style="color:#38b6ff">'+ts+'</b> · Median: '
+      + '<b style="color:'+col+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</b>';
+    var existing = svg.querySelector('.hover-line');
+    if (existing) existing.remove();
+    var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('class','hover-line');
+    line.setAttribute('x1', xCoords[bestIdx]); line.setAttribute('x2', xCoords[bestIdx]);
+    line.setAttribute('y1', 0); line.setAttribute('y2', '100%');
+    line.setAttribute('stroke','rgba(56,182,255,0.4)');
+    line.setAttribute('stroke-width','0.8');
+    svg.appendChild(line);
+  });
+
+  svg.addEventListener('mouseleave', function() {
+    tip.style.display = 'none';
+    var existing = svg.querySelector('.hover-line');
+    if (existing) existing.remove();
+  });
+}
+
+// Render the 3-line caption block under the trajectory chart
+function s3StocksPopupRenderTrajCaptions(series, latest) {
+  var capEl = document.getElementById('sp-traj-cap');
+  if (!capEl) return;
+
+  function hhmmToStr(h) {
+    var v = parseFloat(h); if (!isFinite(v) || v <= 0) return '';
+    var hh = Math.floor(v / 100), mm = Math.round(v - hh * 100);
+    return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+  }
+  function fmtPct(v, dp) {
+    if (!isFinite(parseFloat(v))) return '—';
+    var n = parseFloat(v);
+    return (n >= 0 ? '+' : '') + n.toFixed(dp == null ? 2 : dp) + '%';
+  }
+  function pctCls(v) {
+    var n = parseFloat(v);
+    if (!isFinite(n)) return '';
+    return n > 0 ? 'green' : n < 0 ? 'red' : '';
+  }
+  function fmtNum(v, dp) {
+    if (!isFinite(parseFloat(v))) return '—';
+    return parseFloat(v).toFixed(dp == null ? 2 : dp);
+  }
+
+  // ── Line A — extremes from the series itself ─────────────
+  var lineA;
+  if (series && series.length) {
+    var lastV = parseFloat(series[series.length-1].median_pfo);
+    var peak = -Infinity, peakHh = null;
+    var low  =  Infinity, lowHh  = null;
+    series.forEach(function(p) {
+      var v = parseFloat(p.median_pfo);
+      if (!isFinite(v)) return;
+      if (v > peak) { peak = v; peakHh = p.hhmm; }
+      if (v < low ) { low  = v; lowHh  = p.hhmm; }
+    });
+    var nowStr = '<span class="sp-traj-val ' + pctCls(lastV) + '">' + fmtPct(lastV) + '</span>';
+    var peakStr = isFinite(peak)
+      ? '<span class="sp-traj-val ' + pctCls(peak) + '">' + fmtPct(peak) + '</span>'
+        + ' <span class="sp-traj-lbl">(' + hhmmToStr(peakHh) + ')</span>'
+      : '<span class="sp-traj-val">—</span>';
+    var lowStr = isFinite(low)
+      ? '<span class="sp-traj-val ' + pctCls(low) + '">' + fmtPct(low) + '</span>'
+        + ' <span class="sp-traj-lbl">(' + hhmmToStr(lowHh) + ')</span>'
+      : '<span class="sp-traj-val">—</span>';
+    lineA =
+      '<span class="sp-traj-lbl">Now</span> ' + nowStr +
+      ' <span class="sp-traj-lbl">·</span> ' +
+      '<span class="sp-traj-lbl">Peak</span> ' + peakStr +
+      ' <span class="sp-traj-lbl">·</span> ' +
+      '<span class="sp-traj-lbl">Low</span> ' + lowStr;
+  } else {
+    lineA = '<span class="sp-traj-lbl">Now / Peak / Low: trajectory not available yet</span>';
+  }
+
+  // ── Line B — breadth dynamics from latest IndustryContext row ─
+  var lineB;
+  if (latest) {
+    var pkBr = parseFloat(latest.peak_breadth);
+    var pkHh = latest.peak_breadth_hhmm;
+    var dec  = parseFloat(latest.breadth_decay_pct);
+    var slp  = parseFloat(latest.breadth_slope_3c);
+
+    var pkBrStr = isFinite(pkBr)
+      ? '<span class="sp-traj-val">' + Math.round(pkBr) + '%</span>'
+        + (pkHh ? ' <span class="sp-traj-lbl">at ' + hhmmToStr(pkHh) + '</span>' : '')
+      : '<span class="sp-traj-val">—</span>';
+    var decStr = isFinite(dec)
+      ? '<span class="sp-traj-val ' + (dec <= 0 ? 'green' : 'red') + '">'
+        + (dec >= 0 ? '+' : '') + dec.toFixed(1) + 'pp</span>'
+      : '<span class="sp-traj-val">—</span>';
+    var slpStr = isFinite(slp)
+      ? '<span class="sp-traj-val ' + (slp >= 0 ? 'green' : 'red') + '">'
+        + (slp >= 0 ? '+' : '') + slp.toFixed(2) + '/c</span>'
+      : '<span class="sp-traj-val">—</span>';
+    lineB =
+      '<span class="sp-traj-lbl">Breadth peak</span> ' + pkBrStr +
+      ' <span class="sp-traj-lbl">·</span> ' +
+      '<span class="sp-traj-lbl">decay</span> ' + decStr +
+      ' <span class="sp-traj-lbl">·</span> ' +
+      '<span class="sp-traj-lbl">slope</span> ' + slpStr;
+  } else {
+    lineB = '<span class="sp-traj-lbl">Breadth dynamics: latest cycle not available</span>';
+  }
+
+  // ── Line C — verdict + persistence + Δrank ────────────────
+  var lineC;
+  if (latest) {
+    var verdict = String(latest.verdict || '').trim().toUpperCase();
+    var verdictCls = '';
+    if (verdict.indexOf('AVOID') >= 0)      verdictCls = 'amber';
+    else if (verdict.indexOf('LONG') >= 0)  verdictCls = 'green';
+    else if (verdict.indexOf('BULL') >= 0)  verdictCls = 'green';
+    else if (verdict.indexOf('SHORT') >= 0) verdictCls = 'red';
+    else if (verdict.indexOf('BEAR') >= 0)  verdictCls = 'red';
+    var verdictStr = verdict
+      ? '<span class="sp-traj-val ' + verdictCls + '">' + verdict + '</span>'
+      : '<span class="sp-traj-val">—</span>';
+
+    var pers = parseFloat(latest.structure_persistence);
+    var persStr = isFinite(pers)
+      ? '<span class="sp-traj-val">' + Math.round(pers) + ' cycles</span>'
+      : '<span class="sp-traj-val">—</span>';
+
+    var dRank = parseFloat(latest.rank_change_3c);
+    // Rank change: lower rank number = stronger, so negative Δrank is improvement
+    var dRankCls = isFinite(dRank) ? (dRank < 0 ? 'green' : dRank > 0 ? 'red' : '') : '';
+    var dRankStr = isFinite(dRank)
+      ? '<span class="sp-traj-val ' + dRankCls + '">'
+        + (dRank > 0 ? '+' : '') + Math.round(dRank) + '</span>'
+      : '<span class="sp-traj-val">—</span>';
+
+    lineC =
+      '<span class="sp-traj-lbl">Verdict</span> ' + verdictStr +
+      ' <span class="sp-traj-lbl">·</span> ' +
+      '<span class="sp-traj-lbl">Persistence</span> ' + persStr +
+      ' <span class="sp-traj-lbl">·</span> ' +
+      '<span class="sp-traj-lbl">Δrank (3c)</span> ' + dRankStr;
+  } else {
+    lineC = '<span class="sp-traj-lbl">Verdict / Persistence / Δrank: latest cycle not available</span>';
+  }
+
+  capEl.innerHTML =
+    '<span class="sp-traj-line">' + lineA + '</span>' +
+    '<span class="sp-traj-line">' + lineB + '</span>' +
+    '<span class="sp-traj-line">' + lineC + '</span>';
+}
+
 function s3StocksPopupHeadStats(source, target) {
   if (source === 'industry') return s3StocksPopupHeadStatsIndustry(target);
   if (source === 'index')    return s3StocksPopupHeadStatsIndex(target);
@@ -6876,6 +7328,7 @@ window.onload = function() {
       </div>
       <div class="sp-head-stats" id="sp-head-stats"></div>
     </div>
+    <div class="sp-traj" id="sp-traj" style="display:none;"></div>
     <div class="sp-body" id="sp-body"></div>
   </div>
 </div>
