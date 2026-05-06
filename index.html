@@ -388,24 +388,28 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s4-drill-meta{font-size:0.63rem;color:var(--dim);margin-top:3px;line-height:1.5;}
 .s4-drill-x{background:none;border:1px solid var(--border);color:var(--dim);font-size:0.7rem;cursor:pointer;border-radius:3px;padding:3px 8px;font-family:var(--font-mono);}
 .s4-drill-x:hover{color:var(--red);border-color:rgba(255,77,106,0.4);}
-.s4-drill-sec{padding:12px 16px;border-bottom:1px solid var(--border);}
+.s4-drill-sec{padding:12px 16px;border-bottom:1px solid var(--border);position:relative;}
 .s4-drill-sec-title{font-size:0.58rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
-.s4-candle-area{width:100%;height:140px;}
-.s4-candle-area svg{width:100%;height:100%;}
-/* Dual-axis chart layout (NEW 2026-05-06) */
-.s4-chart-grid{display:grid;grid-template-columns:30px 1fr 38px;gap:4px;height:140px;align-items:stretch;}
-.s4-yaxis-l, .s4-yaxis-r{
+.s4-candle-area{width:100%;}
+/* Stacked dual-chart layout (NEW 2026-05-06 — replaced dual-axis) */
+.s4-chart-block{position:relative;}
+.s4-chart-row{display:grid;grid-template-columns:34px 1fr;gap:4px;align-items:stretch;}
+.s4-yaxis-stock, .s4-yaxis-ctx{
   display:flex;flex-direction:column;justify-content:space-between;
   font-family:'JetBrains Mono',monospace;font-size:0.5rem;
-  height:140px;line-height:1;padding:1px 0;
+  line-height:1;padding:1px 0;text-align:right;
 }
-.s4-yaxis-l{text-align:right;color:rgba(0,229,160,0.75);}
-.s4-yaxis-r{text-align:left;color:rgba(56,182,255,0.75);}
-.s4-yaxis-l span, .s4-yaxis-r span{display:block;}
+.s4-yaxis-stock{height:140px;color:rgba(0,229,160,0.75);}
+.s4-yaxis-ctx{height:80px;color:rgba(255,184,77,0.75);}
+.s4-yaxis-stock span, .s4-yaxis-ctx span{display:block;}
+.s4-svg-wrap{position:relative;}
+.s4-svg-wrap svg{width:100%;display:block;}
+#s4-d-stock-svg{height:140px;}
+#s4-d-ctx-svg{height:80px;}
 .s4-drill-legend{display:flex;gap:12px;margin-top:6px;font-size:0.57rem;color:var(--dim);}
 /* Time-anchored x-axis labels for the drill chart (NEW 2026-05-06) */
-.s4-xaxis{position:relative;height:10px;margin-top:3px;
-  margin-left:34px;margin-right:42px;}
+.s4-xaxis{position:relative;height:10px;margin-top:6px;
+  margin-left:38px;margin-right:0;}
 .s4-xaxis span{font-size:0.5rem;color:#3a5060;position:absolute;
   transform:translateX(-50%);white-space:nowrap;}
 .s4-xaxis span.edge-l{transform:translateX(0);}
@@ -1913,20 +1917,38 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     <button class="s4-drill-x" onclick="s4CloseDrill()">✕</button>
   </div>
   <div class="s4-drill-sec">
-    <div class="s4-drill-sec-title">% from open · stock vs industry vs index</div>
-    <div class="s4-candle-area" style="position:relative;">
-      <div class="s4-chart-grid">
-        <div class="s4-yaxis-l" id="s4-d-ylbl-left"></div>
-        <svg id="s4-d-candles" viewBox="0 0 380 140" preserveAspectRatio="none"></svg>
-        <div class="s4-yaxis-r" id="s4-d-ylbl-right"></div>
+    <div class="s4-drill-sec-title">% from open · stock vs industry &amp; index</div>
+
+    <!-- TOP CHART: Stock alone, full-resolution scale -->
+    <div class="s4-chart-block">
+      <div class="s4-chart-row">
+        <div class="s4-yaxis-stock" id="s4-d-ylbl-stock"></div>
+        <div class="s4-svg-wrap">
+          <svg id="s4-d-stock-svg" viewBox="0 0 380 140" preserveAspectRatio="none"></svg>
+        </div>
       </div>
-      <div class="chart-tooltip" id="s4-d-candles-tip"></div>
     </div>
+
+    <!-- BOTTOM CHART: Industry + Index, their own scale -->
+    <div class="s4-chart-block" style="margin-top:6px;">
+      <div class="s4-chart-row">
+        <div class="s4-yaxis-ctx" id="s4-d-ylbl-ctx"></div>
+        <div class="s4-svg-wrap">
+          <svg id="s4-d-ctx-svg" viewBox="0 0 380 80" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared X-axis -->
     <div class="s4-xaxis" id="s4-d-xaxis"></div>
+
+    <!-- Shared tooltip -->
+    <div class="chart-tooltip" id="s4-d-candles-tip"></div>
+
     <div class="s4-drill-legend" id="s4-d-legend">
       <span><span style="color:#00e5a0">━━</span> Stock</span>
-      <span><span style="color:#00e5a0;opacity:0.6">━━</span> Industry</span>
-      <span><span style="color:#00e5a0;opacity:0.4">╌╌</span> Index</span>
+      <span><span style="color:#ffb84d">━━</span> Industry</span>
+      <span><span style="color:#38b6ff">╌╌</span> Index</span>
       <span style="color:rgba(90,112,128,0.85)">─ ─ 0 ref</span>
     </div>
   </div>
@@ -5499,11 +5521,30 @@ function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exi
 // index = 40% opacity dashed. Zero baseline always visible.
 // ────────────────────────────────────────────────────────────────
 function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHhmm, exitPnlPos, meta) {
-  var svg = document.getElementById('s4-d-candles');
-  if (!svg) return;
-  svg.innerHTML = '';
+  // ────────────────────────────────────────────────────────────────
+  // s4DrawChart (REWRITTEN 2026-05-06 — Option D: stacked dual charts)
+  //
+  // Top chart  (height 140): stock alone, full vertical resolution
+  // Bottom chart (height 80): industry + index, their own scale
+  //
+  // Each chart has its own Y-axis, its own zero baseline, its own
+  // adaptive scale. Time axis is shared — drawn once below the bottom
+  // chart. Entry/exit markers go on the stock (top) chart.
+  //
+  // Hover behavior: hovering EITHER chart draws crosshair lines in
+  // BOTH SVGs at the same hhmm, and the shared tooltip shows
+  // stock + industry + index values for that cycle plus the industry's
+  // structure & verdict.
+  // ────────────────────────────────────────────────────────────────
+  var stockSvg = document.getElementById('s4-d-stock-svg');
+  var ctxSvg   = document.getElementById('s4-d-ctx-svg');
+  if (!stockSvg || !ctxSvg) return;
+  stockSvg.innerHTML = '';
+  ctxSvg.innerHTML = '';
 
-  var W = 380, H = 140;
+  var W = 380;            // shared SVG viewBox width
+  var H_STOCK = 140;      // top chart height
+  var H_CTX   = 80;       // bottom chart height
   var SESSION_MINS = 375;
 
   // hhmm 920 → minutes since 09:15
@@ -5522,7 +5563,6 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     return (m / SESSION_MINS) * W;
   }
 
-  // Combine all series for adaptive Y range
   function pickFinite(arr) {
     var out = [];
     if (!arr || !arr.length) return out;
@@ -5535,20 +5575,15 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
   var stockVals = pickFinite(stockSeries);
   var indVals   = pickFinite(industrySeries);
   var xVals     = pickFinite(indexSeries);
-  var rightVals = indVals.concat(xVals);
+  var ctxVals   = indVals.concat(xVals);
 
-  if (!stockVals.length && !rightVals.length) {
-    svg.innerHTML = '<text x="190" y="70" fill="#3a5060" text-anchor="middle" '
+  if (!stockVals.length && !ctxVals.length) {
+    stockSvg.innerHTML = '<text x="190" y="70" fill="#3a5060" text-anchor="middle" '
       + 'font-size="11" font-family="JetBrains Mono">No data</text>';
     return;
   }
 
-  // ── Dual-axis scaling (NEW 2026-05-06) ──────────────────────────
-  // Stock typically swings ±5-20%; industry/index ±0.5-2%.
-  // Putting them on a shared axis makes industry/index look flat.
-  // We compute two scales — left (stock) and right (industry+index) —
-  // then stretch each so zero sits at the SAME pixel fraction. That
-  // way the dashed zero baseline serves as a shared reference.
+  // Adaptive Y scaling helper — 15% pad, force-include zero, min range 0.4%
   function computeAxis(vals) {
     if (!vals.length) return null;
     var mn = Math.min.apply(null, vals);
@@ -5556,10 +5591,8 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     var rng = mx - mn;
     var pad = rng > 0 ? rng * 0.15 : 0.5;
     var lo = mn - pad, hi = mx + pad;
-    // Always include zero (so split-at-zero coloring + alignment work)
     if (lo > -0.05) lo = -0.05;
     if (hi <  0.05) hi =  0.05;
-    // Min total range so flat days don't collapse
     if ((hi - lo) < 0.4) {
       var c = (lo + hi) / 2;
       lo = c - 0.2; hi = c + 0.2;
@@ -5567,109 +5600,64 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     return { lo: lo, hi: hi };
   }
 
-  var leftAxis  = computeAxis(stockVals);
-  var rightAxis = computeAxis(rightVals);
+  var stockAxis = computeAxis(stockVals);
+  var ctxAxis   = computeAxis(ctxVals);
 
-  // Align zero on both axes to the same vertical fraction
-  if (leftAxis && rightAxis) {
-    var leftZeroFrac  = (0 - leftAxis.lo)  / (leftAxis.hi  - leftAxis.lo);
-    var rightZeroFrac = (0 - rightAxis.lo) / (rightAxis.hi - rightAxis.lo);
-    var targetFrac = Math.max(leftZeroFrac, rightZeroFrac);
-    function stretchToFrac(ax, frac) {
-      // zero must be at fraction `frac` from bottom
-      // i.e. (0 - lo) / (hi - lo) = frac
-      // → lo = -frac * range, hi = (1-frac) * range
-      // We want to keep the data's natural extreme on the side that
-      // already fits, and extend the OTHER side to satisfy `frac`.
-      var curFrac = (0 - ax.lo) / (ax.hi - ax.lo);
-      if (Math.abs(curFrac - frac) < 1e-6) return ax;
-      if (curFrac < frac) {
-        // need more bottom space — extend lo more negative
-        // Solve: -ax.lo' / (ax.hi - ax.lo') = frac
-        // → -ax.lo' = frac * (ax.hi - ax.lo')
-        // → -ax.lo' = frac*ax.hi - frac*ax.lo'
-        // → ax.lo' (frac - 1) = frac*ax.hi
-        // → ax.lo' = frac*ax.hi / (frac - 1)
-        var newLo = frac * ax.hi / (frac - 1);
-        return { lo: newLo, hi: ax.hi };
-      } else {
-        // need more top space — extend hi more positive
-        // Solve: -ax.lo / (ax.hi' - ax.lo) = frac
-        // → -ax.lo = frac*ax.hi' - frac*ax.lo
-        // → ax.hi' = (-ax.lo + frac*ax.lo) / frac = ax.lo*(frac-1)/frac
-        var newHi = ax.lo * (frac - 1) / frac;
-        return { lo: ax.lo, hi: newHi };
-      }
-    }
-    leftAxis  = stretchToFrac(leftAxis,  targetFrac);
-    rightAxis = stretchToFrac(rightAxis, targetFrac);
+  function pyStock(v) {
+    return H_STOCK - ((v - stockAxis.lo) / (stockAxis.hi - stockAxis.lo) * H_STOCK);
+  }
+  function pyCtx(v) {
+    return H_CTX - ((v - ctxAxis.lo) / (ctxAxis.hi - ctxAxis.lo) * H_CTX);
   }
 
-  // Coordinate maps — stock uses left axis, industry/index use right axis
-  function pyLeft(v)  { var ax = leftAxis;  return H - ((v - ax.lo) / (ax.hi - ax.lo) * H); }
-  function pyRight(v) { var ax = rightAxis; return H - ((v - ax.lo) / (ax.hi - ax.lo) * H); }
-  // Used for the zero-line and stock split-at-zero math
-  // (zero is aligned on both axes by construction)
-  var py = leftAxis ? pyLeft : pyRight;
-
-  // Hourly verticals (drawn first, behind everything)
-  [60, 120, 180, 240, 300, 360].forEach(function(mins) {
-    var x = (mins / SESSION_MINS) * W;
-    var v = document.createElementNS('http://www.w3.org/2000/svg','line');
-    v.setAttribute('x1', x); v.setAttribute('x2', x);
-    v.setAttribute('y1', 0); v.setAttribute('y2', H);
-    v.setAttribute('stroke', 'rgba(40,65,80,0.45)');
-    v.setAttribute('stroke-width', '0.4');
-    v.setAttribute('stroke-dasharray', '2,4');
-    svg.appendChild(v);
-  });
-
-  // Zero reference baseline — prominent dashed
-  var zy = py(0);
-  var zl = document.createElementNS('http://www.w3.org/2000/svg','line');
-  zl.setAttribute('x1', 0); zl.setAttribute('x2', W);
-  zl.setAttribute('y1', zy); zl.setAttribute('y2', zy);
-  zl.setAttribute('stroke', 'rgba(90,112,128,0.55)');
-  zl.setAttribute('stroke-width', '0.8');
-  zl.setAttribute('stroke-dasharray', '4,3');
-  svg.appendChild(zl);
-
-  // Draw a series. Stock uses split-at-zero green/red; industry/index
-  // use a fixed color (Option B: amber for industry, blue for index).
-  // Each series can also use its own py-fn — stock uses pyLeft, industry
-  // and index use pyRight (dual-axis).
-  function drawSeries(series, opts) {
+  // ── Common chart-drawing helpers (work on either SVG) ──────────
+  function drawHourly(svg, h) {
+    [60,120,180,240,300,360].forEach(function(mins) {
+      var x = (mins / SESSION_MINS) * W;
+      var v = document.createElementNS('http://www.w3.org/2000/svg','line');
+      v.setAttribute('x1', x); v.setAttribute('x2', x);
+      v.setAttribute('y1', 0); v.setAttribute('y2', h);
+      v.setAttribute('stroke', 'rgba(40,65,80,0.45)');
+      v.setAttribute('stroke-width', '0.4');
+      v.setAttribute('stroke-dasharray', '2,4');
+      svg.appendChild(v);
+    });
+  }
+  function drawZero(svg, py) {
+    var zy = py(0);
+    var l = document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1', 0); l.setAttribute('x2', W);
+    l.setAttribute('y1', zy); l.setAttribute('y2', zy);
+    l.setAttribute('stroke', 'rgba(90,112,128,0.55)');
+    l.setAttribute('stroke-width', '0.8');
+    l.setAttribute('stroke-dasharray', '4,3');
+    svg.appendChild(l);
+  }
+  // Generic series draw — split-at-zero green/red OR a fixed color
+  function drawSeries(svg, series, py, opts) {
     if (!series || series.length < 2) return [];
-    var xCoords = [];
-    var data = [];
+    var xCoords = [], data = [];
     series.forEach(function(p) {
       var x = timeToX(p.hhmm);
       var v = parseFloat(p.pfo);
       if (x === null || !isFinite(v)) return;
-      xCoords.push(x);
-      data.push(v);
+      xCoords.push(x); data.push(v);
     });
     var n = data.length;
-    var pyFn = opts.pyFn || py;
     if (n < 2) {
       if (n === 1) {
         var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
-        dot.setAttribute('cx', xCoords[0]);
-        dot.setAttribute('cy', pyFn(data[0]));
+        dot.setAttribute('cx', xCoords[0]); dot.setAttribute('cy', py(data[0]));
         dot.setAttribute('r', opts.dotR || '2');
         dot.setAttribute('fill', opts.fixedColor || (data[0] >= 0 ? '#00e5a0' : '#ff4d6a'));
-        dot.setAttribute('opacity', opts.opacity || 1);
+        if (opts.opacity != null) dot.setAttribute('opacity', opts.opacity);
         svg.appendChild(dot);
       }
       return xCoords;
     }
-    var dashAttr = opts.dash || null;
-    // Color resolution:
-    //   - opts.fixedColor present → use it for the whole series (industry/index)
-    //   - otherwise → split-at-zero green/red (stock)
     if (opts.fixedColor) {
-      // Continuous polyline — single stroke, no zero split
-      var points = xCoords.map(function(x, i){ return x + ',' + pyFn(data[i]); }).join(' ');
+      // Single polyline, one color
+      var points = xCoords.map(function(x, i){ return x + ',' + py(data[i]); }).join(' ');
       var pl = document.createElementNS('http://www.w3.org/2000/svg','polyline');
       pl.setAttribute('points', points);
       pl.setAttribute('fill', 'none');
@@ -5678,15 +5666,15 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
       pl.setAttribute('stroke-linecap', 'round');
       pl.setAttribute('stroke-linejoin', 'round');
       if (opts.opacity != null) pl.setAttribute('opacity', opts.opacity);
-      if (dashAttr) pl.setAttribute('stroke-dasharray', dashAttr);
+      if (opts.dash)            pl.setAttribute('stroke-dasharray', opts.dash);
       svg.appendChild(pl);
     } else {
+      // Split-at-zero green/red
       for (var i = 0; i < n - 1; i++) {
         var v1 = data[i], v2 = data[i+1];
         var x1 = xCoords[i], x2 = xCoords[i+1];
-        var y1 = pyFn(v1), y2 = pyFn(v2);
-        // Note: zero crossing in stock-axis coords. zy here is pyFn(0).
-        var zyLocal = pyFn(0);
+        var y1 = py(v1), y2 = py(v2);
+        var zyLocal = py(0);
         if ((v1 >= 0) !== (v2 >= 0)) {
           var t = v1 / (v1 - v2);
           var xm = x1 + t * (x2 - x1);
@@ -5698,7 +5686,6 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
             s.setAttribute('stroke-width', opts.width || 1.5);
             s.setAttribute('stroke-linecap', 'round');
             if (opts.opacity != null) s.setAttribute('opacity', opts.opacity);
-            if (dashAttr) s.setAttribute('stroke-dasharray', dashAttr);
             svg.appendChild(s);
           });
         } else {
@@ -5709,7 +5696,6 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
           s.setAttribute('stroke-width', opts.width || 1.5);
           s.setAttribute('stroke-linecap', 'round');
           if (opts.opacity != null) s.setAttribute('opacity', opts.opacity);
-          if (dashAttr) s.setAttribute('stroke-dasharray', dashAttr);
           svg.appendChild(s);
         }
       }
@@ -5718,8 +5704,7 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     if (opts.showEndDot !== false) {
       var lv = data[n-1];
       var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      dot.setAttribute('cx', xCoords[n-1]);
-      dot.setAttribute('cy', pyFn(lv));
+      dot.setAttribute('cx', xCoords[n-1]); dot.setAttribute('cy', py(lv));
       dot.setAttribute('r', opts.dotR || '2');
       dot.setAttribute('fill', opts.fixedColor || (lv >= 0 ? '#00e5a0' : '#ff4d6a'));
       if (opts.opacity != null) dot.setAttribute('opacity', opts.opacity);
@@ -5728,21 +5713,20 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     return xCoords;
   }
 
-  // Layer order: index (back) → industry → stock (front)
-  // Industry color: amber (#ffb84d). Index color: blue (#38b6ff).
-  drawSeries(indexSeries,    { width: 1.2, opacity: 0.6, dash: '3,3', showEndDot: false,
-                                fixedColor: '#38b6ff', pyFn: pyRight });
-  drawSeries(industrySeries, { width: 1.4, opacity: 0.85, showEndDot: false,
-                                fixedColor: '#ffb84d', pyFn: pyRight });
-  var stockX = drawSeries(stockSeries, { width: 1.8, opacity: 1.0, dotR: '2.5', pyFn: pyLeft });
+  // ── TOP CHART: hourly + zero + stock + entry/exit markers ──────
+  if (stockAxis) {
+    drawHourly(stockSvg, H_STOCK);
+    drawZero(stockSvg, pyStock);
+  }
+  var stockX = stockSeries
+    ? drawSeries(stockSvg, stockSeries, pyStock, { width: 1.8, opacity: 1.0, dotR: '2.5' })
+    : [];
 
-  // Entry/exit markers on the stock line
+  // Entry/exit markers on the stock chart
   function drawMarker(hhmm, kind, posPnl) {
-    if (!hhmm) return;
+    if (!hhmm || !stockSeries || !stockSeries.length || !stockAxis) return;
     var x = timeToX(hhmm);
     if (x === null) return;
-    // Find the stock value at that hhmm (nearest)
-    if (!stockSeries || !stockSeries.length) return;
     var bestIdx = 0, bestDist = Infinity;
     for (var i = 0; i < stockSeries.length; i++) {
       var d = Math.abs(parseFloat(stockSeries[i].hhmm) - parseFloat(hhmm));
@@ -5750,26 +5734,33 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     }
     var v = parseFloat(stockSeries[bestIdx].pfo);
     if (!isFinite(v)) return;
-    var y = pyLeft(v);
+    var y = pyStock(v);
     var color = kind === 'entry' ? '#00e5a0' : (posPnl ? '#00e5a0' : '#ff4d6a');
     var path = document.createElementNS('http://www.w3.org/2000/svg','path');
     if (kind === 'entry') {
-      // Up-pointing triangle ▲ below the data point (so the apex points to it)
-      path.setAttribute('d', 'M ' + x + ' ' + (y+2) + ' l -4 6 l 8 0 z');
+      path.setAttribute('d', 'M ' + x + ' ' + (y+3) + ' l -5 8 l 10 0 z');
     } else {
-      // Down-pointing triangle ▼ above the data point
-      path.setAttribute('d', 'M ' + x + ' ' + (y-2) + ' l -4 -6 l 8 0 z');
+      path.setAttribute('d', 'M ' + x + ' ' + (y-3) + ' l -5 -8 l 10 0 z');
     }
     path.setAttribute('fill', color);
     path.setAttribute('stroke', '#0a1018');
     path.setAttribute('stroke-width', '0.8');
-    svg.appendChild(path);
+    stockSvg.appendChild(path);
   }
   drawMarker(entryHhmm, 'entry');
   drawMarker(exitHhmm,  'exit', exitPnlPos);
 
-  // Populate Y-axis labels — left (stock) and right (industry/index).
-  // We pick "nice" gridline values and lay them top-to-bottom.
+  // ── BOTTOM CHART: hourly + zero + industry + index ─────────────
+  if (ctxAxis) {
+    drawHourly(ctxSvg, H_CTX);
+    drawZero(ctxSvg, pyCtx);
+  }
+  drawSeries(ctxSvg, indexSeries, pyCtx,
+    { width: 1.2, opacity: 0.7, dash: '3,3', showEndDot: false, fixedColor: '#38b6ff' });
+  drawSeries(ctxSvg, industrySeries, pyCtx,
+    { width: 1.4, opacity: 0.95, showEndDot: false, fixedColor: '#ffb84d' });
+
+  // ── Y-axis labels — top (stock, green), bottom (ctx, amber/blue mix) ──
   function niceStep(totalRange) {
     var raw = totalRange / 5;
     var mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
@@ -5786,33 +5777,32 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
       vals.push(Math.round(g / step) * step);
     }
     if (vals.indexOf(0) === -1 && ax.lo < 0 && ax.hi > 0) vals.push(0);
-    vals.sort(function(a,b){ return b - a; });  // top to bottom
+    vals.sort(function(a,b){ return b - a; });
     var dec = step < 0.5 ? 2 : (step < 1 ? 1 : 0);
     return vals.map(function(v) {
-      return Math.abs(v) < 1e-9 ? '0'
-           : (v >= 0 ? '+' : '') + v.toFixed(dec);
+      return Math.abs(v)<1e-9 ? '0' : ((v >= 0 ? '+' : '') + v.toFixed(dec));
     });
   }
-  var leftLblEl  = document.getElementById('s4-d-ylbl-left');
-  var rightLblEl = document.getElementById('s4-d-ylbl-right');
-  if (leftLblEl) {
-    leftLblEl.innerHTML = '';
-    if (leftAxis && stockVals.length) {
-      buildAxisLabels(leftAxis).forEach(function(t) {
-        var sp = document.createElement('span'); sp.textContent = t; leftLblEl.appendChild(sp);
+  var stockLblEl = document.getElementById('s4-d-ylbl-stock');
+  var ctxLblEl   = document.getElementById('s4-d-ylbl-ctx');
+  if (stockLblEl) {
+    stockLblEl.innerHTML = '';
+    if (stockAxis && stockVals.length) {
+      buildAxisLabels(stockAxis).forEach(function(t) {
+        var sp = document.createElement('span'); sp.textContent = t; stockLblEl.appendChild(sp);
       });
     }
   }
-  if (rightLblEl) {
-    rightLblEl.innerHTML = '';
-    if (rightAxis && rightVals.length) {
-      buildAxisLabels(rightAxis).forEach(function(t) {
-        var sp = document.createElement('span'); sp.textContent = t; rightLblEl.appendChild(sp);
+  if (ctxLblEl) {
+    ctxLblEl.innerHTML = '';
+    if (ctxAxis && ctxVals.length) {
+      buildAxisLabels(ctxAxis).forEach(function(t) {
+        var sp = document.createElement('span'); sp.textContent = t; ctxLblEl.appendChild(sp);
       });
     }
   }
 
-  // Populate time-anchored x-axis labels
+  // ── X-axis (shared) ────────────────────────────────────────────
   var xaxisEl = document.getElementById('s4-d-xaxis');
   if (xaxisEl) {
     xaxisEl.innerHTML = '';
@@ -5834,23 +5824,23 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     });
   }
 
-  // Update legend with industry/index names so the user knows what they're seeing
+  // ── Legend with industry/index names ───────────────────────────
   var legendEl = document.getElementById('s4-d-legend');
   if (legendEl && meta) {
     var indName = meta.industryName ? ' ' + meta.industryName : '';
     var idxName = meta.indexName    ? ' ' + meta.indexName    : '';
     legendEl.innerHTML =
-      '<span><span style="color:#00e5a0">━━</span> Stock <span style="color:#7a8a99;font-size:0.5rem">(left axis)</span></span>' +
+      '<span><span style="color:#00e5a0">━━</span> Stock</span>' +
       (industrySeries && industrySeries.length
         ? '<span><span style="color:#ffb84d">━━</span> Industry'+indName+'</span>'
         : '') +
       (indexSeries && indexSeries.length
-        ? '<span><span style="color:#38b6ff">╌╌</span> Index'+idxName+' <span style="color:#7a8a99;font-size:0.5rem">(right axis)</span></span>'
+        ? '<span><span style="color:#38b6ff">╌╌</span> Index'+idxName+'</span>'
         : '') +
       '<span style="color:rgba(90,112,128,0.85)">─ ─ 0 ref</span>';
   }
 
-  // Hover tooltip — snap to nearest stock data point
+  // ── Hover: shared tooltip + crosshairs in BOTH charts ──────────
   var tip = document.getElementById('s4-d-candles-tip');
   if (tip && stockX && stockX.length) {
     function hhmmToStr(h) {
@@ -5866,11 +5856,30 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
       return '';
     }
 
-    svg.addEventListener('mousemove', function(e) {
-      var rect = svg.getBoundingClientRect();
+    function clearCrosshairs() {
+      [stockSvg, ctxSvg].forEach(function(s) {
+        var ex = s.querySelectorAll('.hover-line');
+        ex.forEach(function(n){ n.remove(); });
+      });
+    }
+    function drawCrosshair(x) {
+      [{svg:stockSvg, h:H_STOCK}, {svg:ctxSvg, h:H_CTX}].forEach(function(c) {
+        var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('class','hover-line');
+        line.setAttribute('x1', x); line.setAttribute('x2', x);
+        line.setAttribute('y1', 0); line.setAttribute('y2', c.h);
+        line.setAttribute('stroke','rgba(56,182,255,0.4)');
+        line.setAttribute('stroke-width','0.8');
+        c.svg.appendChild(line);
+      });
+    }
+
+    function onMove(e) {
+      var hostSvg = e.currentTarget;
+      var rect = hostSvg.getBoundingClientRect();
       var xPct = (e.clientX - rect.left) / rect.width;
       var xSvg = xPct * W;
-      // Snap to nearest stock data point
+      // Snap to nearest stock data point (timeline reference)
       var bestIdx = 0, bestDist = Infinity;
       for (var k = 0; k < stockX.length; k++) {
         var d = Math.abs(stockX[k] - xSvg);
@@ -5880,7 +5889,8 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
       if (!sp) return;
       var sv = parseFloat(sp.pfo);
       var ts = hhmmToStr(sp.hhmm);
-      // Industry value at same hhmm (nearest)
+
+      // Industry value at same hhmm
       var iv = null, ivStruct = null, ivVerdict = null;
       if (industrySeries && industrySeries.length) {
         var iBest = 0, iDist = Infinity;
@@ -5892,7 +5902,7 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
         ivStruct = industrySeries[iBest].industry_structure || null;
         ivVerdict = industrySeries[iBest].verdict || null;
       }
-      // Index value at same hhmm (nearest)
+      // Index value at same hhmm
       var xv = null;
       if (indexSeries && indexSeries.length) {
         var xBest = 0, xDist = Infinity;
@@ -5925,38 +5935,36 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
       html += '</div>';
 
       tip.style.display = 'block';
-      // Smart side-snap (same as popup tooltip)
-      var midX = rect.width / 2;
+      // Smart side-snap (tooltip parent is .s4-drill-sec — use its bounds)
+      var parentRect = tip.parentElement.getBoundingClientRect();
+      var midX = parentRect.width / 2;
       var dead = 20;
-      var prev = svg.__tipSide || 'right';
+      var cursorRel = e.clientX - parentRect.left;
+      var prev = tip.__tipSide || 'right';
       var newSide = prev;
-      if ((e.clientX - rect.left) < midX - dead) newSide = 'right';
-      else if ((e.clientX - rect.left) > midX + dead) newSide = 'left';
-      svg.__tipSide = newSide;
+      if (cursorRel < midX - dead) newSide = 'right';
+      else if (cursorRel > midX + dead) newSide = 'left';
+      tip.__tipSide = newSide;
       if (newSide === 'left') { tip.style.left = '6px'; tip.style.right = 'auto'; }
       else { tip.style.left = 'auto'; tip.style.right = '6px'; }
-      tip.style.top = '4px';
+      tip.style.top = '32px';
       tip.innerHTML = html;
 
-      // Crosshair line at the snapped X
-      var existing = svg.querySelector('.hover-line');
-      if (existing) existing.remove();
-      var line = document.createElementNS('http://www.w3.org/2000/svg','line');
-      line.setAttribute('class','hover-line');
-      line.setAttribute('x1', stockX[bestIdx]); line.setAttribute('x2', stockX[bestIdx]);
-      line.setAttribute('y1', 0); line.setAttribute('y2', '100%');
-      line.setAttribute('stroke','rgba(56,182,255,0.4)');
-      line.setAttribute('stroke-width','0.8');
-      svg.appendChild(line);
-    });
-
-    svg.addEventListener('mouseleave', function() {
+      clearCrosshairs();
+      drawCrosshair(stockX[bestIdx]);
+    }
+    function onLeave() {
       tip.style.display = 'none';
-      var existing = svg.querySelector('.hover-line');
-      if (existing) existing.remove();
-    });
+      clearCrosshairs();
+    }
+
+    stockSvg.addEventListener('mousemove', onMove);
+    stockSvg.addEventListener('mouseleave', onLeave);
+    ctxSvg.addEventListener('mousemove', onMove);
+    ctxSvg.addEventListener('mouseleave', onLeave);
   }
 }
+
 
 function s4DrawRank(ranks) {
   var svg=document.getElementById('s4-d-rank'); svg.innerHTML='';
