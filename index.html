@@ -400,12 +400,12 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   line-height:1;padding:1px 0;text-align:right;
 }
 .s4-yaxis-stock{height:140px;color:rgba(0,229,160,0.75);}
-.s4-yaxis-ctx{height:80px;color:rgba(255,184,77,0.75);}
+.s4-yaxis-ctx{height:100px;color:rgba(255,184,77,0.75);}
 .s4-yaxis-stock span, .s4-yaxis-ctx span{display:block;}
 .s4-svg-wrap{position:relative;}
 .s4-svg-wrap svg{width:100%;display:block;}
 #s4-d-stock-svg{height:140px;}
-#s4-d-ctx-svg{height:80px;}
+#s4-d-ctx-svg{height:100px;}
 .s4-drill-legend{display:flex;gap:12px;margin-top:6px;font-size:0.57rem;color:var(--dim);}
 /* Time-anchored x-axis labels for the drill chart (NEW 2026-05-06) */
 .s4-xaxis{position:relative;height:10px;margin-top:6px;
@@ -1934,7 +1934,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s4-chart-row">
         <div class="s4-yaxis-ctx" id="s4-d-ylbl-ctx"></div>
         <div class="s4-svg-wrap">
-          <svg id="s4-d-ctx-svg" viewBox="0 0 380 80" preserveAspectRatio="none"></svg>
+          <svg id="s4-d-ctx-svg" viewBox="0 0 380 100" preserveAspectRatio="none"></svg>
         </div>
       </div>
     </div>
@@ -5280,10 +5280,32 @@ async function s4OpenDrill(r) {
       return hh * 100 + mm;
     }
     var entryHhmm = null, exitHhmm = null, exitPnlPos = false;
+    // Try DailyTrades first (closed trades), then fall back to TMLong (open positions)
+    var tmRow = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
+    // ── DIAGNOSTIC (TEMP 2026-05-06) — log row shapes once per drill open
+    try {
+      console.log('[s4 marker DIAG] sym='+r.tradingsymbol
+        + ' tradeRow=' + JSON.stringify(tradeRow)
+        + ' tmRow_keys=' + (tmRow ? Object.keys(tmRow).filter(function(k){return /ts|time|entry|exit/i.test(k);}).join(',') : 'NULL'));
+      if (tmRow) {
+        var sample = {};
+        ['first_entry_ts','entry_ts','enter_ts','first_buy_ts','last_exit_ts','last_sell_ts','exit_ts','tm_entry_ts','enter_at','first_enter_ts'].forEach(function(k){
+          if (tmRow[k] !== undefined) sample[k] = tmRow[k];
+        });
+        console.log('[s4 marker DIAG] tmRow ts-fields=' + JSON.stringify(sample));
+      }
+    } catch(e){}
+
     if (tradeRow) {
       entryHhmm = tsToHhmm(tradeRow.first_entry_ts);
       exitHhmm  = tsToHhmm(tradeRow.last_exit_ts);
       exitPnlPos = (parseFloat(tradeRow.pnl_inr) || 0) >= 0;
+    } else if (tmRow) {
+      // OPEN position — try multiple field names for the entry timestamp
+      var tmEntryTs = tmRow.first_entry_ts || tmRow.entry_ts || tmRow.first_buy_ts
+                   || tmRow.enter_ts || tmRow.tm_entry_ts || tmRow.first_enter_ts || null;
+      entryHhmm = tsToHhmm(tmEntryTs);
+      // No exit yet for open positions
     }
 
     // Render the new 3-line composite chart
@@ -5544,7 +5566,7 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
 
   var W = 380;            // shared SVG viewBox width
   var H_STOCK = 140;      // top chart height
-  var H_CTX   = 80;       // bottom chart height
+  var H_CTX   = 100;      // bottom chart height (bumped from 80 for better proportions)
   var SESSION_MINS = 375;
 
   // hhmm 920 → minutes since 09:15
