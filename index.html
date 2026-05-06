@@ -749,10 +749,11 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 }
 .sp-traj-xaxis span.edge-l{transform:translateX(0);}
 .sp-traj-xaxis span.edge-r{transform:translateX(-100%);}
-/* Info column — 3 grouped sections */
+/* Info column — REGIME + BREADTH stacked, sticks to top */
 .sp-traj-info{
   display:flex;flex-direction:column;gap:10px;
   font-family:'JetBrains Mono',monospace;
+  align-self:start;
 }
 .sp-traj-grp{display:flex;flex-direction:column;gap:3px;}
 .sp-traj-grp-hd{
@@ -769,6 +770,15 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sp-traj-row .sp-traj-rval.red{color:var(--red);}
 .sp-traj-row .sp-traj-rval.amber{color:var(--amber);}
 .sp-traj-row .sp-traj-rsub{color:var(--dim);font-size:0.58rem;margin-left:6px;}
+/* Now / Peak / Low line — full width, below the chart-row, mirrors index-curve caption */
+.sp-traj-extremes{
+  margin-top:10px;font-size:0.62rem;color:var(--dim);
+  font-family:'JetBrains Mono',monospace;letter-spacing:0.02em;
+  padding-top:8px;border-top:1px dashed var(--border);
+}
+.sp-traj-extremes .ext-val{font-weight:500;}
+.sp-traj-extremes .ext-val.green{color:var(--green);}
+.sp-traj-extremes .ext-val.red{color:var(--red);}
 .sp-traj-empty{
   padding:14px 0;text-align:center;color:var(--dim);
   font-size:0.65rem;font-style:italic;
@@ -6691,7 +6701,8 @@ function s3StocksPopupRenderTrajectory(source, target) {
         '<div class="sp-traj-xaxis" id="sp-traj-xaxis"></div>' +
       '</div>' +
       '<div class="sp-traj-info" id="sp-traj-info"></div>' +
-    '</div>';
+    '</div>' +
+    '<div class="sp-traj-extremes" id="sp-traj-extremes"></div>';
 
   // Draw the chart (no-op if series empty — caption block still renders)
   if (series && series.length) {
@@ -6907,10 +6918,12 @@ function s3StocksPopupDrawTrajChart(series) {
   });
 }
 
-// Render the info column (3 grouped sections: extremes, breadth, regime)
+// Render the info column (REGIME + BREADTH stacked) plus the
+// Now/Peak/Low line below the chart row.
 function s3StocksPopupRenderTrajCaptions(series, latest) {
   var infoEl = document.getElementById('sp-traj-info');
-  if (!infoEl) return;
+  var extEl  = document.getElementById('sp-traj-extremes');
+  if (!infoEl || !extEl) return;
 
   function hhmmToStr(h) {
     var v = parseFloat(h); if (!isFinite(v) || v <= 0) return '';
@@ -6921,11 +6934,6 @@ function s3StocksPopupRenderTrajCaptions(series, latest) {
     if (!isFinite(parseFloat(v))) return '—';
     var n = parseFloat(v);
     return (n >= 0 ? '+' : '') + n.toFixed(dp == null ? 2 : dp) + '%';
-  }
-  function pctCls(v) {
-    var n = parseFloat(v);
-    if (!isFinite(n)) return '';
-    return n > 0 ? 'green' : n < 0 ? 'red' : '';
   }
   function row(lbl, valHTML) {
     return '<div class="sp-traj-row">' +
@@ -6940,60 +6948,8 @@ function s3StocksPopupRenderTrajCaptions(series, latest) {
     return ' <span class="sp-traj-rsub">' + text + '</span>';
   }
 
-  // ── Group 1 — EXTREMES (from history series) ──────────────
-  var grp1Rows = '';
-  if (series && series.length) {
-    var lastV = parseFloat(series[series.length-1].median_pfo);
-    var peak = -Infinity, peakHh = null;
-    var low  =  Infinity, lowHh  = null;
-    series.forEach(function(p) {
-      var v = parseFloat(p.median_pfo);
-      if (!isFinite(v)) return;
-      if (v > peak) { peak = v; peakHh = p.hhmm; }
-      if (v < low ) { low  = v; lowHh  = p.hhmm; }
-    });
-    grp1Rows =
-      row('Now',  val(fmtPct(lastV), pctCls(lastV))) +
-      row('Peak', val(fmtPct(peak),  pctCls(peak))  + (peakHh ? sub(hhmmToStr(peakHh)) : '')) +
-      row('Low',  val(fmtPct(low),   pctCls(low))   + (lowHh  ? sub(hhmmToStr(lowHh))  : ''));
-  } else {
-    grp1Rows = row('—', val('not available yet'));
-  }
-  var grp1 =
-    '<div class="sp-traj-grp">' +
-      '<div class="sp-traj-grp-hd">Extremes</div>' +
-      grp1Rows +
-    '</div>';
-
-  // ── Group 2 — BREADTH (from latest IndustryContext row) ──
-  var grp2Rows = '';
-  if (latest) {
-    var pkBr = parseFloat(latest.peak_breadth);
-    var pkHh = latest.peak_breadth_hhmm;
-    var dec  = parseFloat(latest.breadth_decay_pct);
-    var slp  = parseFloat(latest.breadth_slope_3c);
-
-    var pkRow  = isFinite(pkBr)
-      ? val(Math.round(pkBr) + '%') + (pkHh ? sub('at ' + hhmmToStr(pkHh)) : '')
-      : val('—');
-    var decRow = isFinite(dec)
-      ? val((dec >= 0 ? '+' : '') + dec.toFixed(1) + 'pp', dec <= 0 ? 'green' : 'red')
-      : val('—');
-    var slpRow = isFinite(slp)
-      ? val((slp >= 0 ? '+' : '') + slp.toFixed(2) + '/c', slp >= 0 ? 'green' : 'red')
-      : val('—');
-    grp2Rows = row('Peak', pkRow) + row('Decay', decRow) + row('Slope', slpRow);
-  } else {
-    grp2Rows = row('—', val('latest cycle missing'));
-  }
-  var grp2 =
-    '<div class="sp-traj-grp">' +
-      '<div class="sp-traj-grp-hd">Breadth</div>' +
-      grp2Rows +
-    '</div>';
-
-  // ── Group 3 — REGIME (from latest IndustryContext row) ───
-  var grp3Rows = '';
+  // ── Right column group 1 — REGIME (latest IndustryContext) ──
+  var grpRegimeRows = '';
   if (latest) {
     var verdict = String(latest.verdict || '').trim().toUpperCase();
     var verdictCls = '';
@@ -7015,20 +6971,72 @@ function s3StocksPopupRenderTrajCaptions(series, latest) {
       ? val((dRank > 0 ? '+' : '') + Math.round(dRank), dRankCls)
       : val('—');
 
-    grp3Rows =
+    grpRegimeRows =
       row('Verdict', verdictRow) +
       row('Persist', persRow) +
       row('Δrank',   dRankRow);
   } else {
-    grp3Rows = row('—', val('latest cycle missing'));
+    grpRegimeRows = row('—', val('latest cycle missing'));
   }
-  var grp3 =
+  var grpRegime =
     '<div class="sp-traj-grp">' +
       '<div class="sp-traj-grp-hd">Regime</div>' +
-      grp3Rows +
+      grpRegimeRows +
     '</div>';
 
-  infoEl.innerHTML = grp1 + grp2 + grp3;
+  // ── Right column group 2 — BREADTH (latest IndustryContext) ──
+  var grpBreadthRows = '';
+  if (latest) {
+    var pkBr = parseFloat(latest.peak_breadth);
+    var pkHh = latest.peak_breadth_hhmm;
+    var dec  = parseFloat(latest.breadth_decay_pct);
+    var slp  = parseFloat(latest.breadth_slope_3c);
+
+    var pkRow  = isFinite(pkBr)
+      ? val(Math.round(pkBr) + '%') + (pkHh ? sub('at ' + hhmmToStr(pkHh)) : '')
+      : val('—');
+    var decRow = isFinite(dec)
+      ? val((dec >= 0 ? '+' : '') + dec.toFixed(1) + 'pp', dec <= 0 ? 'green' : 'red')
+      : val('—');
+    var slpRow = isFinite(slp)
+      ? val((slp >= 0 ? '+' : '') + slp.toFixed(2) + '/c', slp >= 0 ? 'green' : 'red')
+      : val('—');
+    grpBreadthRows = row('Peak', pkRow) + row('Decay', decRow) + row('Slope', slpRow);
+  } else {
+    grpBreadthRows = row('—', val('latest cycle missing'));
+  }
+  var grpBreadth =
+    '<div class="sp-traj-grp">' +
+      '<div class="sp-traj-grp-hd">Breadth</div>' +
+      grpBreadthRows +
+    '</div>';
+
+  infoEl.innerHTML = grpRegime + grpBreadth;
+
+  // ── Now / Peak / Low — full-width line below the grid.
+  // Mirrors the index-curve caption style: label dim, value coloured,
+  // peak/low time in dim parens.
+  if (series && series.length) {
+    var lastV = parseFloat(series[series.length-1].median_pfo);
+    var peak = -Infinity, peakHh = null;
+    var low  =  Infinity, lowHh  = null;
+    series.forEach(function(p) {
+      var v = parseFloat(p.median_pfo);
+      if (!isFinite(v)) return;
+      if (v > peak) { peak = v; peakHh = p.hhmm; }
+      if (v < low ) { low  = v; lowHh  = p.hhmm; }
+    });
+    function extVal(v) {
+      var cls = v >= 0 ? 'green' : 'red';
+      return '<span class="ext-val ' + cls + '">' + fmtPct(v) + '</span>';
+    }
+    var nowStr  = isFinite(lastV) ? extVal(lastV) : '—';
+    var peakStr = isFinite(peak)  ? extVal(peak)  + (peakHh ? ' (' + hhmmToStr(peakHh) + ')' : '') : '—';
+    var lowStr  = isFinite(low)   ? extVal(low)   + (lowHh  ? ' (' + hhmmToStr(lowHh)  + ')' : '') : '—';
+    extEl.innerHTML = 'Now ' + nowStr + ' · Peak ' + peakStr + ' · Low ' + lowStr;
+  } else {
+    extEl.innerHTML = 'Now / Peak / Low: trajectory not available yet';
+  }
 }
 
 function s3StocksPopupHeadStats(source, target) {
