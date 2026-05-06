@@ -6991,11 +6991,29 @@ function s3StocksPopupDrawTrajChart(series) {
     var cyclePos = (bestIdx + 1) + ' of ' + series.length;
 
     tip.style.display = 'block';
-    // Follow cursor — clamp to chart bounds so tooltip stays inside
-    var leftPx = Math.max(8, Math.min(e.clientX - rect.left + 12, rect.width - 230));
-    var topPx  = Math.max(4, e.clientY - rect.top - 80);
-    tip.style.left = leftPx + 'px';
-    tip.style.top  = topPx + 'px';
+    // Smart side-snap: tooltip lives in the corner OPPOSITE to the cursor,
+    // so the user can always see the curve under/around the cursor.
+    // - Cursor in left half  → tooltip snaps to TOP-RIGHT
+    // - Cursor in right half → tooltip snaps to TOP-LEFT
+    // Hysteresis dead-zone (40px around midpoint) prevents flicker
+    // when the cursor sits near center.
+    var cursorX  = e.clientX - rect.left;
+    var midX     = rect.width / 2;
+    var dead     = 20;  // half-width of dead-zone
+    var prevSide = svg.__tipSide || 'right';  // default: right corner
+    var newSide  = prevSide;
+    if (cursorX < midX - dead)      newSide = 'right';  // cursor on left  → tooltip on right
+    else if (cursorX > midX + dead) newSide = 'left';   // cursor on right → tooltip on left
+    // else: stay where we were (inside dead-zone)
+    svg.__tipSide = newSide;
+    if (newSide === 'left') {
+      tip.style.left  = '8px';
+      tip.style.right = 'auto';
+    } else {
+      tip.style.left  = 'auto';
+      tip.style.right = '8px';
+    }
+    tip.style.top = '6px';
     tip.innerHTML =
       '<div style="line-height:1.5">' +
         '<div><b style="color:#38b6ff">'+ts+'</b> '
