@@ -4206,6 +4206,17 @@ function s3RenderCards(positions, trades) {
 function tsToIstHHMM(raw) {
   var s = String(raw || '');
   if (!s) return '';
+  // ── DIAGNOSTIC (TEMP 2026-05-06) ────────────────────────────
+  // Capture the first ts shape we see to identify UTC vs naive-IST.
+  // Logs once per page-load, then suppresses.
+  if (!window.__tsDiagDone) {
+    window.__tsDiagDone = true;
+    console.log('[ts DIAG] sample raw="' + s + '" len=' + s.length
+      + ' has_T=' + (s.indexOf('T') >= 0)
+      + ' has_Z=' + (s.indexOf('Z') >= 0)
+      + ' has_plus_offset=' + /\+\d{4}/.test(s)
+      + ' selectedDate=' + (window.STATE && STATE.selectedDate));
+  }
   // Already "HH:MM"
   if (s.length === 5 && s.charAt(2) === ':') return s;
   // Date-prefixed string: parse as UTC and shift to IST (+5:30).
