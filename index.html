@@ -710,7 +710,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sp-head-stat-val.red{color:var(--red);}
 .sp-head-stat-val.amber{color:var(--amber);}
 
-/* Industry trajectory panel (NEW 2026-05-06) */
+/* Industry trajectory panel (NEW 2026-05-06, refactored to 2-col 2026-05-06) */
 .sp-traj{
   padding:12px 18px 14px;border-bottom:1px solid var(--border);
   background:var(--bg);
@@ -719,6 +719,11 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   font-size:0.58rem;color:var(--dim);letter-spacing:0.12em;
   text-transform:uppercase;margin-bottom:8px;
 }
+/* 2-column layout — chart left (60%), info right (40%) */
+.sp-traj-grid{
+  display:grid;grid-template-columns:60% 40%;gap:18px;align-items:start;
+}
+.sp-traj-chartcol{min-width:0;}
 .sp-traj-chart{
   position:relative;display:flex;gap:6px;align-items:stretch;
 }
@@ -744,16 +749,26 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 }
 .sp-traj-xaxis span.edge-l{transform:translateX(0);}
 .sp-traj-xaxis span.edge-r{transform:translateX(-100%);}
-.sp-traj-cap{
-  margin-top:10px;font-size:0.62rem;line-height:1.6;color:var(--muted);
-  font-family:'JetBrains Mono',monospace;letter-spacing:0.02em;
+/* Info column — 3 grouped sections */
+.sp-traj-info{
+  display:flex;flex-direction:column;gap:10px;
+  font-family:'JetBrains Mono',monospace;
 }
-.sp-traj-cap .sp-traj-line{display:block;}
-.sp-traj-cap .sp-traj-lbl{color:var(--dim);}
-.sp-traj-cap .sp-traj-val{color:var(--text);font-weight:500;}
-.sp-traj-cap .sp-traj-val.green{color:var(--green);}
-.sp-traj-cap .sp-traj-val.red{color:var(--red);}
-.sp-traj-cap .sp-traj-val.amber{color:var(--amber);}
+.sp-traj-grp{display:flex;flex-direction:column;gap:3px;}
+.sp-traj-grp-hd{
+  font-size:0.55rem;color:var(--dim);letter-spacing:0.12em;
+  text-transform:uppercase;margin-bottom:2px;
+}
+.sp-traj-row{
+  display:grid;grid-template-columns:62px 1fr;gap:8px;align-items:baseline;
+  font-size:0.66rem;line-height:1.3;
+}
+.sp-traj-row .sp-traj-rlbl{color:var(--dim);}
+.sp-traj-row .sp-traj-rval{color:var(--text);font-weight:500;}
+.sp-traj-row .sp-traj-rval.green{color:var(--green);}
+.sp-traj-row .sp-traj-rval.red{color:var(--red);}
+.sp-traj-row .sp-traj-rval.amber{color:var(--amber);}
+.sp-traj-row .sp-traj-rsub{color:var(--dim);font-size:0.58rem;margin-left:6px;}
 .sp-traj-empty{
   padding:14px 0;text-align:center;color:var(--dim);
   font-size:0.65rem;font-style:italic;
@@ -6664,15 +6679,19 @@ function s3StocksPopupRenderTrajectory(source, target) {
   // Build skeleton with all DOM hooks the draw function needs
   panel.innerHTML =
     '<div class="sp-traj-hd">Median % from open · today</div>' +
-    '<div class="sp-traj-chart">' +
-      '<div class="sp-traj-ylbl-wrap" id="sp-traj-ylbl"></div>' +
-      '<div class="sp-traj-svg-host">' +
-        '<svg id="sp-traj-svg" viewBox="0 0 520 120" preserveAspectRatio="none"></svg>' +
-        '<div class="sp-traj-tip" id="sp-traj-tip"></div>' +
+    '<div class="sp-traj-grid">' +
+      '<div class="sp-traj-chartcol">' +
+        '<div class="sp-traj-chart">' +
+          '<div class="sp-traj-ylbl-wrap" id="sp-traj-ylbl"></div>' +
+          '<div class="sp-traj-svg-host">' +
+            '<svg id="sp-traj-svg" viewBox="0 0 520 120" preserveAspectRatio="none"></svg>' +
+            '<div class="sp-traj-tip" id="sp-traj-tip"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="sp-traj-xaxis" id="sp-traj-xaxis"></div>' +
       '</div>' +
-    '</div>' +
-    '<div class="sp-traj-xaxis" id="sp-traj-xaxis"></div>' +
-    '<div class="sp-traj-cap" id="sp-traj-cap"></div>';
+      '<div class="sp-traj-info" id="sp-traj-info"></div>' +
+    '</div>';
 
   // Draw the chart (no-op if series empty — caption block still renders)
   if (series && series.length) {
@@ -6888,10 +6907,10 @@ function s3StocksPopupDrawTrajChart(series) {
   });
 }
 
-// Render the 3-line caption block under the trajectory chart
+// Render the info column (3 grouped sections: extremes, breadth, regime)
 function s3StocksPopupRenderTrajCaptions(series, latest) {
-  var capEl = document.getElementById('sp-traj-cap');
-  if (!capEl) return;
+  var infoEl = document.getElementById('sp-traj-info');
+  if (!infoEl) return;
 
   function hhmmToStr(h) {
     var v = parseFloat(h); if (!isFinite(v) || v <= 0) return '';
@@ -6908,13 +6927,21 @@ function s3StocksPopupRenderTrajCaptions(series, latest) {
     if (!isFinite(n)) return '';
     return n > 0 ? 'green' : n < 0 ? 'red' : '';
   }
-  function fmtNum(v, dp) {
-    if (!isFinite(parseFloat(v))) return '—';
-    return parseFloat(v).toFixed(dp == null ? 2 : dp);
+  function row(lbl, valHTML) {
+    return '<div class="sp-traj-row">' +
+             '<span class="sp-traj-rlbl">' + lbl + '</span>' +
+             '<span>' + valHTML + '</span>' +
+           '</div>';
+  }
+  function val(html, cls) {
+    return '<span class="sp-traj-rval' + (cls ? ' ' + cls : '') + '">' + html + '</span>';
+  }
+  function sub(text) {
+    return ' <span class="sp-traj-rsub">' + text + '</span>';
   }
 
-  // ── Line A — extremes from the series itself ─────────────
-  var lineA;
+  // ── Group 1 — EXTREMES (from history series) ──────────────
+  var grp1Rows = '';
   if (series && series.length) {
     var lastV = parseFloat(series[series.length-1].median_pfo);
     var peak = -Infinity, peakHh = null;
@@ -6925,57 +6952,48 @@ function s3StocksPopupRenderTrajCaptions(series, latest) {
       if (v > peak) { peak = v; peakHh = p.hhmm; }
       if (v < low ) { low  = v; lowHh  = p.hhmm; }
     });
-    var nowStr = '<span class="sp-traj-val ' + pctCls(lastV) + '">' + fmtPct(lastV) + '</span>';
-    var peakStr = isFinite(peak)
-      ? '<span class="sp-traj-val ' + pctCls(peak) + '">' + fmtPct(peak) + '</span>'
-        + ' <span class="sp-traj-lbl">(' + hhmmToStr(peakHh) + ')</span>'
-      : '<span class="sp-traj-val">—</span>';
-    var lowStr = isFinite(low)
-      ? '<span class="sp-traj-val ' + pctCls(low) + '">' + fmtPct(low) + '</span>'
-        + ' <span class="sp-traj-lbl">(' + hhmmToStr(lowHh) + ')</span>'
-      : '<span class="sp-traj-val">—</span>';
-    lineA =
-      '<span class="sp-traj-lbl">Now</span> ' + nowStr +
-      ' <span class="sp-traj-lbl">·</span> ' +
-      '<span class="sp-traj-lbl">Peak</span> ' + peakStr +
-      ' <span class="sp-traj-lbl">·</span> ' +
-      '<span class="sp-traj-lbl">Low</span> ' + lowStr;
+    grp1Rows =
+      row('Now',  val(fmtPct(lastV), pctCls(lastV))) +
+      row('Peak', val(fmtPct(peak),  pctCls(peak))  + (peakHh ? sub(hhmmToStr(peakHh)) : '')) +
+      row('Low',  val(fmtPct(low),   pctCls(low))   + (lowHh  ? sub(hhmmToStr(lowHh))  : ''));
   } else {
-    lineA = '<span class="sp-traj-lbl">Now / Peak / Low: trajectory not available yet</span>';
+    grp1Rows = row('—', val('not available yet'));
   }
+  var grp1 =
+    '<div class="sp-traj-grp">' +
+      '<div class="sp-traj-grp-hd">Extremes</div>' +
+      grp1Rows +
+    '</div>';
 
-  // ── Line B — breadth dynamics from latest IndustryContext row ─
-  var lineB;
+  // ── Group 2 — BREADTH (from latest IndustryContext row) ──
+  var grp2Rows = '';
   if (latest) {
     var pkBr = parseFloat(latest.peak_breadth);
     var pkHh = latest.peak_breadth_hhmm;
     var dec  = parseFloat(latest.breadth_decay_pct);
     var slp  = parseFloat(latest.breadth_slope_3c);
 
-    var pkBrStr = isFinite(pkBr)
-      ? '<span class="sp-traj-val">' + Math.round(pkBr) + '%</span>'
-        + (pkHh ? ' <span class="sp-traj-lbl">at ' + hhmmToStr(pkHh) + '</span>' : '')
-      : '<span class="sp-traj-val">—</span>';
-    var decStr = isFinite(dec)
-      ? '<span class="sp-traj-val ' + (dec <= 0 ? 'green' : 'red') + '">'
-        + (dec >= 0 ? '+' : '') + dec.toFixed(1) + 'pp</span>'
-      : '<span class="sp-traj-val">—</span>';
-    var slpStr = isFinite(slp)
-      ? '<span class="sp-traj-val ' + (slp >= 0 ? 'green' : 'red') + '">'
-        + (slp >= 0 ? '+' : '') + slp.toFixed(2) + '/c</span>'
-      : '<span class="sp-traj-val">—</span>';
-    lineB =
-      '<span class="sp-traj-lbl">Breadth peak</span> ' + pkBrStr +
-      ' <span class="sp-traj-lbl">·</span> ' +
-      '<span class="sp-traj-lbl">decay</span> ' + decStr +
-      ' <span class="sp-traj-lbl">·</span> ' +
-      '<span class="sp-traj-lbl">slope</span> ' + slpStr;
+    var pkRow  = isFinite(pkBr)
+      ? val(Math.round(pkBr) + '%') + (pkHh ? sub('at ' + hhmmToStr(pkHh)) : '')
+      : val('—');
+    var decRow = isFinite(dec)
+      ? val((dec >= 0 ? '+' : '') + dec.toFixed(1) + 'pp', dec <= 0 ? 'green' : 'red')
+      : val('—');
+    var slpRow = isFinite(slp)
+      ? val((slp >= 0 ? '+' : '') + slp.toFixed(2) + '/c', slp >= 0 ? 'green' : 'red')
+      : val('—');
+    grp2Rows = row('Peak', pkRow) + row('Decay', decRow) + row('Slope', slpRow);
   } else {
-    lineB = '<span class="sp-traj-lbl">Breadth dynamics: latest cycle not available</span>';
+    grp2Rows = row('—', val('latest cycle missing'));
   }
+  var grp2 =
+    '<div class="sp-traj-grp">' +
+      '<div class="sp-traj-grp-hd">Breadth</div>' +
+      grp2Rows +
+    '</div>';
 
-  // ── Line C — verdict + persistence + Δrank ────────────────
-  var lineC;
+  // ── Group 3 — REGIME (from latest IndustryContext row) ───
+  var grp3Rows = '';
   if (latest) {
     var verdict = String(latest.verdict || '').trim().toUpperCase();
     var verdictCls = '';
@@ -6984,37 +7002,33 @@ function s3StocksPopupRenderTrajCaptions(series, latest) {
     else if (verdict.indexOf('BULL') >= 0)  verdictCls = 'green';
     else if (verdict.indexOf('SHORT') >= 0) verdictCls = 'red';
     else if (verdict.indexOf('BEAR') >= 0)  verdictCls = 'red';
-    var verdictStr = verdict
-      ? '<span class="sp-traj-val ' + verdictCls + '">' + verdict + '</span>'
-      : '<span class="sp-traj-val">—</span>';
+    var verdictRow = verdict ? val(verdict, verdictCls) : val('—');
 
     var pers = parseFloat(latest.structure_persistence);
-    var persStr = isFinite(pers)
-      ? '<span class="sp-traj-val">' + Math.round(pers) + ' cycles</span>'
-      : '<span class="sp-traj-val">—</span>';
+    var persRow = isFinite(pers)
+      ? val(Math.round(pers) + ' cycles')
+      : val('—');
 
     var dRank = parseFloat(latest.rank_change_3c);
-    // Rank change: lower rank number = stronger, so negative Δrank is improvement
     var dRankCls = isFinite(dRank) ? (dRank < 0 ? 'green' : dRank > 0 ? 'red' : '') : '';
-    var dRankStr = isFinite(dRank)
-      ? '<span class="sp-traj-val ' + dRankCls + '">'
-        + (dRank > 0 ? '+' : '') + Math.round(dRank) + '</span>'
-      : '<span class="sp-traj-val">—</span>';
+    var dRankRow = isFinite(dRank)
+      ? val((dRank > 0 ? '+' : '') + Math.round(dRank), dRankCls)
+      : val('—');
 
-    lineC =
-      '<span class="sp-traj-lbl">Verdict</span> ' + verdictStr +
-      ' <span class="sp-traj-lbl">·</span> ' +
-      '<span class="sp-traj-lbl">Persistence</span> ' + persStr +
-      ' <span class="sp-traj-lbl">·</span> ' +
-      '<span class="sp-traj-lbl">Δrank (3c)</span> ' + dRankStr;
+    grp3Rows =
+      row('Verdict', verdictRow) +
+      row('Persist', persRow) +
+      row('Δrank',   dRankRow);
   } else {
-    lineC = '<span class="sp-traj-lbl">Verdict / Persistence / Δrank: latest cycle not available</span>';
+    grp3Rows = row('—', val('latest cycle missing'));
   }
+  var grp3 =
+    '<div class="sp-traj-grp">' +
+      '<div class="sp-traj-grp-hd">Regime</div>' +
+      grp3Rows +
+    '</div>';
 
-  capEl.innerHTML =
-    '<span class="sp-traj-line">' + lineA + '</span>' +
-    '<span class="sp-traj-line">' + lineB + '</span>' +
-    '<span class="sp-traj-line">' + lineC + '</span>';
+  infoEl.innerHTML = grp1 + grp2 + grp3;
 }
 
 function s3StocksPopupHeadStats(source, target) {
