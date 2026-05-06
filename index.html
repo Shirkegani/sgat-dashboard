@@ -4251,14 +4251,27 @@ function tsToIstHHMM(raw) {
   var mm = parseInt(s.slice(14,16), 10);
   if (isNaN(hh) || isNaN(mm)) return '';
 
-  // Autodetect UTC vs naive-IST.
-  //   - Strings with 'Z' or '+0000' marker → genuine UTC, must shift to IST.
-  //   - Naive strings (no offset) typically come from sheets/n8n writing
-  //     local IST already → no shift needed.
-  //   - Heuristic safety net: a naive string with hh<4 is impossible during
-  //     IST trading hours (09:15–15:30) → treat as legacy UTC and shift.
-  var isUTC = s.indexOf('Z') >= 0 || /\+0000/.test(s);
-  if (!isUTC && hh < 4) isUTC = true;
+  // Autodetect UTC vs naive-IST vs lying-Z.
+  //   - Strings with 'Z' or '+0000' marker → tentatively UTC, BUT the
+  //     dashboard backends sometimes emit a `Z` on what is actually an
+  //     IST timestamp (Date.toJSON() always appends Z). So we sanity-
+  //     check: if interpreting as UTC pushes the time past 16:00 IST
+  //     (after market close) AND the raw hour is in IST trading hours
+  //     9–15, the `Z` was lying — treat as IST.
+  //   - Naive strings (no offset) → typically already IST (no shift).
+  //   - Naive + hh<4 → impossible during IST trading → was UTC.
+  var hasZ = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+  var isUTC;
+  if (hasZ) {
+    // Test if the Z is lying
+    var istHHTest = (hh + 5) % 24;
+    var carry = (mm + 30) >= 60 ? 1 : 0;
+    istHHTest = (istHHTest + carry) % 24;
+    var lyingZ = (istHHTest > 16 || istHHTest < 4) && (hh >= 9 && hh <= 15);
+    isUTC = !lyingZ;
+  } else {
+    isUTC = (hh < 4);
+  }
 
   if (isUTC) {
     mm += 30;
@@ -5236,9 +5249,17 @@ async function s4OpenDrill(r) {
             var hh = parseInt(s.slice(11,13), 10);
             var mm = parseInt(s.slice(14,16), 10);
             if (isNaN(hh) || isNaN(mm)) return null;
-            // Autodetect UTC vs naive-IST (see tsToIstHHMM helper for rationale)
-            var isUTC = s.indexOf('Z') >= 0 || /\+0000/.test(s);
-            if (!isUTC && hh < 4) isUTC = true;
+            // Autodetect UTC vs naive-IST vs lying-Z (see tsToIstHHMM)
+            var hasZ = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+            var isUTC;
+            if (hasZ) {
+              var carry = (mm + 30) >= 60 ? 1 : 0;
+              var istHHTest = (hh + 5 + carry) % 24;
+              var lyingZ = (istHHTest > 16 || istHHTest < 4) && (hh >= 9 && hh <= 15);
+              isUTC = !lyingZ;
+            } else {
+              isUTC = (hh < 4);
+            }
             if (isUTC) {
               mm += 30;
               if (mm >= 60) { mm -= 60; hh += 1; }
@@ -5268,9 +5289,17 @@ async function s4OpenDrill(r) {
       var hh = parseInt(s.slice(11,13), 10);
       var mm = parseInt(s.slice(14,16), 10);
       if (isNaN(hh) || isNaN(mm)) return null;
-      // Autodetect UTC vs naive-IST (see tsToIstHHMM for rationale)
-      var isUTC = s.indexOf('Z') >= 0 || /\+0000/.test(s);
-      if (!isUTC && hh < 4) isUTC = true;
+      // Autodetect UTC vs naive-IST vs lying-Z (see tsToIstHHMM)
+      var hasZ = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+      var isUTC;
+      if (hasZ) {
+        var carry = (mm + 30) >= 60 ? 1 : 0;
+        var istHHTest = (hh + 5 + carry) % 24;
+        var lyingZ = (istHHTest > 16 || istHHTest < 4) && (hh >= 9 && hh <= 15);
+        isUTC = !lyingZ;
+      } else {
+        isUTC = (hh < 4);
+      }
       if (isUTC) {
         mm += 30;
         if (mm >= 60) { mm -= 60; hh += 1; }
@@ -5280,32 +5309,18 @@ async function s4OpenDrill(r) {
       return hh * 100 + mm;
     }
     var entryHhmm = null, exitHhmm = null, exitPnlPos = false;
-    // Try DailyTrades first (closed trades), then fall back to TMLong (open positions)
-    var tmRow = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
-    // ── DIAGNOSTIC (TEMP 2026-05-06) — log row shapes once per drill open
-    try {
-      console.log('[s4 marker DIAG] sym='+r.tradingsymbol
-        + ' tradeRow=' + JSON.stringify(tradeRow)
-        + ' tmRow_keys=' + (tmRow ? Object.keys(tmRow).filter(function(k){return /ts|time|entry|exit/i.test(k);}).join(',') : 'NULL'));
-      if (tmRow) {
-        var sample = {};
-        ['first_entry_ts','entry_ts','enter_ts','first_buy_ts','last_exit_ts','last_sell_ts','exit_ts','tm_entry_ts','enter_at','first_enter_ts'].forEach(function(k){
-          if (tmRow[k] !== undefined) sample[k] = tmRow[k];
-        });
-        console.log('[s4 marker DIAG] tmRow ts-fields=' + JSON.stringify(sample));
-      }
-    } catch(e){}
-
     if (tradeRow) {
+      // Closed (or partially-closed) trade — use DailyTrades record
       entryHhmm = tsToHhmm(tradeRow.first_entry_ts);
       exitHhmm  = tsToHhmm(tradeRow.last_exit_ts);
       exitPnlPos = (parseFloat(tradeRow.pnl_inr) || 0) >= 0;
-    } else if (tmRow) {
-      // OPEN position — try multiple field names for the entry timestamp
-      var tmEntryTs = tmRow.first_entry_ts || tmRow.entry_ts || tmRow.first_buy_ts
-                   || tmRow.enter_ts || tmRow.tm_entry_ts || tmRow.first_enter_ts || null;
-      entryHhmm = tsToHhmm(tmEntryTs);
-      // No exit yet for open positions
+    } else {
+      // Truly open position with no DailyTrades record yet — fall back to TMLong
+      var tmRow = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
+      if (tmRow) {
+        entryHhmm = tsToHhmm(tmRow.last_entry_time);
+        // No exit yet
+      }
     }
 
     // Render the new 3-line composite chart
@@ -5478,9 +5493,17 @@ function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exi
       var hh = parseInt(s.slice(11,13), 10);
       var mm = parseInt(s.slice(14,16), 10);
       if (isNaN(hh) || isNaN(mm)) return null;
-      // Autodetect UTC vs naive-IST (see tsToIstHHMM for rationale)
-      var isUTC = s.indexOf('Z') >= 0 || /\+0000/.test(s);
-      if (!isUTC && hh < 4) isUTC = true;
+      // Autodetect UTC vs naive-IST vs lying-Z (see tsToIstHHMM)
+      var hasZ = s.indexOf('Z') >= 0 || /\+0000/.test(s);
+      var isUTC;
+      if (hasZ) {
+        var carry = (mm + 30) >= 60 ? 1 : 0;
+        var istHHTest = (hh + 5 + carry) % 24;
+        var lyingZ = (istHHTest > 16 || istHHTest < 4) && (hh >= 9 && hh <= 15);
+        isUTC = !lyingZ;
+      } else {
+        isUTC = (hh < 4);
+      }
       if (isUTC) {
         mm += 30;
         if (mm >= 60) { mm -= 60; hh += 1; }
