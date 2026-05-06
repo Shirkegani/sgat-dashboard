@@ -5372,6 +5372,17 @@ function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exi
   // Fetch via existing helper
   fetchCandlesForDrill(sym).then(function(candles) {
     if (!candles || !Array.isArray(candles)) return;
+    // ── DIAGNOSTIC (TEMP 2026-05-06) ────────────────────────────
+    try {
+      var sample = [];
+      for (var di = 0; di < Math.min(5, candles.length); di++) {
+        sample.push({ ts: candles[di].ts, c: candles[di].c, o: candles[di].o });
+      }
+      console.log('[s4 candles DIAG] sym='+sym+' n='+candles.length
+        + ' first_ts="' + (candles[0]||{}).ts + '"'
+        + ' last_ts="'  + (candles[candles.length-1]||{}).ts + '"'
+        + ' sample=' + JSON.stringify(sample));
+    } catch(e){}
     STATE.candleCache[sym] = candles;
     applyAndRender(candles);
   }).catch(function(){ /* silent — first-paint chart still shows */ });
