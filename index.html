@@ -393,6 +393,12 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s4-candle-area{width:100%;height:140px;}
 .s4-candle-area svg{width:100%;height:100%;}
 .s4-drill-legend{display:flex;gap:12px;margin-top:6px;font-size:0.57rem;color:var(--dim);}
+/* Time-anchored x-axis labels for the drill chart (NEW 2026-05-06) */
+.s4-xaxis{position:relative;height:10px;margin-top:3px;}
+.s4-xaxis span{font-size:0.5rem;color:#3a5060;position:absolute;
+  transform:translateX(-50%);white-space:nowrap;}
+.s4-xaxis span.edge-l{transform:translateX(0);}
+.s4-xaxis span.edge-r{transform:translateX(-100%);}
 .s4-drill-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
 .s4-ds-card{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:7px 10px;}
 .s4-ds-lbl{font-size:0.53rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;}
@@ -1896,15 +1902,17 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     <button class="s4-drill-x" onclick="s4CloseDrill()">✕</button>
   </div>
   <div class="s4-drill-sec">
-    <div class="s4-drill-sec-title">5-min price chart</div>
-    <div class="s4-candle-area"><svg id="s4-d-candles" viewBox="0 0 380 140" preserveAspectRatio="none"></svg></div>
-    <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:0.5rem;color:#3a5060;">
-      <span>09:15</span><span>10:30</span><span>12:00</span><span>13:30</span><span>15:30</span>
+    <div class="s4-drill-sec-title">% from open · stock vs industry vs index</div>
+    <div class="s4-candle-area" style="position:relative;">
+      <svg id="s4-d-candles" viewBox="0 0 380 140" preserveAspectRatio="none"></svg>
+      <div class="chart-tooltip" id="s4-d-candles-tip"></div>
     </div>
-    <div class="s4-drill-legend">
-      <span><span style="color:var(--green)">──</span> Entry</span>
-      <span><span style="color:var(--red)">╌╌</span> Trail stop</span>
-      <span><span style="color:var(--amber)">╌╌</span> Peak price</span>
+    <div class="s4-xaxis" id="s4-d-xaxis"></div>
+    <div class="s4-drill-legend" id="s4-d-legend">
+      <span><span style="color:#00e5a0">━━</span> Stock</span>
+      <span><span style="color:#00e5a0;opacity:0.6">━━</span> Industry</span>
+      <span><span style="color:#00e5a0;opacity:0.4">╌╌</span> Index</span>
+      <span style="color:rgba(90,112,128,0.85)">─ ─ 0 ref</span>
     </div>
   </div>
   <div class="s4-drill-sec">
@@ -3216,6 +3224,10 @@ function s2Render() {
   Object.keys(idxByName).forEach(function(k){
     idxByName[k].sort(function(a,b){ return String(a.ts||'').localeCompare(String(b.ts||'')); });
   });
+
+  // Expose to STATE so the stock drill (s4OpenDrill) can plot the
+  // primary index alongside the stock — needed for the 3-line composite chart.
+  STATE.idxByName = idxByName;
 
   // Chart-1: the existing NIFTY 50 context chart (row 1)
   var n50 = idxByName['NIFTY 50'] || [];
@@ -5058,11 +5070,120 @@ async function s4OpenDrill(r) {
   }
 
   if (vals.length) {
-    s4DrawChart(vals, entry, trail, peak);
+    // ── Build 3 series for the new composite chart ──────────────
+    var openPx = vals[0];
+
+    // 1. Stock series (Option B fallback — derive timestamps from index).
+    //    Assumes m5_closes_csv starts at 09:15 with 5-min cadence.
+    //    This will be replaced with real-timestamp data once the
+    //    async ?tab=candles fetch completes (Option A).
+    function hhmmFromMins(m) {
+      var h = Math.floor(m / 60) + 9;
+      var mm = (m % 60) + 15;
+      if (mm >= 60) { mm -= 60; h += 1; }
+      return h * 100 + mm;
+    }
+    var stockSeries = vals.map(function(v, i) {
+      return { hhmm: hhmmFromMins(i * 5), pfo: (v - openPx) / openPx * 100 };
+    });
+
+    // 2. Industry series (from STATE.data.industryctx_history)
+    var industrySeries = null;
+    var indKey = String(r.industry || '').trim();
+    if (indKey) {
+      var hist = (STATE.data && STATE.data.industryctx_history) || {};
+      // Case-insensitive lookup
+      var matched = null;
+      for (var k in hist) {
+        if (String(k).trim().toUpperCase() === indKey.toUpperCase()) { matched = hist[k]; break; }
+      }
+      if (matched && matched.length) {
+        industrySeries = matched.map(function(p) {
+          return {
+            hhmm: p.hhmm,
+            pfo: parseFloat(p.median_pfo) || 0,
+            industry_structure: p.industry_structure,
+            verdict: p.verdict
+          };
+        });
+      }
+    }
+
+    // 3. Index series (from STATE.idxByName, ts in UTC ISO → IST hhmm)
+    var indexSeries = null;
+    var idxKey = String(r.theme_index_primary || '').trim();
+    if (idxKey && STATE.idxByName) {
+      var idxRows = STATE.idxByName[idxKey] || STATE.idxByName[idxKey.toUpperCase()] || null;
+      if (idxRows && idxRows.length) {
+        // Convert to PFO using first valid candle's open
+        var firstOpen = null;
+        for (var j = 0; j < idxRows.length; j++) {
+          var oVal = parseFloat(idxRows[j].o) || parseFloat(idxRows[j].c) || 0;
+          if (oVal > 0) { firstOpen = oVal; break; }
+        }
+        if (firstOpen) {
+          // ts is UTC like "2026-04-28 09:35:00" — slice and shift to IST
+          function tsToIstHhmm(ts) {
+            var s = String(ts || '');
+            if (s.length < 16) return null;
+            var hh = parseInt(s.slice(11,13), 10);
+            var mm = parseInt(s.slice(14,16), 10);
+            if (isNaN(hh) || isNaN(mm)) return null;
+            mm += 30;
+            if (mm >= 60) { mm -= 60; hh += 1; }
+            hh += 5;
+            if (hh >= 24) hh -= 24;
+            return hh * 100 + mm;
+          }
+          indexSeries = [];
+          idxRows.forEach(function(row) {
+            var c = parseFloat(row.c);
+            var hhmm = tsToIstHhmm(row.ts);
+            if (isFinite(c) && c > 0 && hhmm !== null) {
+              indexSeries.push({ hhmm: hhmm, pfo: (c - firstOpen) / firstOpen * 100 });
+            }
+          });
+          if (!indexSeries.length) indexSeries = null;
+        }
+      }
+    }
+
+    // Entry/exit times from trade record
+    var tradeRow = (STATE.data.trades||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
+    function tsToHhmm(ts) {
+      var s = String(ts || '');
+      if (s.length < 16) return null;
+      var hh = parseInt(s.slice(11,13), 10);
+      var mm = parseInt(s.slice(14,16), 10);
+      if (isNaN(hh) || isNaN(mm)) return null;
+      // Same UTC→IST shift
+      mm += 30;
+      if (mm >= 60) { mm -= 60; hh += 1; }
+      hh += 5;
+      if (hh >= 24) hh -= 24;
+      return hh * 100 + mm;
+    }
+    var entryHhmm = null, exitHhmm = null, exitPnlPos = false;
+    if (tradeRow) {
+      entryHhmm = tsToHhmm(tradeRow.first_entry_ts);
+      exitHhmm  = tsToHhmm(tradeRow.last_exit_ts);
+      exitPnlPos = (parseFloat(tradeRow.pnl_inr) || 0) >= 0;
+    }
+
+    // Render the new 3-line composite chart
+    s4DrawChart(stockSeries, industrySeries, indexSeries,
+                entryHhmm, exitHhmm, exitPnlPos,
+                { industryName: r.industry || '', indexName: r.theme_index_primary || '' });
+
+    // Stats
     var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
     document.getElementById('s4-d-sh').textContent = '+'+((mx/vals[0]-1)*100).toFixed(2)+'%';
     document.getElementById('s4-d-sl').textContent = ((mn/vals[0]-1)*100).toFixed(2)+'%';
     document.getElementById('s4-d-prox').textContent = ((vals[vals.length-1]-mn)/(mx-mn)*100).toFixed(0)+'%';
+
+    // ── Async upgrade to Option A: fetch real candles and re-render ──
+    // Only if not cached already. Cache survives reopens of the same symbol.
+    s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exitHhmm, exitPnlPos);
   }
 
   // SymbolState data — confirmed field names from actual data
@@ -5165,17 +5286,8 @@ async function s4OpenDrill(r) {
   // Fetch TM cycle history for this stock
   fetchTMHistory(r.tradingsymbol);
 
-  // Background: fetch full candles and upgrade chart silently
-  if (CFG.scriptUrl) {
-    fetchCandlesForDrill(r.tradingsymbol).then(function(candleData){
-      if (candleData && candleData.length) {
-        var fullVals = candleData.map(function(c){return parseFloat(c.c)||parseFloat(c.close)||0;}).filter(function(v){return v>0;});
-        if (fullVals.length > vals.length) {
-          s4DrawChart(fullVals, entry, trail, peak);
-        }
-      }
-    }).catch(function(){});
-  }
+  // Note: chart upgrade with real-timestamped candles is handled by
+  // s4FetchAndUpgradeCandles() above (called inside the if(vals.length) block).
 }
 
 function s4CloseDrill() {
@@ -5190,32 +5302,432 @@ function s4CloseDrill() {
   }
 }
 
-function s4DrawChart(vals, entry, trail, peak) {
-  var svg=document.getElementById('s4-d-candles'); svg.innerHTML='';
-  var n=vals.length, W=380, H=140;
-  var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
-  var pad=(mx-mn)*0.1; mn-=pad; mx+=pad; var rng=mx-mn||1;
-  function py(v){return H-((v-mn)/rng*H);}
-  function px(i){return (i/(n-1))*(W-4)+2;}
-  function hline(v,col,dash){
-    var l=document.createElementNS('http://www.w3.org/2000/svg','line');
-    l.setAttribute('x1',0); l.setAttribute('x2',W); l.setAttribute('y1',py(v)); l.setAttribute('y2',py(v));
-    l.setAttribute('stroke',col); l.setAttribute('stroke-width','0.9');
-    if(dash) l.setAttribute('stroke-dasharray',dash);
-    svg.appendChild(l);
+// ────────────────────────────────────────────────────────────────
+// s4FetchAndUpgradeCandles (NEW 2026-05-06)
+// Fetches the proper time-stamped candles for a stock from
+// ?tab=candles&symbol=X, and re-renders the chart with real
+// timestamps (Option A) once they arrive.
+// First-paint already drew the chart with derived timestamps from
+// m5_closes_csv (Option B) so the user sees the chart immediately;
+// this just upgrades it 1-3 seconds later when the fetch completes.
+//
+// Caching: STATE.candleCache[symbol] avoids re-fetching on re-open.
+// Race protection: only re-renders if STATE.s4ActiveRow is still the
+// same symbol (user might have closed/switched the drill).
+// ────────────────────────────────────────────────────────────────
+function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exitHhmm, exitPnlPos) {
+  var sym = r.tradingsymbol;
+  if (!sym) return;
+  if (!STATE.candleCache) STATE.candleCache = {};
+
+  // Helper: convert candles array → stockSeries with real IST hhmm
+  function candlesToSeries(candles) {
+    if (!candles || !candles.length) return null;
+    var firstOpen = null;
+    for (var i = 0; i < candles.length; i++) {
+      var o = parseFloat(candles[i].o);
+      if (isFinite(o) && o > 0) { firstOpen = o; break; }
+    }
+    if (!firstOpen) return null;
+    function tsToIstHhmm(ts) {
+      var s = String(ts || '');
+      if (s.length < 16) return null;
+      var hh = parseInt(s.slice(11,13), 10);
+      var mm = parseInt(s.slice(14,16), 10);
+      if (isNaN(hh) || isNaN(mm)) return null;
+      mm += 30;
+      if (mm >= 60) { mm -= 60; hh += 1; }
+      hh += 5;
+      if (hh >= 24) hh -= 24;
+      return hh * 100 + mm;
+    }
+    var out = [];
+    candles.forEach(function(row) {
+      var c = parseFloat(row.c);
+      var hhmm = tsToIstHhmm(row.ts);
+      if (isFinite(c) && c > 0 && hhmm !== null) {
+        out.push({ hhmm: hhmm, pfo: (c - firstOpen) / firstOpen * 100 });
+      }
+    });
+    out.sort(function(a, b){ return a.hhmm - b.hhmm; });
+    return out.length ? out : null;
   }
-  if(entry&&isFinite(entry)) hline(entry,'rgba(0,229,160,0.65)',null);
-  if(trail&&isFinite(trail)) hline(trail,'rgba(255,77,106,0.6)','4,3');
-  if(peak&&isFinite(peak))   hline(peak,'rgba(255,184,48,0.55)','2,3');
-  var pts=vals.map(function(v,i){return px(i)+','+py(v);}).join(' ');
-  var area=document.createElementNS('http://www.w3.org/2000/svg','polygon');
-  area.setAttribute('points','2,'+py(mn+pad*0.5)+' '+pts+' '+px(n-1)+','+py(mn+pad*0.5));
-  area.setAttribute('fill','rgba(56,182,255,0.05)'); svg.appendChild(area);
-  var pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
-  pl.setAttribute('points',pts); pl.setAttribute('fill','none'); pl.setAttribute('stroke','#38b6ff'); pl.setAttribute('stroke-width','1.6'); pl.setAttribute('stroke-linejoin','round');
-  svg.appendChild(pl);
-  var dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
-  dot.setAttribute('cx',px(n-1)); dot.setAttribute('cy',py(vals[n-1])); dot.setAttribute('r','2.5'); dot.setAttribute('fill','#38b6ff'); svg.appendChild(dot);
+
+  function applyAndRender(candles) {
+    // Race guard: only re-render if drill is still showing this symbol
+    if (STATE.s4ActiveRow !== sym) return;
+    var series = candlesToSeries(candles);
+    if (!series) return;
+    s4DrawChart(series, industrySeries, indexSeries,
+                entryHhmm, exitHhmm, exitPnlPos,
+                { industryName: r.industry || '', indexName: r.theme_index_primary || '' });
+  }
+
+  // Cache hit?
+  if (STATE.candleCache[sym]) {
+    applyAndRender(STATE.candleCache[sym]);
+    return;
+  }
+
+  // Fetch via existing helper
+  fetchCandlesForDrill(sym).then(function(candles) {
+    if (!candles || !Array.isArray(candles)) return;
+    STATE.candleCache[sym] = candles;
+    applyAndRender(candles);
+  }).catch(function(){ /* silent — first-paint chart still shows */ });
+}
+
+
+// 3-line composite PFO chart: stock / industry median / primary index
+//
+// Args:
+//   stockSeries    : [{hhmm, pfo}, ...]  — sorted asc
+//   industrySeries : [{hhmm, pfo}, ...]  — may be null/empty
+//   indexSeries    : [{hhmm, pfo}, ...]  — may be null/empty
+//   entryHhmm      : entry time HHMM (e.g. 948) or null
+//   exitHhmm       : exit time HHMM or null
+//   exitPnlPos     : true if exit P&L was positive (controls exit marker color)
+//   meta           : {industryName, indexName} for legend/tooltip
+//
+// All series are PFO % (0 = open). Time-anchored X 09:15→15:30.
+// Stock = full-color bold, industry = same colors but 60% opacity,
+// index = 40% opacity dashed. Zero baseline always visible.
+// ────────────────────────────────────────────────────────────────
+function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHhmm, exitPnlPos, meta) {
+  var svg = document.getElementById('s4-d-candles');
+  if (!svg) return;
+  svg.innerHTML = '';
+
+  var W = 380, H = 140;
+  var SESSION_MINS = 375;
+
+  // hhmm 920 → minutes since 09:15
+  function minsSince915(hhmm) {
+    var v = parseFloat(hhmm);
+    if (!isFinite(v) || v <= 0) return null;
+    var hh = Math.floor(v / 100);
+    var mm = Math.round(v - hh * 100);
+    return (hh * 60 + mm) - (9 * 60 + 15);
+  }
+  function timeToX(hhmm) {
+    var m = minsSince915(hhmm);
+    if (m === null) return null;
+    if (m < 0) m = 0;
+    if (m > SESSION_MINS) m = SESSION_MINS;
+    return (m / SESSION_MINS) * W;
+  }
+
+  // Combine all series for adaptive Y range
+  var allVals = [];
+  function pushVals(arr) {
+    if (!arr || !arr.length) return;
+    arr.forEach(function(p){
+      var v = parseFloat(p.pfo);
+      if (isFinite(v)) allVals.push(v);
+    });
+  }
+  pushVals(stockSeries);
+  pushVals(industrySeries);
+  pushVals(indexSeries);
+
+  if (!allVals.length) {
+    svg.innerHTML = '<text x="190" y="70" fill="#3a5060" text-anchor="middle" '
+      + 'font-size="11" font-family="JetBrains Mono">No data</text>';
+    return;
+  }
+
+  // Adaptive Y scale — 15% pad, always include zero, min total range 1%
+  var dMin = Math.min.apply(null, allVals);
+  var dMax = Math.max.apply(null, allVals);
+  var dRange = dMax - dMin;
+  var pad = dRange > 0 ? dRange * 0.15 : 0.5;
+  var fMin = dMin - pad;
+  var fMax = dMax + pad;
+  var MIN_TOTAL_RANGE = 1.0;
+  if ((fMax - fMin) < MIN_TOTAL_RANGE) {
+    var center = (fMin + fMax) / 2;
+    fMin = center - MIN_TOTAL_RANGE / 2;
+    fMax = center + MIN_TOTAL_RANGE / 2;
+  }
+  if (fMin > -0.1) fMin = -0.1;
+  if (fMax <  0.1) fMax =  0.1;
+  var range = fMax - fMin;
+  function py(v) { return H - ((v - fMin) / range * H); }
+
+  // Hourly verticals (drawn first, behind everything)
+  [60, 120, 180, 240, 300, 360].forEach(function(mins) {
+    var x = (mins / SESSION_MINS) * W;
+    var v = document.createElementNS('http://www.w3.org/2000/svg','line');
+    v.setAttribute('x1', x); v.setAttribute('x2', x);
+    v.setAttribute('y1', 0); v.setAttribute('y2', H);
+    v.setAttribute('stroke', 'rgba(40,65,80,0.45)');
+    v.setAttribute('stroke-width', '0.4');
+    v.setAttribute('stroke-dasharray', '2,4');
+    svg.appendChild(v);
+  });
+
+  // Zero reference baseline — prominent dashed
+  var zy = py(0);
+  var zl = document.createElementNS('http://www.w3.org/2000/svg','line');
+  zl.setAttribute('x1', 0); zl.setAttribute('x2', W);
+  zl.setAttribute('y1', zy); zl.setAttribute('y2', zy);
+  zl.setAttribute('stroke', 'rgba(90,112,128,0.55)');
+  zl.setAttribute('stroke-width', '0.8');
+  zl.setAttribute('stroke-dasharray', '4,3');
+  svg.appendChild(zl);
+
+  // Draw a series with green/red split-at-zero, configurable opacity/width/dash
+  function drawSeries(series, opts) {
+    if (!series || series.length < 2) return [];
+    var xCoords = [];
+    var data = [];
+    series.forEach(function(p) {
+      var x = timeToX(p.hhmm);
+      var v = parseFloat(p.pfo);
+      if (x === null || !isFinite(v)) return;
+      xCoords.push(x);
+      data.push(v);
+    });
+    var n = data.length;
+    if (n < 2) {
+      // single point → just a dot
+      if (n === 1) {
+        var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        dot.setAttribute('cx', xCoords[0]);
+        dot.setAttribute('cy', py(data[0]));
+        dot.setAttribute('r', opts.dotR || '2');
+        dot.setAttribute('fill', data[0] >= 0 ? '#00e5a0' : '#ff4d6a');
+        dot.setAttribute('opacity', opts.opacity || 1);
+        svg.appendChild(dot);
+      }
+      return xCoords;
+    }
+    var dashAttr = opts.dash || null;
+    for (var i = 0; i < n - 1; i++) {
+      var v1 = data[i], v2 = data[i+1];
+      var x1 = xCoords[i], x2 = xCoords[i+1];
+      var y1 = py(v1), y2 = py(v2);
+      if ((v1 >= 0) !== (v2 >= 0)) {
+        var t = v1 / (v1 - v2);
+        var xm = x1 + t * (x2 - x1);
+        [{x1:x1,y1:y1,x2:xm,y2:zy,v:v1},{x1:xm,y1:zy,x2:x2,y2:y2,v:v2}].forEach(function(seg) {
+          var s = document.createElementNS('http://www.w3.org/2000/svg','line');
+          s.setAttribute('x1', seg.x1); s.setAttribute('y1', seg.y1);
+          s.setAttribute('x2', seg.x2); s.setAttribute('y2', seg.y2);
+          s.setAttribute('stroke', seg.v >= 0 ? '#00e5a0' : '#ff4d6a');
+          s.setAttribute('stroke-width', opts.width || 1.5);
+          s.setAttribute('stroke-linecap', 'round');
+          if (opts.opacity != null) s.setAttribute('opacity', opts.opacity);
+          if (dashAttr) s.setAttribute('stroke-dasharray', dashAttr);
+          svg.appendChild(s);
+        });
+      } else {
+        var s = document.createElementNS('http://www.w3.org/2000/svg','line');
+        s.setAttribute('x1', x1); s.setAttribute('y1', y1);
+        s.setAttribute('x2', x2); s.setAttribute('y2', y2);
+        s.setAttribute('stroke', v1 >= 0 ? '#00e5a0' : '#ff4d6a');
+        s.setAttribute('stroke-width', opts.width || 1.5);
+        s.setAttribute('stroke-linecap', 'round');
+        if (opts.opacity != null) s.setAttribute('opacity', opts.opacity);
+        if (dashAttr) s.setAttribute('stroke-dasharray', dashAttr);
+        svg.appendChild(s);
+      }
+    }
+    // End-of-line dot
+    if (opts.showEndDot !== false) {
+      var lv = data[n-1];
+      var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx', xCoords[n-1]);
+      dot.setAttribute('cy', py(lv));
+      dot.setAttribute('r', opts.dotR || '2');
+      dot.setAttribute('fill', lv >= 0 ? '#00e5a0' : '#ff4d6a');
+      if (opts.opacity != null) dot.setAttribute('opacity', opts.opacity);
+      svg.appendChild(dot);
+    }
+    return xCoords;
+  }
+
+  // Layer order: index (back) → industry → stock (front)
+  drawSeries(indexSeries,    { width: 1.2, opacity: 0.4, dash: '3,3', showEndDot: false });
+  drawSeries(industrySeries, { width: 1.4, opacity: 0.6, showEndDot: false });
+  var stockX = drawSeries(stockSeries, { width: 1.8, opacity: 1.0, dotR: '2.5' });
+
+  // Entry/exit markers on the stock line
+  function drawMarker(hhmm, kind, posPnl) {
+    if (!hhmm) return;
+    var x = timeToX(hhmm);
+    if (x === null) return;
+    // Find the stock value at that hhmm (nearest)
+    if (!stockSeries || !stockSeries.length) return;
+    var bestIdx = 0, bestDist = Infinity;
+    for (var i = 0; i < stockSeries.length; i++) {
+      var d = Math.abs(parseFloat(stockSeries[i].hhmm) - parseFloat(hhmm));
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    }
+    var v = parseFloat(stockSeries[bestIdx].pfo);
+    if (!isFinite(v)) return;
+    var y = py(v);
+    var color = kind === 'entry' ? '#00e5a0' : (posPnl ? '#00e5a0' : '#ff4d6a');
+    var path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    if (kind === 'entry') {
+      // Up-pointing triangle ▲ below the data point (so the apex points to it)
+      path.setAttribute('d', 'M ' + x + ' ' + (y+2) + ' l -4 6 l 8 0 z');
+    } else {
+      // Down-pointing triangle ▼ above the data point
+      path.setAttribute('d', 'M ' + x + ' ' + (y-2) + ' l -4 -6 l 8 0 z');
+    }
+    path.setAttribute('fill', color);
+    path.setAttribute('stroke', '#0a1018');
+    path.setAttribute('stroke-width', '0.8');
+    svg.appendChild(path);
+  }
+  drawMarker(entryHhmm, 'entry');
+  drawMarker(exitHhmm,  'exit', exitPnlPos);
+
+  // Populate time-anchored x-axis labels
+  var xaxisEl = document.getElementById('s4-d-xaxis');
+  if (xaxisEl) {
+    xaxisEl.innerHTML = '';
+    var labels = [
+      { mins:   0, txt: '09:15' },
+      { mins: 105, txt: '11:00' },
+      { mins: 225, txt: '13:00' },
+      { mins: 345, txt: '15:00' },
+      { mins: 375, txt: '15:30' }
+    ];
+    labels.forEach(function(lbl, idx) {
+      var pct = (lbl.mins / SESSION_MINS) * 100;
+      var sp = document.createElement('span');
+      sp.textContent = lbl.txt;
+      sp.style.left = pct.toFixed(2) + '%';
+      if (idx === 0) sp.className = 'edge-l';
+      else if (idx === labels.length - 1) sp.className = 'edge-r';
+      xaxisEl.appendChild(sp);
+    });
+  }
+
+  // Update legend with industry/index names so the user knows what they're seeing
+  var legendEl = document.getElementById('s4-d-legend');
+  if (legendEl && meta) {
+    var indName = meta.industryName ? ' ' + meta.industryName : '';
+    var idxName = meta.indexName    ? ' ' + meta.indexName    : '';
+    legendEl.innerHTML =
+      '<span><span style="color:#00e5a0">━━</span> Stock</span>' +
+      (industrySeries && industrySeries.length
+        ? '<span><span style="color:#00e5a0;opacity:0.6">━━</span> Industry'+indName+'</span>'
+        : '') +
+      (indexSeries && indexSeries.length
+        ? '<span><span style="color:#00e5a0;opacity:0.4">╌╌</span> Index'+idxName+'</span>'
+        : '') +
+      '<span style="color:rgba(90,112,128,0.85)">─ ─ 0 ref</span>';
+  }
+
+  // Hover tooltip — snap to nearest stock data point
+  var tip = document.getElementById('s4-d-candles-tip');
+  if (tip && stockX && stockX.length) {
+    function hhmmToStr(h) {
+      var v = parseFloat(h); if (!isFinite(v) || v <= 0) return '';
+      var hh = Math.floor(v / 100), mm = Math.round(v - hh * 100);
+      return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+    }
+    function structArrow(s) {
+      var x = String(s || '').toUpperCase();
+      if (x === 'BULL') return ' ↑';
+      if (x === 'BEAR') return ' ↓';
+      if (x === 'CHOP') return ' →';
+      return '';
+    }
+
+    svg.addEventListener('mousemove', function(e) {
+      var rect = svg.getBoundingClientRect();
+      var xPct = (e.clientX - rect.left) / rect.width;
+      var xSvg = xPct * W;
+      // Snap to nearest stock data point
+      var bestIdx = 0, bestDist = Infinity;
+      for (var k = 0; k < stockX.length; k++) {
+        var d = Math.abs(stockX[k] - xSvg);
+        if (d < bestDist) { bestDist = d; bestIdx = k; }
+      }
+      var sp = stockSeries[bestIdx];
+      if (!sp) return;
+      var sv = parseFloat(sp.pfo);
+      var ts = hhmmToStr(sp.hhmm);
+      // Industry value at same hhmm (nearest)
+      var iv = null, ivStruct = null, ivVerdict = null;
+      if (industrySeries && industrySeries.length) {
+        var iBest = 0, iDist = Infinity;
+        for (var j = 0; j < industrySeries.length; j++) {
+          var d2 = Math.abs(parseFloat(industrySeries[j].hhmm) - parseFloat(sp.hhmm));
+          if (d2 < iDist) { iDist = d2; iBest = j; }
+        }
+        iv = parseFloat(industrySeries[iBest].pfo);
+        ivStruct = industrySeries[iBest].industry_structure || null;
+        ivVerdict = industrySeries[iBest].verdict || null;
+      }
+      // Index value at same hhmm (nearest)
+      var xv = null;
+      if (indexSeries && indexSeries.length) {
+        var xBest = 0, xDist = Infinity;
+        for (var j2 = 0; j2 < indexSeries.length; j2++) {
+          var d3 = Math.abs(parseFloat(indexSeries[j2].hhmm) - parseFloat(sp.hhmm));
+          if (d3 < xDist) { xDist = d3; xBest = j2; }
+        }
+        xv = parseFloat(indexSeries[xBest].pfo);
+      }
+
+      var sCol = sv >= 0 ? '#00e5a0' : '#ff4d6a';
+      var html = '<div style="line-height:1.5">'
+        + '<div><b style="color:#38b6ff">'+ts+'</b></div>'
+        + '<div>Stock: <b style="color:'+sCol+'">'+(sv>=0?'+':'')+sv.toFixed(2)+'%</b></div>';
+      if (isFinite(iv)) {
+        var iCol = iv >= 0 ? '#00e5a0' : '#ff4d6a';
+        html += '<div>Industry: <b style="color:'+iCol+'">'+(iv>=0?'+':'')+iv.toFixed(2)+'%</b></div>';
+      }
+      if (isFinite(xv)) {
+        var xCol = xv >= 0 ? '#00e5a0' : '#ff4d6a';
+        html += '<div>Index: <b style="color:'+xCol+'">'+(xv>=0?'+':'')+xv.toFixed(2)+'%</b></div>';
+      }
+      if (ivVerdict || ivStruct) {
+        html += '<div style="font-size:0.6rem;color:#7a8a99;margin-top:2px">'
+          + (ivStruct ? String(ivStruct).toUpperCase() + structArrow(ivStruct) : '')
+          + (ivStruct && ivVerdict ? ' · ' : '')
+          + (ivVerdict ? String(ivVerdict).toUpperCase() : '')
+          + '</div>';
+      }
+      html += '</div>';
+
+      tip.style.display = 'block';
+      // Smart side-snap (same as popup tooltip)
+      var midX = rect.width / 2;
+      var dead = 20;
+      var prev = svg.__tipSide || 'right';
+      var newSide = prev;
+      if ((e.clientX - rect.left) < midX - dead) newSide = 'right';
+      else if ((e.clientX - rect.left) > midX + dead) newSide = 'left';
+      svg.__tipSide = newSide;
+      if (newSide === 'left') { tip.style.left = '6px'; tip.style.right = 'auto'; }
+      else { tip.style.left = 'auto'; tip.style.right = '6px'; }
+      tip.style.top = '4px';
+      tip.innerHTML = html;
+
+      // Crosshair line at the snapped X
+      var existing = svg.querySelector('.hover-line');
+      if (existing) existing.remove();
+      var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('class','hover-line');
+      line.setAttribute('x1', stockX[bestIdx]); line.setAttribute('x2', stockX[bestIdx]);
+      line.setAttribute('y1', 0); line.setAttribute('y2', '100%');
+      line.setAttribute('stroke','rgba(56,182,255,0.4)');
+      line.setAttribute('stroke-width','0.8');
+      svg.appendChild(line);
+    });
+
+    svg.addEventListener('mouseleave', function() {
+      tip.style.display = 'none';
+      var existing = svg.querySelector('.hover-line');
+      if (existing) existing.remove();
+    });
+  }
 }
 
 function s4DrawRank(ranks) {
