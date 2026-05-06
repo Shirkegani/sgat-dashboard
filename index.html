@@ -5119,11 +5119,72 @@ async function s4OpenDrill(r) {
       }
     }
 
-    // 3. Index series (from STATE.idxByName, ts in UTC ISO → IST hhmm)
+    // 3. Index series resolution (NEW 2026-05-06):
+    //    Lookup order:
+    //      a) r.theme_index_primary if present and in idxByName
+    //      b) hand-curated industry-name → index map
+    //      c) fallback: NIFTY MIDSML 400 (matches the SGAT mid/small universe)
+    //    The legend shows the resolved index name, so user can see whether
+    //    they're looking at a tight match or a broad fallback.
+    var INDUSTRY_TO_INDEX = {
+      // Direct sector matches
+      'BANKS':                              'NIFTY BANK',
+      'HEALTHCARE':                         'NIFTY HEALTHCARE',
+      'PHARMA':                             'NIFTY PHARMA',
+      'AUTO':                               'NIFTY AUTO',
+      'AUTOMOBILE AND AUTO COMPONENTS':     'NIFTY AUTO',
+      'IT':                                 'NIFTY IT',
+      'INFORMATION TECHNOLOGY':             'NIFTY IT',
+      'FMCG':                               'NIFTY FMCG',
+      'FAST MOVING CONSUMER GOODS':         'NIFTY FMCG',
+      'REALTY':                             'NIFTY REALTY',
+      'METAL':                              'NIFTY METAL',
+      'METALS':                             'NIFTY METAL',
+      'METALS & MINING':                    'NIFTY METAL',
+      'OIL AND GAS':                        'NIFTY OIL AND GAS',
+      'OIL & GAS':                          'NIFTY OIL AND GAS',
+      'POWER':                              'NIFTY ENERGY',
+      'ENERGY':                             'NIFTY ENERGY',
+      'FINANCIAL SERVICES':                 'NIFTY FIN SERVICE',
+      'CONSUMER DURABLES':                  'NIFTY CONSR DURBL',
+      'SERVICES':                           'NIFTY SERV SECTOR',
+      'MEDIA':                              'NIFTY MEDIA',
+      'CONSUMPTION':                        'NIFTY CONSUMPTION',
+      // Infra cluster (your call)
+      'CEMENT':                             'NIFTY INFRA',
+      'CONSTRUCTION':                       'NIFTY INFRA',
+      'CONSTRUCTION MATERIALS':             'NIFTY INFRA',
+      'CEMENT AND CEMENT PRODUCTS':         'NIFTY INFRA',
+      'INFRASTRUCTURE':                     'NIFTY INFRA'
+    };
+    var FALLBACK_INDEX = 'NIFTY MIDSML 400';
+
     var indexSeries = null;
-    var idxKey = String(r.theme_index_primary || '').trim();
-    if (idxKey && STATE.idxByName) {
-      var idxRows = STATE.idxByName[idxKey] || STATE.idxByName[idxKey.toUpperCase()] || null;
+    var resolvedIndexName = null;
+    if (STATE.idxByName) {
+      // (a) theme_index_primary
+      var directKey = String(r.theme_index_primary || '').trim();
+      if (directKey && (STATE.idxByName[directKey] || STATE.idxByName[directKey.toUpperCase()])) {
+        resolvedIndexName = directKey;
+      }
+      // (b) industry-name map
+      if (!resolvedIndexName) {
+        var indKeyUC = String(r.industry || '').trim().toUpperCase();
+        var mapped = INDUSTRY_TO_INDEX[indKeyUC];
+        if (mapped && (STATE.idxByName[mapped] || STATE.idxByName[mapped.toUpperCase()])) {
+          resolvedIndexName = mapped;
+        }
+      }
+      // (c) fallback to MIDSML 400
+      if (!resolvedIndexName && (STATE.idxByName[FALLBACK_INDEX] || STATE.idxByName[FALLBACK_INDEX.toUpperCase()])) {
+        resolvedIndexName = FALLBACK_INDEX;
+      }
+    }
+
+    if (resolvedIndexName) {
+      var idxRows = STATE.idxByName[resolvedIndexName]
+                 || STATE.idxByName[resolvedIndexName.toUpperCase()]
+                 || null;
       if (idxRows && idxRows.length) {
         // Convert to PFO using first valid candle's open
         var firstOpen = null;
@@ -5132,7 +5193,6 @@ async function s4OpenDrill(r) {
           if (oVal > 0) { firstOpen = oVal; break; }
         }
         if (firstOpen) {
-          // ts is UTC like "2026-04-28 09:35:00" — slice and shift to IST
           function tsToIstHhmm(ts) {
             var s = String(ts || '');
             if (s.length < 16) return null;
@@ -5192,7 +5252,12 @@ async function s4OpenDrill(r) {
     // Render the new 3-line composite chart
     s4DrawChart(stockSeries, industrySeries, indexSeries,
                 entryHhmm, exitHhmm, exitPnlPos,
-                { industryName: r.industry || '', indexName: r.theme_index_primary || '' });
+                { industryName: r.industry || '',
+                  indexName: resolvedIndexName || r.theme_index_primary || '' });
+
+    // Save the resolved index name on STATE so the async candles upgrade
+    // can re-render the chart with the same legend.
+    STATE.s4ResolvedIndexName = resolvedIndexName;
 
     // Stats
     var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
@@ -5384,7 +5449,8 @@ function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exi
     if (!series) return;
     s4DrawChart(series, industrySeries, indexSeries,
                 entryHhmm, exitHhmm, exitPnlPos,
-                { industryName: r.industry || '', indexName: r.theme_index_primary || '' });
+                { industryName: r.industry || '',
+                  indexName: STATE.s4ResolvedIndexName || r.theme_index_primary || '' });
   }
 
   // Cache hit?
