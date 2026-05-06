@@ -5310,22 +5310,44 @@ async function s4OpenDrill(r) {
     }
     var entryHhmm = null, exitHhmm = null, exitPnlPos = false;
     var tradeDirection = 'LONG';  // default
+    var diagSource = 'NONE';
+    var diagRawDir = null;
     if (tradeRow) {
       // Closed (or partially-closed) trade — use DailyTrades record
       entryHhmm = tsToHhmm(tradeRow.first_entry_ts);
       exitHhmm  = tsToHhmm(tradeRow.last_exit_ts);
       exitPnlPos = (parseFloat(tradeRow.pnl_inr) || 0) >= 0;
       tradeDirection = String(tradeRow.trade_direction || 'LONG').toUpperCase();
+      diagSource = 'tradeRow';
+      diagRawDir = tradeRow.trade_direction;
     } else {
       // Truly open position with no DailyTrades record yet — fall back to TMLong
       var tmRow = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
       if (tmRow) {
         entryHhmm = tsToHhmm(tmRow.last_entry_time);
-        // TMLong currently all long (TMS paper-only). If a side field appears
-        // later (e.g. tmRow.trade_direction), honour it.
         tradeDirection = String(tmRow.trade_direction || 'LONG').toUpperCase();
+        diagSource = 'tmRow';
+        diagRawDir = tmRow.trade_direction;
       }
     }
+    // ── DIAGNOSTIC (TEMP 2026-05-06) — surface the marker decision
+    try {
+      console.log('[s4 dir DIAG] sym='+r.tradingsymbol
+        + ' source='+diagSource
+        + ' rawDir='+JSON.stringify(diagRawDir)
+        + ' resolved='+tradeDirection
+        + ' entryHhmm='+entryHhmm+' exitHhmm='+exitHhmm
+        + ' tradeRow_present='+(!!tradeRow));
+      if (tradeRow) {
+        // Surface any field whose name hints at side/direction
+        var sideKeys = Object.keys(tradeRow).filter(function(k){
+          return /direction|side|trade_dir|short|long/i.test(k);
+        });
+        var sideMap = {};
+        sideKeys.forEach(function(k){ sideMap[k] = tradeRow[k]; });
+        console.log('[s4 dir DIAG] tradeRow side-fields=' + JSON.stringify(sideMap));
+      }
+    } catch(e){}
 
     // Render the new 3-line composite chart
     s4DrawChart(stockSeries, industrySeries, indexSeries,
