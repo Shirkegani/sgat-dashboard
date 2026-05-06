@@ -5309,17 +5309,21 @@ async function s4OpenDrill(r) {
       return hh * 100 + mm;
     }
     var entryHhmm = null, exitHhmm = null, exitPnlPos = false;
+    var tradeDirection = 'LONG';  // default
     if (tradeRow) {
       // Closed (or partially-closed) trade — use DailyTrades record
       entryHhmm = tsToHhmm(tradeRow.first_entry_ts);
       exitHhmm  = tsToHhmm(tradeRow.last_exit_ts);
       exitPnlPos = (parseFloat(tradeRow.pnl_inr) || 0) >= 0;
+      tradeDirection = String(tradeRow.trade_direction || 'LONG').toUpperCase();
     } else {
       // Truly open position with no DailyTrades record yet — fall back to TMLong
       var tmRow = (STATE.data.tmlong||[]).find(function(t){return t.tradingsymbol===r.tradingsymbol;});
       if (tmRow) {
         entryHhmm = tsToHhmm(tmRow.last_entry_time);
-        // No exit yet
+        // TMLong currently all long (TMS paper-only). If a side field appears
+        // later (e.g. tmRow.trade_direction), honour it.
+        tradeDirection = String(tmRow.trade_direction || 'LONG').toUpperCase();
       }
     }
 
@@ -5327,11 +5331,13 @@ async function s4OpenDrill(r) {
     s4DrawChart(stockSeries, industrySeries, indexSeries,
                 entryHhmm, exitHhmm, exitPnlPos,
                 { industryName: r.industry || '',
-                  indexName: resolvedIndexName || r.theme_index_primary || '' });
+                  indexName: resolvedIndexName || r.theme_index_primary || '',
+                  tradeDirection: tradeDirection });
 
-    // Save the resolved index name on STATE so the async candles upgrade
-    // can re-render the chart with the same legend.
+    // Save context on STATE so the async candles upgrade can re-render
+    // the chart with the same legend & marker semantics.
     STATE.s4ResolvedIndexName = resolvedIndexName;
+    STATE.s4TradeDirection = tradeDirection;
 
     // Stats
     var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
@@ -5532,7 +5538,8 @@ function s4FetchAndUpgradeCandles(r, industrySeries, indexSeries, entryHhmm, exi
     s4DrawChart(series, industrySeries, indexSeries,
                 entryHhmm, exitHhmm, exitPnlPos,
                 { industryName: r.industry || '',
-                  indexName: STATE.s4ResolvedIndexName || r.theme_index_primary || '' });
+                  indexName: STATE.s4ResolvedIndexName || r.theme_index_primary || '',
+                  tradeDirection: STATE.s4TradeDirection || 'LONG' });
   }
 
   // Cache hit?
@@ -5768,8 +5775,12 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     : [];
 
   // Entry/exit markers on the stock chart
-  function drawMarker(hhmm, kind, posPnl) {
+  // Convention: ▲ green = BUY, ▼ red = SELL — regardless of P&L outcome.
+  // For LONG  trades: 1st (entry) = BUY,  2nd (exit) = SELL
+  // For SHORT trades: 1st (entry) = SELL, 2nd (exit) = BUY
+  function drawMarker(hhmm, action) {
     if (!hhmm || !stockSeries || !stockSeries.length || !stockAxis) return;
+    if (action !== 'buy' && action !== 'sell') return;
     var x = timeToX(hhmm);
     if (x === null) return;
     var bestIdx = 0, bestDist = Infinity;
@@ -5780,11 +5791,13 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     var v = parseFloat(stockSeries[bestIdx].pfo);
     if (!isFinite(v)) return;
     var y = pyStock(v);
-    var color = kind === 'entry' ? '#00e5a0' : (posPnl ? '#00e5a0' : '#ff4d6a');
+    var color = action === 'buy' ? '#00e5a0' : '#ff4d6a';
     var path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    if (kind === 'entry') {
+    if (action === 'buy') {
+      // ▲ Up-triangle drawn just BELOW the data point, apex pointing up toward it
       path.setAttribute('d', 'M ' + x + ' ' + (y+3) + ' l -5 8 l 10 0 z');
     } else {
+      // ▼ Down-triangle drawn just ABOVE the data point, apex pointing down toward it
       path.setAttribute('d', 'M ' + x + ' ' + (y-3) + ' l -5 -8 l 10 0 z');
     }
     path.setAttribute('fill', color);
@@ -5792,8 +5805,10 @@ function s4DrawChart(stockSeries, industrySeries, indexSeries, entryHhmm, exitHh
     path.setAttribute('stroke-width', '0.8');
     stockSvg.appendChild(path);
   }
-  drawMarker(entryHhmm, 'entry');
-  drawMarker(exitHhmm,  'exit', exitPnlPos);
+  // Map (entry/exit, direction) → (buy/sell action)
+  var isShort = (meta && meta.tradeDirection === 'SHORT');
+  drawMarker(entryHhmm, isShort ? 'sell' : 'buy');
+  drawMarker(exitHhmm,  isShort ? 'buy'  : 'sell');
 
   // ── BOTTOM CHART: hourly + zero + industry + index ─────────────
   if (ctxAxis) {
