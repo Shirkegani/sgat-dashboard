@@ -581,6 +581,15 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .ib-pfo.red{color:var(--red);}
 .ib-pfo.amber{color:var(--amber);}
 .ib-pfo.dim{color:var(--dim);}
+/* Row 2 layout — big number on left, sparkline on right */
+.ib-pfo-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.ib-spark{flex:0 0 auto;width:110px;height:22px;display:block;position:relative;}
+.ib-spark svg{width:100%;height:100%;display:block;overflow:visible;}
+.ib-spark .ib-spark-tip{position:absolute;background:rgba(8,18,28,0.95);
+  border:1px solid var(--border2);padding:3px 6px;border-radius:3px;
+  font-size:0.55rem;color:var(--text);pointer-events:none;
+  display:none;z-index:50;white-space:nowrap;
+  bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);}
 .ib-meta-row{display:flex;gap:8px;font-size:0.55rem;
   color:var(--dim);letter-spacing:.02em;line-height:1;flex-wrap:wrap;}
 .ib-meta-row .ib-br-pct{color:var(--muted);}
@@ -2449,6 +2458,151 @@ function ibToggleTile(idx) {
   s3StocksPopupOpen('industry', industryName, industryName);
 }
 
+// ─────────────────────────────────────────────────────────────
+// ibDrawSparkline (NEW 2026-05-06)
+// Renders a tiny median_pfo trajectory inside an industry tile.
+// Same time-anchored X math as the bigger curves: 09:15 → 15:30 (375 min).
+// Curve grows rightward through the day; left side shows where we are
+// in the session.
+//
+//   svgId   : id of the inline SVG inside the tile
+//   tipId   : id of the absolute-positioned tooltip div
+//   series  : [{hhmm: 920, median_pfo: -0.12}, ...] sorted asc by hhmm
+// ─────────────────────────────────────────────────────────────
+function ibDrawSparkline(svgId, tipId, series) {
+  var svg = document.getElementById(svgId);
+  if (!svg || !series || !series.length) return;
+  svg.innerHTML = '';
+
+  var W = 110, H = 22, n = series.length;
+  var SESSION_MINS = 375;
+
+  // hhmm (e.g. 920 = 09:20, 1430 = 14:30) → minutes since 09:15
+  function minsSince915FromHhmm(hhmm) {
+    var v = parseFloat(hhmm);
+    if (!isFinite(v) || v <= 0) return null;
+    var hh = Math.floor(v / 100);
+    var mm = Math.round(v - hh * 100);
+    return (hh * 60 + mm) - (9 * 60 + 15);
+  }
+  function px(i) {
+    var m = minsSince915FromHhmm(series[i].hhmm);
+    if (m === null) return (i / (n - 1 || 1)) * W;  // safe fallback
+    if (m < 0) m = 0;
+    if (m > SESSION_MINS) m = SESSION_MINS;
+    return (m / SESSION_MINS) * W;
+  }
+
+  // Y scale — fit data range with small padding, but always show zero line
+  var data = series.map(function(p){ return parseFloat(p.median_pfo) || 0; });
+  var dMin = Math.min.apply(null, data);
+  var dMax = Math.max.apply(null, data);
+  var dRange = dMax - dMin;
+  var pad = dRange > 0 ? dRange * 0.2 : 0.1;
+  var fMin = dMin - pad;
+  var fMax = dMax + pad;
+  // Always include zero so bull/bear is readable
+  if (fMin > 0) fMin = -0.05;
+  if (fMax < 0) fMax = 0.05;
+  // Tiny-range guard — if intraday total swing is <0.1%, use wider scale
+  if ((fMax - fMin) < 0.2) {
+    var c = (fMin + fMax) / 2;
+    fMin = c - 0.1;
+    fMax = c + 0.1;
+  }
+  var range = fMax - fMin;
+  function py(v){ return H - ((v - fMin) / range * H); }
+
+  // Dashed zero baseline
+  var zy = py(0);
+  var zl = document.createElementNS('http://www.w3.org/2000/svg','line');
+  zl.setAttribute('x1', 0); zl.setAttribute('x2', W);
+  zl.setAttribute('y1', zy); zl.setAttribute('y2', zy);
+  zl.setAttribute('stroke', 'rgba(90,112,128,0.35)');
+  zl.setAttribute('stroke-width', '0.4');
+  zl.setAttribute('stroke-dasharray', '2,2');
+  svg.appendChild(zl);
+
+  // Pre-compute X coords for hover snapping
+  var xCoords = data.map(function(_, i){ return px(i); });
+
+  // Line — green above zero, red below, split at crossings
+  for (var i = 0; i < n - 1; i++) {
+    var v1 = data[i], v2 = data[i+1];
+    var x1 = xCoords[i], x2 = xCoords[i+1];
+    var y1 = py(v1), y2 = py(v2);
+    if ((v1 >= 0) !== (v2 >= 0)) {
+      var t = v1 / (v1 - v2);
+      var xm = x1 + t * (x2 - x1);
+      [{x1:x1,y1:y1,x2:xm,y2:zy,v:v1},{x1:xm,y1:zy,x2:x2,y2:y2,v:v2}].forEach(function(seg){
+        var s = document.createElementNS('http://www.w3.org/2000/svg','line');
+        s.setAttribute('x1', seg.x1); s.setAttribute('y1', seg.y1);
+        s.setAttribute('x2', seg.x2); s.setAttribute('y2', seg.y2);
+        s.setAttribute('stroke', seg.v >= 0 ? '#00e5a0' : '#ff4d6a');
+        s.setAttribute('stroke-width', '1.2');
+        s.setAttribute('stroke-linecap', 'round');
+        svg.appendChild(s);
+      });
+    } else {
+      var s = document.createElementNS('http://www.w3.org/2000/svg','line');
+      s.setAttribute('x1', x1); s.setAttribute('y1', y1);
+      s.setAttribute('x2', x2); s.setAttribute('y2', y2);
+      s.setAttribute('stroke', v1 >= 0 ? '#00e5a0' : '#ff4d6a');
+      s.setAttribute('stroke-width', '1.2');
+      s.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(s);
+    }
+  }
+
+  // End-of-line dot
+  var lv = data[n-1];
+  var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  dot.setAttribute('cx', xCoords[n-1]);
+  dot.setAttribute('cy', py(lv));
+  dot.setAttribute('r', '1.5');
+  dot.setAttribute('fill', lv >= 0 ? '#00e5a0' : '#ff4d6a');
+  svg.appendChild(dot);
+
+  // ── Hover (lightweight — snap to nearest data point) ─────────
+  // Only wire if tooltip element exists; uses event.stopPropagation
+  // on the SVG so hovering the spark doesn't trigger the tile click.
+  var tip = tipId ? document.getElementById(tipId) : null;
+  if (!tip) return;
+
+  // hhmm 920 → "09:20"
+  function hhmmToStr(h) {
+    var v = parseFloat(h); if (!isFinite(v) || v <= 0) return '';
+    var hh = Math.floor(v / 100), mm = Math.round(v - hh * 100);
+    return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+  }
+
+  // Attach to the parent .ib-spark wrap so the cursor stays in tooltip range
+  var wrap = svg.parentNode;
+  if (!wrap) return;
+
+  wrap.addEventListener('mousemove', function(e) {
+    e.stopPropagation();
+    var rect = svg.getBoundingClientRect();
+    var xPct = (e.clientX - rect.left) / rect.width;
+    var xSvg = xPct * W;
+    var bestIdx = 0, bestDist = Infinity;
+    for (var k = 0; k < xCoords.length; k++) {
+      var d = Math.abs(xCoords[k] - xSvg);
+      if (d < bestDist) { bestDist = d; bestIdx = k; }
+    }
+    var v = data[bestIdx];
+    var ts = hhmmToStr(series[bestIdx].hhmm);
+    var col = v >= 0 ? '#00e5a0' : '#ff4d6a';
+    tip.innerHTML = '<b style="color:#38b6ff">'+ts+'</b> · <b style="color:'+col+'">'
+      + (v>=0?'+':'') + v.toFixed(2) + '%</b>';
+    tip.style.display = 'block';
+  });
+
+  wrap.addEventListener('mouseleave', function() {
+    tip.style.display = 'none';
+  });
+}
+
 function ibRender() {
   var grid = document.getElementById('ib-grid');
   var meta = document.getElementById('ib-meta');
@@ -2533,7 +2687,13 @@ function ibRender() {
         '<div class="ib-tname">' + name + '</div>' +
         '<div class="ib-rank ' + rankCls + '">' + rankTxt + '</div>' +
       '</div>' +
-      '<div class="ib-pfo ' + pfoCls + '">' + pfoTxt + '</div>' +
+      '<div class="ib-pfo-row">' +
+        '<div class="ib-pfo ' + pfoCls + '">' + pfoTxt + '</div>' +
+        '<div class="ib-spark">' +
+          '<svg id="ib-spark-' + i + '" viewBox="0 0 110 22" preserveAspectRatio="none"></svg>' +
+          '<div class="ib-spark-tip" id="ib-spark-tip-' + i + '"></div>' +
+        '</div>' +
+      '</div>' +
       '<div class="ib-meta-row">' +
         '<span class="ib-br-pct">' + brTxt + '</span> · ' +
         '<span class="ib-n">' + nstkTxt + '</span>' +
@@ -2549,6 +2709,24 @@ function ibRender() {
   }).join('');
 
   grid.innerHTML = html;
+
+  // ── Draw sparkline for each tile (NEW 2026-05-06) ───────────────
+  // Pulls per-industry history from STATE.data.industryctx_history
+  // (added in Apps Script v7). Tiles whose industry has no history
+  // (e.g. early morning, payload missing) just show no sparkline —
+  // graceful degradation, tile look unchanged.
+  var hist = (STATE.data && STATE.data.industryctx_history) || {};
+  // Build case-insensitive lookup for robustness against name variation
+  var histLowerMap = {};
+  Object.keys(hist).forEach(function(k){
+    histLowerMap[String(k).trim().toUpperCase()] = hist[k];
+  });
+  sorted.forEach(function(r, i) {
+    var key = String(r.industry || '').trim().toUpperCase();
+    var series = histLowerMap[key] || [];
+    if (!series.length) return;
+    ibDrawSparkline('ib-spark-' + i, 'ib-spark-tip-' + i, series);
+  });
 }
 
 // ============================================================
