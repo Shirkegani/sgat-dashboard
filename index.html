@@ -4480,14 +4480,61 @@ function s3DrawCurveFromState() {
     return parseFloat(item.pnl) || 0;
   }
 
-  // ── Timestamps converted via module-level tsToIstHHMM helper.
-  // Backend ts is UTC; helper shifts to IST. See helper above for details.
+  // ── Curve-array UTC detection (FIX 2026-05-07) ────────────────
+  // Two formats exist in production:
+  //   (a) Live PositionLogger writes Date.toISOString().slice(0,16),
+  //       producing naive-UTC strings like "2026-05-07T04:20".
+  //   (b) Past-day snapshots have naive-IST strings like "2026-05-06T09:50".
+  // The previous helper used a per-row heuristic (hh<4 → UTC) that only
+  // catches the first ~15 min of UTC data; UTC hours 4-10 fell through
+  // and were treated as IST, mis-mapping today's curve to wrong X positions.
+  //
+  // Better approach: pre-scan the entire array. NSE trading hours in IST
+  // are 09:15–15:30. If ANY timestamp has hh < 9 or hh > 15, the array
+  // can't be naive-IST trading data — it must be UTC. Detect once, apply
+  // uniformly to all rows.
+  function extractHH(s) {
+    if (!s) return null;
+    s = String(s);
+    if (s.length === 5 && s.charAt(2) === ':') return parseInt(s.slice(0,2), 10);
+    if (s.length < 16) return null;
+    return parseInt(s.slice(11,13), 10);
+  }
+  function isCurveArrayUTC(arr) {
+    if (!arr || !arr.length) return false;
+    for (var i = 0; i < arr.length; i++) {
+      var hh = extractHH(arr[i].ts || arr[i].last_exit_ts);
+      if (hh === null) continue;
+      if (hh < 9 || hh > 15) return true;  // unambiguously UTC
+    }
+    return false;  // all hh in [9,15] → naive IST
+  }
+  var arrIsUTC = curveRaw.length >= 2
+    ? isCurveArrayUTC(curveRaw)
+    : isCurveArrayUTC(trades.map(function(t){return {ts:t.last_exit_ts};}));
+
+  function curveTsToHHMM(raw) {
+    var s = String(raw || '');
+    if (!s) return '';
+    if (s.length === 5 && s.charAt(2) === ':') return s;  // already HH:MM
+    if (s.length < 16) return '';
+    var hh = parseInt(s.slice(11,13), 10);
+    var mm = parseInt(s.slice(14,16), 10);
+    if (isNaN(hh) || isNaN(mm)) return '';
+    if (arrIsUTC) {
+      mm += 30;
+      if (mm >= 60) { mm -= 60; hh += 1; }
+      hh += 5;
+      if (hh >= 24) hh -= 24;
+    }
+    return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+  }
 
   if (curveRaw.length >= 2) {
     // Use dedicated curve data — one point per minute, from positions_curve endpoint
     curveRaw.forEach(function(item) {
       points.push(pickPnl(item));
-      timestamps.push(tsToIstHHMM(item.ts));
+      timestamps.push(curveTsToHHMM(item.ts));
     });
   } else {
     // Fallback: cumulative closed trades (used when curve data not yet loaded).
@@ -4503,7 +4550,7 @@ function s3DrawCurveFromState() {
     sorted.forEach(function(t){
       cum += parseFloat(t.pnl_inr)||0;
       points.push(cum);
-      timestamps.push(tsToIstHHMM(t.last_exit_ts));
+      timestamps.push(curveTsToHHMM(t.last_exit_ts));
     });
   }
 
@@ -4512,30 +4559,6 @@ function s3DrawCurveFromState() {
 
 
 function s3RenderCurve(points, timestamps) {
-  // ── DIAGNOSTIC (TEMP 2026-05-07) — surface the curve's input shape ──
-  try {
-    var samples = [];
-    if (timestamps && timestamps.length) {
-      samples.push({i: 0, ts: timestamps[0], pt: points[0]});
-      samples.push({i: 1, ts: timestamps[1], pt: points[1]});
-      var mid = Math.floor(timestamps.length / 2);
-      samples.push({i: mid, ts: timestamps[mid], pt: points[mid]});
-      samples.push({i: timestamps.length-2, ts: timestamps[timestamps.length-2], pt: points[timestamps.length-2]});
-      samples.push({i: timestamps.length-1, ts: timestamps[timestamps.length-1], pt: points[timestamps.length-1]});
-    }
-    console.log('[pnl curve DIAG] selectedDate='+STATE.selectedDate
-      + ' filter='+(STATE.filter||'all')
-      + ' npoints='+(points?points.length:0)
-      + ' samples='+JSON.stringify(samples));
-    if (STATE.curveData && STATE.curveData.length) {
-      // Show what the raw item looks like (first + last)
-      var firstRaw = STATE.curveData[0];
-      var lastRaw = STATE.curveData[STATE.curveData.length-1];
-      console.log('[pnl curve DIAG] curveData raw first='+JSON.stringify({ts:firstRaw.ts, pnl:firstRaw.pnl, lpnl:firstRaw.long_pnl, spnl:firstRaw.short_pnl}));
-      console.log('[pnl curve DIAG] curveData raw last='+JSON.stringify({ts:lastRaw.ts, pnl:lastRaw.pnl, lpnl:lastRaw.long_pnl, spnl:lastRaw.short_pnl}));
-    }
-  } catch(e){}
-
   var svg = document.getElementById('s3-pnl-svg'); svg.innerHTML = '';
   if (!points || points.length < 2) {
     svg.innerHTML = '<text x="300" y="55" fill="#3a5060" text-anchor="middle" font-size="11" font-family="JetBrains Mono">No curve data yet</text>';
