@@ -3257,6 +3257,31 @@ function s2IxRenderPanel(prefix, row) {
 // Main render — called from renderAll
 function s2IxRender() {
   var map = s2IxBuildMap();
+  // ── DIAGNOSTIC (TEMP 2026-05-07) — surface what indexctx contains
+  // so we can debug why some chips populate and others don't.
+  try {
+    var allSyms = Object.keys(map).sort();
+    var missing = [];
+    var noRank = [];
+    var ok = [];
+    S2_IX_PANELS.forEach(function(p){
+      var name = p[1].toUpperCase();
+      var row = map[name];
+      if (!row) { missing.push(p[1]); return; }
+      var rank = row.strength_rank;
+      var struct = row.structure || row.industry_structure;
+      if (rank == null || rank === '' || !isFinite(parseFloat(rank))) {
+        noRank.push({sym:p[1], hasStruct:!!struct, keys:Object.keys(row).filter(function(k){return /rank|struct|score/i.test(k);})});
+      } else {
+        ok.push(p[1] + ' #' + rank + (struct ? ' ' + struct : ''));
+      }
+    });
+    console.log('[indexctx DIAG] all syms in store:', allSyms);
+    console.log('[indexctx DIAG] panels missing from store:', missing);
+    console.log('[indexctx DIAG] panels with row but no rank:', noRank);
+    console.log('[indexctx DIAG] panels OK (rank+struct):', ok);
+  } catch(e){}
+
   S2_IX_PANELS.forEach(function(p){
     s2IxRenderPanel(p[0], map[p[1].toUpperCase()] || null);
   });
