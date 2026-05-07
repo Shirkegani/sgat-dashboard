@@ -244,6 +244,11 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .s2-curves{display:grid;grid-template-columns:1fr 1fr 1fr;}
 .s2-idx-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;border-top:1px solid var(--border);}
 .s2-idx-cp{padding:9px 10px;border-right:1px solid var(--border);min-width:0;}
+/* Group divider (NEW 2026-05-06) — faint left line marks where a new
+   tile group begins (broad / financials / health / tech / consumer / infra / energy). */
+.s2-idx-cp.s2-grp-start{
+  border-left:1px solid rgba(80,100,115,0.45);
+}
 .s2-idx-chart{height:100px !important;}
 .s2-idx-note{margin-top:4px;font-size:0.58rem;color:var(--dim);padding-left:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .s2-cp{padding:11px 13px;border-right:1px solid var(--border);}
@@ -1379,19 +1384,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
     </div>
   </div>
 
-  <!-- Row 2: Broad-market size indices + heaviest-weight sectors -->
+  <!-- Row 2 (group order 2026-05-06): broad + financials + first health -->
   <div class="s2-idx-row">
-    <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY MIDCAP 150</span><span class="s2-ix-chip" id="s2-ix-chip-mc150" onclick="s2IxOpenStocksPopup('mc150')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-mc150"></div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-mc150-ylbl"></div>
-        <svg id="s2-mc150-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-mc150-tip"></div>
-      </div>
-      <div class="s2-xaxis" id="s2-mc150-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-mc150-cap">—</div>
-    </div>
     <div class="s2-cp s2-idx-cp">
       <div class="s2-cp-title"><span class="s2-cp-name">NIFTY MIDSML 400</span><span class="s2-ix-chip" id="s2-ix-chip-ms400" onclick="s2IxOpenStocksPopup('ms400')"></span></div>
       <div class="s2-ix-tt" id="s2-ix-tt-ms400"></div>
@@ -1403,18 +1397,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-xaxis" id="s2-ms400-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-ms400-cap">—</div>
     </div>
-    <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY SMLCAP 250</span><span class="s2-ix-chip" id="s2-ix-chip-sc250" onclick="s2IxOpenStocksPopup('sc250')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-sc250"></div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-sc250-ylbl"></div>
-        <svg id="s2-sc250-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-sc250-tip"></div>
-      </div>
-      <div class="s2-xaxis" id="s2-sc250-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-sc250-cap">—</div>
-    </div>
-    <div class="s2-cp s2-idx-cp">
+    <div class="s2-cp s2-idx-cp s2-grp-start">
       <div class="s2-cp-title"><span class="s2-cp-name">NIFTY BANK</span><span class="s2-ix-chip" id="s2-ix-chip-bank" onclick="s2IxOpenStocksPopup('bank')"></span></div>
       <div class="s2-ix-tt" id="s2-ix-tt-bank"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
@@ -1425,44 +1408,29 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-xaxis" id="s2-bank-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-bank-cap">—</div>
     </div>
-    <div class="s2-cp s2-idx-cp" style="border-right:none;">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY IT</span><span class="s2-ix-chip" id="s2-ix-chip-it" onclick="s2IxOpenStocksPopup('it')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-it"></div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-it-ylbl"></div>
-        <svg id="s2-it-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-it-tip"></div>
-      </div>
-      <div class="s2-xaxis" id="s2-it-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-it-cap">—</div>
-    </div>
-  </div>
-
-  <!-- Row 3: Remaining sector indices -->
-  <div class="s2-idx-row">
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY AUTO</span><span class="s2-ix-chip" id="s2-ix-chip-auto" onclick="s2IxOpenStocksPopup('auto')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-auto"></div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY PSU BANK</span><span class="s2-ix-chip" id="s2-ix-chip-psubank" onclick="s2IxOpenStocksPopup('psubank')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-psubank"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-auto-ylbl"></div>
-        <svg id="s2-auto-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-auto-tip"></div>
+        <div class="s2-ylbl-wrap" id="s2-psubank-ylbl"></div>
+        <svg id="s2-psubank-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-psubank-tip"></div>
       </div>
-      <div class="s2-xaxis" id="s2-auto-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-auto-cap">—</div>
+      <div class="s2-xaxis" id="s2-psubank-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-psubank-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY FMCG</span><span class="s2-ix-chip" id="s2-ix-chip-fmcg" onclick="s2IxOpenStocksPopup('fmcg')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-fmcg"></div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY FIN SERVICE</span><span class="s2-ix-chip" id="s2-ix-chip-finsvc" onclick="s2IxOpenStocksPopup('finsvc')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-finsvc"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-fmcg-ylbl"></div>
-        <svg id="s2-fmcg-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-fmcg-tip"></div>
+        <div class="s2-ylbl-wrap" id="s2-finsvc-ylbl"></div>
+        <svg id="s2-finsvc-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-finsvc-tip"></div>
       </div>
-      <div class="s2-xaxis" id="s2-fmcg-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-fmcg-cap">—</div>
+      <div class="s2-xaxis" id="s2-finsvc-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-finsvc-cap">—</div>
     </div>
-    <div class="s2-cp s2-idx-cp">
+    <div class="s2-cp s2-idx-cp s2-grp-start">
       <div class="s2-cp-title"><span class="s2-cp-name">NIFTY PHARMA</span><span class="s2-ix-chip" id="s2-ix-chip-pharma" onclick="s2IxOpenStocksPopup('pharma')"></span></div>
       <div class="s2-ix-tt" id="s2-ix-tt-pharma"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
@@ -1473,31 +1441,66 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-xaxis" id="s2-pharma-xaxis" style="padding-left:14px;"></div>
       <div class="s2-note s2-idx-note" id="s2-pharma-cap">—</div>
     </div>
+  </div>
+  <!-- Row 3: rest of health + tech & services + start of consumer -->
+  <div class="s2-idx-row">
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY INFRA</span><span class="s2-ix-chip" id="s2-ix-chip-infra" onclick="s2IxOpenStocksPopup('infra')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-infra"></div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY HEALTHCARE</span><span class="s2-ix-chip" id="s2-ix-chip-health" onclick="s2IxOpenStocksPopup('health')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-health"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-infra-ylbl"></div>
-        <svg id="s2-infra-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-infra-tip"></div>
+        <div class="s2-ylbl-wrap" id="s2-health-ylbl"></div>
+        <svg id="s2-health-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-health-tip"></div>
       </div>
-      <div class="s2-xaxis" id="s2-infra-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-infra-cap">—</div>
+      <div class="s2-xaxis" id="s2-health-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-health-cap">—</div>
     </div>
-    <div class="s2-cp s2-idx-cp" style="border-right:none;">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY REALTY</span><span class="s2-ix-chip" id="s2-ix-chip-realty" onclick="s2IxOpenStocksPopup('realty')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-realty"></div>
+    <div class="s2-cp s2-idx-cp s2-grp-start">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY IT</span><span class="s2-ix-chip" id="s2-ix-chip-it" onclick="s2IxOpenStocksPopup('it')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-it"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-realty-ylbl"></div>
-        <svg id="s2-realty-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-realty-tip"></div>
+        <div class="s2-ylbl-wrap" id="s2-it-ylbl"></div>
+        <svg id="s2-it-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-it-tip"></div>
       </div>
-      <div class="s2-xaxis" id="s2-realty-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-realty-cap">—</div>
+      <div class="s2-xaxis" id="s2-it-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-it-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY MEDIA</span><span class="s2-ix-chip" id="s2-ix-chip-media" onclick="s2IxOpenStocksPopup('media')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-media"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-media-ylbl"></div>
+        <svg id="s2-media-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-media-tip"></div>
+      </div>
+      <div class="s2-xaxis" id="s2-media-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-media-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY SERV SECTOR</span><span class="s2-ix-chip" id="s2-ix-chip-servsec" onclick="s2IxOpenStocksPopup('servsec')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-servsec"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-servsec-ylbl"></div>
+        <svg id="s2-servsec-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-servsec-tip"></div>
+      </div>
+      <div class="s2-xaxis" id="s2-servsec-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-servsec-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp s2-grp-start">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY FMCG</span><span class="s2-ix-chip" id="s2-ix-chip-fmcg" onclick="s2IxOpenStocksPopup('fmcg')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-fmcg"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-fmcg-ylbl"></div>
+        <svg id="s2-fmcg-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-fmcg-tip"></div>
+      </div>
+      <div class="s2-xaxis" id="s2-fmcg-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-fmcg-cap">—</div>
     </div>
   </div>
-
-  <!-- Row 4: Remaining sector indices (added 2026-04-25) -->
+  <!-- Row 4: rest of consumer + infrastructure & property -->
   <div class="s2-idx-row">
     <div class="s2-cp s2-idx-cp">
       <div class="s2-cp-title"><span class="s2-cp-name">NIFTY CONSR DURBL</span><span class="s2-ix-chip" id="s2-ix-chip-consdur" onclick="s2IxOpenStocksPopup('consdur')"></span></div>
@@ -1511,15 +1514,73 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-consdur-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY HEALTHCARE</span><span class="s2-ix-chip" id="s2-ix-chip-health" onclick="s2IxOpenStocksPopup('health')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-health"></div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY CONSUMPTION</span><span class="s2-ix-chip" id="s2-ix-chip-cons" onclick="s2IxOpenStocksPopup('cons')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-cons"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-health-ylbl"></div>
-        <svg id="s2-health-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-health-tip"></div>
+        <div class="s2-ylbl-wrap" id="s2-cons-ylbl"></div>
+        <svg id="s2-cons-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-cons-tip"></div>
       </div>
-      <div class="s2-xaxis" id="s2-health-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-health-cap">—</div>
+      <div class="s2-xaxis" id="s2-cons-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-cons-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY AUTO</span><span class="s2-ix-chip" id="s2-ix-chip-auto" onclick="s2IxOpenStocksPopup('auto')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-auto"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-auto-ylbl"></div>
+        <svg id="s2-auto-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-auto-tip"></div>
+      </div>
+      <div class="s2-xaxis" id="s2-auto-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-auto-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp s2-grp-start">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY INFRA</span><span class="s2-ix-chip" id="s2-ix-chip-infra" onclick="s2IxOpenStocksPopup('infra')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-infra"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-infra-ylbl"></div>
+        <svg id="s2-infra-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-infra-tip"></div>
+      </div>
+      <div class="s2-xaxis" id="s2-infra-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-infra-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY REALTY</span><span class="s2-ix-chip" id="s2-ix-chip-realty" onclick="s2IxOpenStocksPopup('realty')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-realty"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-realty-ylbl"></div>
+        <svg id="s2-realty-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-realty-tip"></div>
+      </div>
+      <div class="s2-xaxis" id="s2-realty-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-realty-cap">—</div>
+    </div>
+  </div>
+  <!-- Row 5: energy & materials (incl. NIFTY COMMODITIES + CHEMICALS, swapped in 2026-05-06) -->
+  <div class="s2-idx-row">
+    <div class="s2-cp s2-idx-cp s2-grp-start">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY ENERGY</span><span class="s2-ix-chip" id="s2-ix-chip-energy" onclick="s2IxOpenStocksPopup('energy')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-energy"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-energy-ylbl"></div>
+        <svg id="s2-energy-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-energy-tip"></div>
+      </div>
+      <div class="s2-xaxis" id="s2-energy-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-energy-cap">—</div>
+    </div>
+    <div class="s2-cp s2-idx-cp">
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY OIL AND GAS</span><span class="s2-ix-chip" id="s2-ix-chip-oilgas" onclick="s2IxOpenStocksPopup('oilgas')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-oilgas"></div>
+      <div class="s2-chart s2-idx-chart" style="position:relative;">
+        <div class="s2-ylbl-wrap" id="s2-oilgas-ylbl"></div>
+        <svg id="s2-oilgas-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-oilgas-tip"></div>
+      </div>
+      <div class="s2-xaxis" id="s2-oilgas-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-oilgas-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
       <div class="s2-cp-title"><span class="s2-cp-name">NIFTY METAL</span><span class="s2-ix-chip" id="s2-ix-chip-metal" onclick="s2IxOpenStocksPopup('metal')"></span></div>
@@ -1533,85 +1594,26 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
       <div class="s2-note s2-idx-note" id="s2-metal-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY OIL AND GAS</span><span class="s2-ix-chip" id="s2-ix-chip-oilgas" onclick="s2IxOpenStocksPopup('oilgas')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-oilgas"></div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY COMMODITIES</span><span class="s2-ix-chip" id="s2-ix-chip-commod" onclick="s2IxOpenStocksPopup('commod')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-commod"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-oilgas-ylbl"></div>
-        <svg id="s2-oilgas-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-oilgas-tip"></div>
+        <div class="s2-ylbl-wrap" id="s2-commod-ylbl"></div>
+        <svg id="s2-commod-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-commod-tip"></div>
       </div>
-      <div class="s2-xaxis" id="s2-oilgas-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-oilgas-cap">—</div>
-    </div>
-    <div class="s2-cp s2-idx-cp" style="border-right:none;">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY PSU BANK</span><span class="s2-ix-chip" id="s2-ix-chip-psubank" onclick="s2IxOpenStocksPopup('psubank')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-psubank"></div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-psubank-ylbl"></div>
-        <svg id="s2-psubank-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-psubank-tip"></div>
-      </div>
-      <div class="s2-xaxis" id="s2-psubank-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-psubank-cap">—</div>
-    </div>
-  </div>
-
-  <!-- Row 5 — added 2026-04-27: NIFTY CONSUMPTION, ENERGY, FIN SERVICE, MEDIA, SERV SECTOR -->
-  <div class="s2-idx-row">
-    <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY CONSUMPTION</span><span class="s2-ix-chip" id="s2-ix-chip-cons" onclick="s2IxOpenStocksPopup('cons')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-cons"></div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-cons-ylbl"></div>
-        <svg id="s2-cons-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-cons-tip"></div>
-      </div>
-      <div class="s2-xaxis" id="s2-cons-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-cons-cap">—</div>
+      <div class="s2-xaxis" id="s2-commod-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-commod-cap">—</div>
     </div>
     <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY ENERGY</span><span class="s2-ix-chip" id="s2-ix-chip-energy" onclick="s2IxOpenStocksPopup('energy')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-energy"></div>
+      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY CHEMICALS</span><span class="s2-ix-chip" id="s2-ix-chip-chem" onclick="s2IxOpenStocksPopup('chem')"></span></div>
+      <div class="s2-ix-tt" id="s2-ix-tt-chem"></div>
       <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-energy-ylbl"></div>
-        <svg id="s2-energy-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-energy-tip"></div>
+        <div class="s2-ylbl-wrap" id="s2-chem-ylbl"></div>
+        <svg id="s2-chem-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
+        <div class="chart-tooltip" id="s2-chem-tip"></div>
       </div>
-      <div class="s2-xaxis" id="s2-energy-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-energy-cap">—</div>
-    </div>
-    <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY FIN SERVICE</span><span class="s2-ix-chip" id="s2-ix-chip-finsvc" onclick="s2IxOpenStocksPopup('finsvc')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-finsvc"></div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-finsvc-ylbl"></div>
-        <svg id="s2-finsvc-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-finsvc-tip"></div>
-      </div>
-      <div class="s2-xaxis" id="s2-finsvc-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-finsvc-cap">—</div>
-    </div>
-    <div class="s2-cp s2-idx-cp">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY MEDIA</span><span class="s2-ix-chip" id="s2-ix-chip-media" onclick="s2IxOpenStocksPopup('media')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-media"></div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-media-ylbl"></div>
-        <svg id="s2-media-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-media-tip"></div>
-      </div>
-      <div class="s2-xaxis" id="s2-media-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-media-cap">—</div>
-    </div>
-    <div class="s2-cp s2-idx-cp" style="border-right:none;">
-      <div class="s2-cp-title"><span class="s2-cp-name">NIFTY SERV SECTOR</span><span class="s2-ix-chip" id="s2-ix-chip-servsec" onclick="s2IxOpenStocksPopup('servsec')"></span></div>
-      <div class="s2-ix-tt" id="s2-ix-tt-servsec"></div>
-      <div class="s2-chart s2-idx-chart" style="position:relative;">
-        <div class="s2-ylbl-wrap" id="s2-servsec-ylbl"></div>
-        <svg id="s2-servsec-svg" viewBox="0 0 260 130" preserveAspectRatio="none" style="padding-left:14px;"></svg>
-        <div class="chart-tooltip" id="s2-servsec-tip"></div>
-      </div>
-      <div class="s2-xaxis" id="s2-servsec-xaxis" style="padding-left:14px;"></div>
-      <div class="s2-note s2-idx-note" id="s2-servsec-cap">—</div>
+      <div class="s2-xaxis" id="s2-chem-xaxis" style="padding-left:14px;"></div>
+      <div class="s2-note s2-idx-note" id="s2-chem-cap">—</div>
     </div>
   </div>
 </div>
@@ -3079,28 +3081,36 @@ function s1UpdateClock() {
 
 // Sector-panel prefix → IndexContext symbol name
 // (NIFTY 50 panel is excluded — has its own multi-row data display)
+// Reordered 2026-05-06 to match the grouped tile layout:
+//   broad → financials → health → tech & services → consumer → infra → energy & materials
 var S2_IX_PANELS = [
-  ['mc150',   'NIFTY MIDCAP 150'],
+  // Broad market
   ['ms400',   'NIFTY MIDSML 400'],
-  ['sc250',   'NIFTY SMLCAP 250'],
+  // Financials
   ['bank',    'NIFTY BANK'],
-  ['it',      'NIFTY IT'],
-  ['auto',    'NIFTY AUTO'],
-  ['fmcg',    'NIFTY FMCG'],
+  ['psubank', 'NIFTY PSU BANK'],
+  ['finsvc',  'NIFTY FIN SERVICE'],
+  // Health
   ['pharma',  'NIFTY PHARMA'],
+  ['health',  'NIFTY HEALTHCARE'],
+  // Tech & services
+  ['it',      'NIFTY IT'],
+  ['media',   'NIFTY MEDIA'],
+  ['servsec', 'NIFTY SERV SECTOR'],
+  // Consumer
+  ['fmcg',    'NIFTY FMCG'],
+  ['consdur', 'NIFTY CONSR DURBL'],
+  ['cons',    'NIFTY CONSUMPTION'],
+  ['auto',    'NIFTY AUTO'],
+  // Infrastructure & property
   ['infra',   'NIFTY INFRA'],
   ['realty',  'NIFTY REALTY'],
-  ['consdur', 'NIFTY CONSR DURBL'],
-  ['health',  'NIFTY HEALTHCARE'],
-  ['metal',   'NIFTY METAL'],
-  ['oilgas',  'NIFTY OIL AND GAS'],
-  ['psubank', 'NIFTY PSU BANK'],
-  // Row 5 — added 2026-04-27
-  ['cons',    'NIFTY CONSUMPTION'],
+  // Energy & materials
   ['energy',  'NIFTY ENERGY'],
-  ['finsvc',  'NIFTY FIN SERVICE'],
-  ['media',   'NIFTY MEDIA'],
-  ['servsec', 'NIFTY SERV SECTOR']
+  ['oilgas',  'NIFTY OIL AND GAS'],
+  ['metal',   'NIFTY METAL'],
+  ['commod',  'NIFTY COMMODITIES'],   // NEW (replaced MIDCAP 150)
+  ['chem',    'NIFTY CHEMICALS']      // NEW (replaced SMLCAP 250)
 ];
 
 // Map structure → arrow glyph + color class
@@ -3417,33 +3427,37 @@ function s2Render() {
     var nfSvg = document.getElementById('s2-nf-svg'); if (nfSvg) nfSvg.innerHTML = '';
   }
 
-  // Chart row 2 + row 3: all 10 mid/small cap + sector indices
   // Each rendered as % from open with median-style adaptive scale + hover
+  // Reordered 2026-05-06 to match grouped tile layout
   var idxMap = [
-    // Row 2 — broad-market size indices + heaviest-weight sectors
-    { sym:'NIFTY MIDCAP 150', svg:'s2-mc150-svg',  ylbl:'s2-mc150-ylbl',  tip:'s2-mc150-tip',  cap:'s2-mc150-cap'  },
+    // Broad market
     { sym:'NIFTY MIDSML 400', svg:'s2-ms400-svg',  ylbl:'s2-ms400-ylbl',  tip:'s2-ms400-tip',  cap:'s2-ms400-cap'  },
-    { sym:'NIFTY SMLCAP 250', svg:'s2-sc250-svg',  ylbl:'s2-sc250-ylbl',  tip:'s2-sc250-tip',  cap:'s2-sc250-cap'  },
-    { sym:'NIFTY BANK',       svg:'s2-bank-svg',   ylbl:'s2-bank-ylbl',   tip:'s2-bank-tip',   cap:'s2-bank-cap'   },
-    { sym:'NIFTY IT',         svg:'s2-it-svg',     ylbl:'s2-it-ylbl',     tip:'s2-it-tip',     cap:'s2-it-cap'     },
-    // Row 3 — remaining sector indices
-    { sym:'NIFTY AUTO',       svg:'s2-auto-svg',   ylbl:'s2-auto-ylbl',   tip:'s2-auto-tip',   cap:'s2-auto-cap'   },
-    { sym:'NIFTY FMCG',       svg:'s2-fmcg-svg',   ylbl:'s2-fmcg-ylbl',   tip:'s2-fmcg-tip',   cap:'s2-fmcg-cap'   },
-    { sym:'NIFTY PHARMA',     svg:'s2-pharma-svg', ylbl:'s2-pharma-ylbl', tip:'s2-pharma-tip', cap:'s2-pharma-cap' },
-    { sym:'NIFTY INFRA',      svg:'s2-infra-svg',  ylbl:'s2-infra-ylbl',  tip:'s2-infra-tip',  cap:'s2-infra-cap'  },
-    { sym:'NIFTY REALTY',     svg:'s2-realty-svg', ylbl:'s2-realty-ylbl', tip:'s2-realty-tip', cap:'s2-realty-cap' },
-    // Row 4 — remaining sector indices (added 2026-04-25)
-    { sym:'NIFTY CONSR DURBL', svg:'s2-consdur-svg',ylbl:'s2-consdur-ylbl',tip:'s2-consdur-tip', cap:'s2-consdur-cap' },
-    { sym:'NIFTY HEALTHCARE',  svg:'s2-health-svg', ylbl:'s2-health-ylbl', tip:'s2-health-tip',  cap:'s2-health-cap'  },
-    { sym:'NIFTY METAL',       svg:'s2-metal-svg',  ylbl:'s2-metal-ylbl',  tip:'s2-metal-tip',   cap:'s2-metal-cap'   },
-    { sym:'NIFTY OIL AND GAS', svg:'s2-oilgas-svg', ylbl:'s2-oilgas-ylbl', tip:'s2-oilgas-tip',  cap:'s2-oilgas-cap'  },
-    { sym:'NIFTY PSU BANK',    svg:'s2-psubank-svg',ylbl:'s2-psubank-ylbl',tip:'s2-psubank-tip', cap:'s2-psubank-cap' },
-    // Row 5 — added 2026-04-27
-    { sym:'NIFTY CONSUMPTION', svg:'s2-cons-svg',   ylbl:'s2-cons-ylbl',   tip:'s2-cons-tip',    cap:'s2-cons-cap'    },
-    { sym:'NIFTY ENERGY',      svg:'s2-energy-svg', ylbl:'s2-energy-ylbl', tip:'s2-energy-tip',  cap:'s2-energy-cap'  },
-    { sym:'NIFTY FIN SERVICE', svg:'s2-finsvc-svg', ylbl:'s2-finsvc-ylbl', tip:'s2-finsvc-tip',  cap:'s2-finsvc-cap'  },
-    { sym:'NIFTY MEDIA',       svg:'s2-media-svg',  ylbl:'s2-media-ylbl',  tip:'s2-media-tip',   cap:'s2-media-cap'   },
-    { sym:'NIFTY SERV SECTOR', svg:'s2-servsec-svg',ylbl:'s2-servsec-ylbl',tip:'s2-servsec-tip', cap:'s2-servsec-cap' },
+    // Financials
+    { sym:'NIFTY BANK',       svg:'s2-bank-svg',    ylbl:'s2-bank-ylbl',    tip:'s2-bank-tip',    cap:'s2-bank-cap'    },
+    { sym:'NIFTY PSU BANK',   svg:'s2-psubank-svg', ylbl:'s2-psubank-ylbl', tip:'s2-psubank-tip', cap:'s2-psubank-cap' },
+    { sym:'NIFTY FIN SERVICE',svg:'s2-finsvc-svg',  ylbl:'s2-finsvc-ylbl',  tip:'s2-finsvc-tip',  cap:'s2-finsvc-cap'  },
+    // Health
+    { sym:'NIFTY PHARMA',     svg:'s2-pharma-svg',  ylbl:'s2-pharma-ylbl',  tip:'s2-pharma-tip',  cap:'s2-pharma-cap'  },
+    { sym:'NIFTY HEALTHCARE', svg:'s2-health-svg',  ylbl:'s2-health-ylbl',  tip:'s2-health-tip',  cap:'s2-health-cap'  },
+    // Tech & services
+    { sym:'NIFTY IT',         svg:'s2-it-svg',      ylbl:'s2-it-ylbl',      tip:'s2-it-tip',      cap:'s2-it-cap'      },
+    { sym:'NIFTY MEDIA',      svg:'s2-media-svg',   ylbl:'s2-media-ylbl',   tip:'s2-media-tip',   cap:'s2-media-cap'   },
+    { sym:'NIFTY SERV SECTOR',svg:'s2-servsec-svg', ylbl:'s2-servsec-ylbl', tip:'s2-servsec-tip', cap:'s2-servsec-cap' },
+    // Consumer
+    { sym:'NIFTY FMCG',       svg:'s2-fmcg-svg',    ylbl:'s2-fmcg-ylbl',    tip:'s2-fmcg-tip',    cap:'s2-fmcg-cap'    },
+    { sym:'NIFTY CONSR DURBL',svg:'s2-consdur-svg', ylbl:'s2-consdur-ylbl', tip:'s2-consdur-tip', cap:'s2-consdur-cap' },
+    { sym:'NIFTY CONSUMPTION',svg:'s2-cons-svg',    ylbl:'s2-cons-ylbl',    tip:'s2-cons-tip',    cap:'s2-cons-cap'    },
+    { sym:'NIFTY AUTO',       svg:'s2-auto-svg',    ylbl:'s2-auto-ylbl',    tip:'s2-auto-tip',    cap:'s2-auto-cap'    },
+    // Infrastructure & property
+    { sym:'NIFTY INFRA',      svg:'s2-infra-svg',   ylbl:'s2-infra-ylbl',   tip:'s2-infra-tip',   cap:'s2-infra-cap'   },
+    { sym:'NIFTY REALTY',     svg:'s2-realty-svg',  ylbl:'s2-realty-ylbl',  tip:'s2-realty-tip',  cap:'s2-realty-cap'  },
+    // Energy & materials
+    { sym:'NIFTY ENERGY',     svg:'s2-energy-svg',  ylbl:'s2-energy-ylbl',  tip:'s2-energy-tip',  cap:'s2-energy-cap'  },
+    { sym:'NIFTY OIL AND GAS',svg:'s2-oilgas-svg',  ylbl:'s2-oilgas-ylbl',  tip:'s2-oilgas-tip',  cap:'s2-oilgas-cap'  },
+    { sym:'NIFTY METAL',      svg:'s2-metal-svg',   ylbl:'s2-metal-ylbl',   tip:'s2-metal-tip',   cap:'s2-metal-cap'   },
+    // NEW (2026-05-06) — replaced NIFTY MIDCAP 150 + NIFTY SMLCAP 250
+    { sym:'NIFTY COMMODITIES',svg:'s2-commod-svg',  ylbl:'s2-commod-ylbl',  tip:'s2-commod-tip',  cap:'s2-commod-cap'  },
+    { sym:'NIFTY CHEMICALS',  svg:'s2-chem-svg',    ylbl:'s2-chem-ylbl',    tip:'s2-chem-tip',    cap:'s2-chem-cap'    }
   ];
   idxMap.forEach(function(cfg) {
     var rows = idxByName[cfg.sym] || [];
@@ -5334,7 +5348,12 @@ async function s4OpenDrill(r) {
       'CONSTRUCTION':                       'NIFTY INFRA',
       'CONSTRUCTION MATERIALS':             'NIFTY INFRA',
       'CEMENT AND CEMENT PRODUCTS':         'NIFTY INFRA',
-      'INFRASTRUCTURE':                     'NIFTY INFRA'
+      'INFRASTRUCTURE':                     'NIFTY INFRA',
+      // Chemicals (added 2026-05-06)
+      'CHEMICALS':                          'NIFTY CHEMICALS',
+      'CHEMICALS AND PETROCHEMICALS':       'NIFTY CHEMICALS',
+      'CHEMICALS & PETROCHEMICALS':         'NIFTY CHEMICALS',
+      'FERTILIZERS':                        'NIFTY CHEMICALS'
     };
     var FALLBACK_INDEX = 'NIFTY MIDSML 400';
 
@@ -7235,34 +7254,38 @@ function s2AddHovers(prof, niftyData) {
     })();
   }
 
-  // ── Row-2 + Row-3 indices — all 10 mid/small cap + sector charts ──
-  // Each gets the same hover treatment: HH:MM + % from open + Δ vs open.
+  // ── All 20 sector + broad charts — same hover treatment ──
+  // Reordered 2026-05-06 to match grouped tile layout.
   // The s2DrawIndexLine function stashed the pre-computed %series on svg.__pctSeries.
   var idxHoverMap = [
-    // Row 2
-    { svg:'s2-mc150-svg',  tip:'s2-mc150-tip',  label:'MIDCAP 150' },
+    // Broad market
     { svg:'s2-ms400-svg',  tip:'s2-ms400-tip',  label:'MIDSML 400' },
-    { svg:'s2-sc250-svg',  tip:'s2-sc250-tip',  label:'SMLCAP 250' },
-    { svg:'s2-bank-svg',   tip:'s2-bank-tip',   label:'BANK'       },
-    { svg:'s2-it-svg',     tip:'s2-it-tip',     label:'IT'         },
-    // Row 3
-    { svg:'s2-auto-svg',   tip:'s2-auto-tip',   label:'AUTO'       },
-    { svg:'s2-fmcg-svg',   tip:'s2-fmcg-tip',   label:'FMCG'       },
-    { svg:'s2-pharma-svg', tip:'s2-pharma-tip', label:'PHARMA'     },
-    { svg:'s2-infra-svg',  tip:'s2-infra-tip',  label:'INFRA'      },
-    { svg:'s2-realty-svg', tip:'s2-realty-tip', label:'REALTY'     },
-    // Row 4 — added 2026-04-25
-    { svg:'s2-consdur-svg',tip:'s2-consdur-tip',label:'CONSR DURBL'},
-    { svg:'s2-health-svg', tip:'s2-health-tip', label:'HEALTHCARE' },
-    { svg:'s2-metal-svg',  tip:'s2-metal-tip',  label:'METAL'      },
-    { svg:'s2-oilgas-svg', tip:'s2-oilgas-tip', label:'OIL & GAS'  },
-    { svg:'s2-psubank-svg',tip:'s2-psubank-tip',label:'PSU BANK'   },
-    // Row 5 — added 2026-04-27
-    { svg:'s2-cons-svg',   tip:'s2-cons-tip',   label:'CONSUMPTION'},
-    { svg:'s2-energy-svg', tip:'s2-energy-tip', label:'ENERGY'     },
-    { svg:'s2-finsvc-svg', tip:'s2-finsvc-tip', label:'FIN SERVICE'},
-    { svg:'s2-media-svg',  tip:'s2-media-tip',  label:'MEDIA'      },
-    { svg:'s2-servsec-svg',tip:'s2-servsec-tip',label:'SERV SECTOR'},
+    // Financials
+    { svg:'s2-bank-svg',    tip:'s2-bank-tip',    label:'BANK'       },
+    { svg:'s2-psubank-svg', tip:'s2-psubank-tip', label:'PSU BANK'   },
+    { svg:'s2-finsvc-svg',  tip:'s2-finsvc-tip',  label:'FIN SERVICE'},
+    // Health
+    { svg:'s2-pharma-svg',  tip:'s2-pharma-tip',  label:'PHARMA'     },
+    { svg:'s2-health-svg',  tip:'s2-health-tip',  label:'HEALTHCARE' },
+    // Tech & services
+    { svg:'s2-it-svg',      tip:'s2-it-tip',      label:'IT'         },
+    { svg:'s2-media-svg',   tip:'s2-media-tip',   label:'MEDIA'      },
+    { svg:'s2-servsec-svg', tip:'s2-servsec-tip', label:'SERV SECTOR'},
+    // Consumer
+    { svg:'s2-fmcg-svg',    tip:'s2-fmcg-tip',    label:'FMCG'       },
+    { svg:'s2-consdur-svg', tip:'s2-consdur-tip', label:'CONSR DURBL'},
+    { svg:'s2-cons-svg',    tip:'s2-cons-tip',    label:'CONSUMPTION'},
+    { svg:'s2-auto-svg',    tip:'s2-auto-tip',    label:'AUTO'       },
+    // Infrastructure & property
+    { svg:'s2-infra-svg',   tip:'s2-infra-tip',   label:'INFRA'      },
+    { svg:'s2-realty-svg',  tip:'s2-realty-tip',  label:'REALTY'     },
+    // Energy & materials
+    { svg:'s2-energy-svg',  tip:'s2-energy-tip',  label:'ENERGY'     },
+    { svg:'s2-oilgas-svg',  tip:'s2-oilgas-tip',  label:'OIL & GAS'  },
+    { svg:'s2-metal-svg',   tip:'s2-metal-tip',   label:'METAL'      },
+    // NEW (2026-05-06) — replaced MIDCAP 150 + SMLCAP 250
+    { svg:'s2-commod-svg',  tip:'s2-commod-tip',  label:'COMMODITIES'},
+    { svg:'s2-chem-svg',    tip:'s2-chem-tip',    label:'CHEMICALS'  }
   ];
   idxHoverMap.forEach(function(cfg) {
     var svgEl = document.getElementById(cfg.svg);
