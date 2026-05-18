@@ -2225,10 +2225,50 @@ function saveConfig() {
 // ============================================================
 // FETCH
 // ============================================================
-async function fetchAll() {
-  var date = STATE.selectedDate === 'today' ? '' : '&date=' + STATE.selectedDate;
+// ── Offline mode detection (NEW 2026-05-07) ──────────────────────
+// When the page URL has ?offline=YYYY-MM-DD, fetch from local
+// data/YYYY-MM-DD.json instead of the live Apps Script. Useful for
+// developing the dashboard without a network connection or for
+// regression-testing render changes against captured days.
+//
+// Implementation: just rewrite the URL inside fetchAll(). The
+// captured JSON file is structurally identical to the live response.
+function _sgatOfflineDate() {
   try {
-    var res = await fetch(CFG.scriptUrl + '?token=' + encodeURIComponent(CFG.token) + '&tab=dashboard' + date);
+    var p = new URLSearchParams(window.location.search);
+    var v = (p.get('offline') || '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+  } catch(e) { return null; }
+}
+// Show a banner when offline mode is active so it's never mistaken for live.
+(function showOfflineBanner() {
+  var d = _sgatOfflineDate();
+  if (!d) return;
+  document.addEventListener('DOMContentLoaded', function() {
+    var b = document.createElement('div');
+    b.textContent = 'OFFLINE MODE · ' + d + ' · data from data/' + d + '.json';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;'
+      + 'background:#1a3a3a;color:#9ad9d9;padding:4px 12px;'
+      + 'font-family:JetBrains Mono,monospace;font-size:0.62rem;'
+      + 'letter-spacing:0.1em;text-align:center;border-bottom:1px solid #2a5a5a;';
+    document.body.appendChild(b);
+    // Nudge the page down by the banner height so it doesn't cover the header
+    document.body.style.paddingTop = '24px';
+  });
+})();
+
+async function fetchAll() {
+  var offlineDate = _sgatOfflineDate();
+  var url;
+  if (offlineDate) {
+    // Resolve relative to the current page (works for file:// and http://)
+    url = 'data/' + offlineDate + '.json';
+  } else {
+    var date = STATE.selectedDate === 'today' ? '' : '&date=' + STATE.selectedDate;
+    url = CFG.scriptUrl + '?token=' + encodeURIComponent(CFG.token) + '&tab=dashboard' + date;
+  }
+  try {
+    var res = await fetch(url);
     var json = await res.json();
     if (json.error) throw new Error(json.error);
     STATE.data = json.data;
@@ -2237,7 +2277,8 @@ async function fetchAll() {
       STATE.curveData = json.data.curve;
     }
     renderAll();
-    showToast('✓ Refreshed · ' + (json.date || ''));
+    showToast(offlineDate ? ('✓ Loaded offline · ' + offlineDate)
+                          : ('✓ Refreshed · ' + (json.date || '')));
   } catch(e) {
     showToast('⚠ ' + e.message, true);
   }
